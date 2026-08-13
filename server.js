@@ -168,39 +168,30 @@ const webAppUrl=process.env.WEBAPP_URL;
 if(token && webAppUrl){
   const bot=new TelegramBot(token,{polling:true});
 
-  bot.onText(/\/start/,async msg=>{
-    await bot.sendMessage(
-      msg.chat.id,
-      "⚡️ Kage Supps\\n\\nWelcome. Choose an option below:",
-      {
-        reply_markup:{
-          inline_keyboard:[
-            [{text:"🛍 Open Shop",web_app:{url:webAppUrl}}],
-            [
-              {text:"📦 My Orders",callback_data:"orders"},
-              {text:"💬 Support",callback_data:"support"}
-            ],
-            [{text:"ℹ️ Info",callback_data:"info"}]
-          ]
-        }
+  bot.onText(/\/start/, async msg => {
+  await bot.sendMessage(
+    msg.chat.id,
+    `⚡️ Welcome to Kage Supps
+
+Your shop, orders and support are all in one place.
+
+🛍 Open Shop — browse the store
+📦 My Orders — view your order history
+💬 Support — get help
+ℹ️ Info — important information
+
+Choose an option below 👇`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🛍 Open Shop", web_app: { url: webAppUrl } }],
+          [
+            { text: "📦 My Orders", callback_data: "orders" },
+            { text: "💬 Support", callback_data: "support" }
+          ],
+          [{ text: "ℹ️ Info", callback_data: "info" }]
+        ]
       }
-    );
-  });
-
-  bot.on("callback_query",async q=>{
-    const chatId=q.message?.chat?.id;
-    if(!chatId) return;
-
-    await bot.answerCallbackQuery(q.id);
-
-    if(q.data==="orders"){
-      await bot.sendMessage(chatId,"📦 My Orders\\n\\nThis section can be connected later.");
     }
-    if(q.data==="support"){
-      await bot.sendMessage(chatId,"💬 Support\\n\\nAdd your support details here.");
-    }
-    if(q.data==="info"){
-      await bot.sendMessage(chatId,"ℹ️ Kage Supps\\n\\nTap 🛍 Open Shop to launch the Mini App.");
-    }
-  });
-}
+  );
+});
