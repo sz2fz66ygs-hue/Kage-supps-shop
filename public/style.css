@@ -1,0 +1,124 @@
+:root{
+  --gold:#c8a646;
+  --gold-dark:#9c7d23;
+  --gold-soft:#f7f0dc;
+  --white:#ffffff;
+  --off:#fbfaf7;
+  --text:#111111;
+  --muted:#77736b;
+  --border:#e9e4d7;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:var(--off);
+  color:var(--text);
+}
+.topbar{
+  position:sticky;
+  top:0;
+  z-index:20;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:14px 16px;
+  background:rgba(255,255,255,.96);
+  border-bottom:1px solid var(--border);
+}
+.brand{font-weight:900;letter-spacing:.8px;font-size:18px}
+.tagline{font-size:12px;color:var(--muted);margin-top:2px}
+.cart-pill{
+  border:1px solid var(--gold);
+  background:var(--white);
+  color:var(--gold-dark);
+  border-radius:999px;
+  padding:9px 13px;
+  font-weight:800;
+}
+main{max-width:720px;margin:0 auto;padding:18px}
+.hero{
+  background:linear-gradient(145deg,#fff,#fbf6e9);
+  border:1px solid var(--border);
+  border-radius:24px;
+  padding:24px;
+  margin-bottom:18px;
+}
+.eyebrow{
+  color:var(--gold-dark);
+  font-size:12px;
+  letter-spacing:1.7px;
+  font-weight:900;
+}
+.hero h1{font-size:32px;line-height:1.05;margin:8px 0}
+.hero p{color:var(--muted);margin:0}
+.products{display:grid;gap:12px}
+.product{
+  background:var(--white);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:16px;
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:14px;
+  align-items:center;
+}
+.product h3{margin:0;font-size:18px}
+.product .sub{color:var(--muted);font-size:14px;margin-top:4px}
+.price{font-size:20px;font-weight:900;color:var(--gold-dark);text-align:right}
+.qty{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:12px}
+.qty button{
+  width:38px;height:38px;border-radius:50%;
+  border:1px solid var(--gold);
+  background:var(--white);
+  color:var(--gold-dark);
+  font-size:24px;
+}
+.qty span{font-weight:900;min-width:18px;text-align:center}
+.checkout-card{
+  margin-top:22px;
+  background:var(--white);
+  border:1px solid var(--border);
+  border-radius:24px;
+  padding:20px;
+}
+.section-head{display:flex;align-items:flex-start;justify-content:space-between}
+.section-head h2{margin:5px 0 0}
+.basket-total{font-size:25px;font-weight:900;color:var(--gold-dark)}
+.basket-lines{color:var(--muted);line-height:1.7;margin-top:14px}
+.divider{height:1px;background:var(--border);margin:18px 0}
+label{display:block;margin:14px 0 7px;font-size:13px;font-weight:800}
+input,textarea{
+  width:100%;
+  border:1px solid var(--border);
+  background:var(--off);
+  border-radius:14px;
+  padding:14px;
+  font:inherit;
+}
+textarea{min-height:100px;resize:vertical}
+.payment-box{
+  margin-top:18px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:15px;
+  border:1px solid var(--gold);
+  border-radius:16px;
+  background:var(--gold-soft);
+}
+.payment-title{font-weight:900}
+.payment-sub{font-size:12px;color:var(--muted);margin-top:3px}
+.radio-on{color:var(--gold-dark);font-size:22px}
+.gold-btn{
+  width:100%;
+  margin-top:16px;
+  border:0;
+  border-radius:14px;
+  padding:15px;
+  background:var(--gold);
+  color:#fff;
+  font-size:17px;
+  font-weight:900;
+}
+.status{margin-top:12px;font-weight:800}
