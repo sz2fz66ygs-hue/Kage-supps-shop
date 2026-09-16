@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Kage Supps ⚡️</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="brand">KAGE SUPPS ⚡️</div>
+      <div class="tagline">Clean storefront</div>
+    </div>
+    <button id="cartJump" class="cart-pill">🛒 <span id="cartCount">0</span></button>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="eyebrow">KAGE SUPPS</div>
+      <h1>Simple. Clean. Gold.</h1>
+      <p>Browse products, add to basket and continue to checkout.</p>
+    </section>
+
+    <section id="products" class="products"></section>
+
+    <section id="checkout" class="checkout-card">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">CHECKOUT</div>
+          <h2>Your basket</h2>
+        </div>
+        <div id="basketTotal" class="basket-total">£0.00</div>
+      </div>
+
+      <div id="basketLines" class="basket-lines">Your basket is empty.</div>
+
+      <div class="divider"></div>
+
+      <label>Full name</label>
+      <input id="name" placeholder="Your name">
+
+      <label>Telegram username</label>
+      <input id="handle" placeholder="@username">
+
+      <label>Delivery address</label>
+      <textarea id="address" placeholder="Delivery address"></textarea>
+
+      <div class="payment-box">
+        <div>
+          <div class="payment-title">Crypto payment</div>
+          <div class="payment-sub">Payment confirmation is handled by the server.</div>
+        </div>
+        <div class="radio-on">●</div>
+      </div>
+
+      <button id="checkoutBtn" class="gold-btn">Continue to payment</button>
+      <div id="status" class="status"></div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
