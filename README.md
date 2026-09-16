@@ -1,61 +1,27 @@
-# Kage Supps ⚡️ Telegram Mini App — Node.js starter
+# Kage Gold/White Clean Build
 
-This is a JavaScript/Node.js version of the Telegram Mini App starter.
+This is a clean lawful-store scaffold with:
+- gold/white Mini App UI
+- basket and checkout form
+- server-side order creation
+- provider-neutral crypto payment placeholder
+- authenticated webhook skeleton
+- admin Telegram notifications
+- /start bot menu
 
-## What it includes
+## Render
+Build Command: `npm install`
+Start Command: `npm start`
 
-- Telegram `/start` bot
-- Big `🛍 OPEN SHOP — TAP HERE` Web App button
-- Kage Supps ⚡️ branding
-- Horizontal product categories
-- Product cards
-- Stock badges
-- +/- quantity controls
-- Basket preview
-- Telegram theme support
-- Mobile-first layout
+## Environment variables
+- TELEGRAM_BOT_TOKEN
+- WEBAPP_URL
+- ADMIN_TELEGRAM_ID
+- PAYMENT_WEBHOOK_SECRET
 
-This starter intentionally keeps checkout/order submission disabled. It is suitable as a storefront/demo and can be extended for lawful, non-regulated products.
+## Payment
+The code does NOT include a live crypto provider.
+Connect an approved payment provider to `/api/payment-webhook` and replace
+the demo payment instructions in `/api/orders`.
 
-## Run locally
-
-1. Install Node.js 20+
-2. Open this folder in Terminal
-3. Run:
-
-```bash
-npm install
-```
-
-4. Copy `.env.example` to `.env`
-5. Put your Telegram bot token into `.env`
-6. Start the web app:
-
-```bash
-npm run dev
-```
-
-The local URL will be:
-
-```text
-http://localhost:3000
-```
-
-Telegram requires a public HTTPS URL for a Mini App.
-
-## Start the Telegram bot
-
-The same `server.js` file starts the bot as well, as long as `TELEGRAM_BOT_TOKEN`
-and `WEBAPP_URL` are set.
-
-## Hosting
-
-You can deploy this as a normal Node.js web service.
-
-Start command:
-
-```bash
-npm start
-```
-
-Once hosted, copy the HTTPS URL into BotFather's Main App URL field.
+For production, use a persistent database instead of the in-memory Map.
