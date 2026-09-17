@@ -33,7 +33,8 @@ const displayProducts = [
     id: 101,
     category: "Oils",
     section: "Pre-Workout",
-    name: "INJ Anadrol 30mg",
+    name: "INJ Anadrol",
+    subtitle: "30mg/ml",
     stock: 15,
     unit: "vials",
     pricePence: 2500
@@ -43,6 +44,7 @@ const displayProducts = [
     category: "Oils",
     section: "Pre-Workout",
     name: "INJ Super",
+    subtitle: "20mg/ml",
     stock: 13,
     unit: "vials",
     pricePence: 2500
@@ -52,6 +54,7 @@ const displayProducts = [
     category: "Oils",
     section: "Pre-Workout",
     name: "INJ Dbol",
+    subtitle: "50mg/ml",
     stock: 15,
     unit: "vials",
     pricePence: 2500
@@ -61,7 +64,7 @@ const displayProducts = [
     category: "Oils",
     section: "Pre-Workout",
     name: "Doomsday",
-    subtitle: "20ml vial",
+    subtitle: "20ml vial • 100mg/ml total (Test Base 50mg + Anadrol 30mg + Superdrol 20mg)",
     stock: 3,
     unit: "vials",
     pricePence: 7500
@@ -73,6 +76,7 @@ const displayProducts = [
     category: "Oils",
     section: "Oils",
     name: "Test E",
+    subtitle: "300mg/ml • 10ml vial",
     stock: 16,
     unit: "vials",
     pricePence: 3200
@@ -82,6 +86,7 @@ const displayProducts = [
     category: "Oils",
     section: "Oils",
     name: "Test Cyp",
+    subtitle: "200mg/ml • 10ml vial",
     stock: 16,
     unit: "vials",
     pricePence: 3200
@@ -91,6 +96,7 @@ const displayProducts = [
     category: "Oils",
     section: "Oils",
     name: "Test 400",
+    subtitle: "400mg/ml • 10ml vial",
     stock: 5,
     unit: "vials",
     pricePence: 4000
@@ -100,6 +106,7 @@ const displayProducts = [
     category: "Oils",
     section: "Oils",
     name: "Sust",
+    subtitle: "250mg/ml • 10ml vial",
     stock: 5,
     unit: "vials",
     pricePence: 3200
@@ -109,6 +116,7 @@ const displayProducts = [
     category: "Oils",
     section: "Oils",
     name: "Tren A",
+    subtitle: "100mg/ml • 10ml vial",
     stock: 9,
     unit: "vials",
     pricePence: 3300
@@ -118,6 +126,7 @@ const displayProducts = [
     category: "Oils",
     section: "Oils",
     name: "Tren E",
+    subtitle: "200mg/ml • 10ml vial",
     stock: 8,
     unit: "vials",
     pricePence: 3500
@@ -127,6 +136,7 @@ const displayProducts = [
     category: "Oils",
     section: "Oils",
     name: "Deca",
+    subtitle: "300mg/ml • 10ml vial",
     stock: 4,
     unit: "vials",
     pricePence: 3500
@@ -136,6 +146,7 @@ const displayProducts = [
     category: "Oils",
     section: "Oils",
     name: "NPP",
+    subtitle: "150mg/ml • 10ml vial",
     stock: 6,
     unit: "vials",
     pricePence: 3200
@@ -145,6 +156,7 @@ const displayProducts = [
     category: "Oils",
     section: "Oils",
     name: "EQ",
+    subtitle: "400mg/ml • 10ml vial",
     stock: 5,
     unit: "vials",
     pricePence: 3500
@@ -154,6 +166,7 @@ const displayProducts = [
     category: "Oils",
     section: "Oils",
     name: "Mast E",
+    subtitle: "250mg/ml • 10ml vial",
     stock: 10,
     unit: "vials",
     pricePence: 6000
@@ -163,6 +176,7 @@ const displayProducts = [
     category: "Oils",
     section: "Oils",
     name: "Mast P",
+    subtitle: "150mg/ml • 10ml vial",
     stock: 7,
     unit: "vials",
     pricePence: 4000
@@ -173,7 +187,8 @@ const displayProducts = [
     id: 130,
     category: "Oils",
     section: "Blends",
-    name: "TTM",
+    name: "TTM 375",
+    subtitle: "375mg/ml total • 10ml vial (Test E 150mg + Tren E 75mg + Mast E 150mg)",
     stock: 5,
     unit: "vials",
     pricePence: 4500
@@ -182,7 +197,8 @@ const displayProducts = [
     id: 131,
     category: "Oils",
     section: "Blends",
-    name: "Mass On",
+    name: "Mass On 600",
+    subtitle: "600mg/ml total • 10ml vial (Test Cyp 200mg + EQ 250mg + Deca 150mg)",
     stock: 5,
     unit: "vials",
     pricePence: 4500
@@ -583,8 +599,27 @@ const displayProducts = [
   }
 ];
 
-/* Keep checkout products separate.
-   Regulated/prescription items above are display-only. */
+/* =========================================================
+   BASKET-READY PRODUCTS ARRAY
+
+   Keep the current catalogue above as display-only.
+   Later, when you replace/add lawful products that should be
+   purchasable, add them to THIS array.
+
+   Example format:
+   {
+     id: 9001,
+     category: "Peps",
+     section: "Other",
+     name: "Example Product",
+     subtitle: "Example size",
+     stock: 10,
+     unit: "units",
+     pricePence: 1999
+   }
+
+   Anything added here will receive + / - basket controls.
+   ========================================================= */
 const products = [];
 
 const basket = {};
@@ -643,6 +678,44 @@ function displayCard(p) {
   `;
 }
 
+function shopCard(p) {
+  const qty = basket[p.id] || 0;
+
+  return `
+    <div class="product">
+      <div>
+        <h3>${p.name}</h3>
+        ${p.subtitle ? `<div class="sub">${p.subtitle}</div>` : ""}
+        ${stockBadge(p.stock, p.unit)}
+      </div>
+
+      <div>
+        <div class="price">${money(p.pricePence)}</div>
+
+        <div class="qty">
+          <button
+            data-id="${p.id}"
+            data-d="-1"
+            ${qty === 0 ? "disabled" : ""}
+          >
+            −
+          </button>
+
+          <span>${qty}</span>
+
+          <button
+            data-id="${p.id}"
+            data-d="1"
+            ${qty >= p.stock ? "disabled" : ""}
+          >
+            +
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderProducts() {
   let html = "";
 
@@ -651,26 +724,105 @@ function renderProducts() {
       p => p.category === currentCategory && p.section === section
     );
 
+    const shopItems = products.filter(
+      p => p.category === currentCategory && p.section === section
+    );
+
     html += `<div class="section-title">${section}</div>`;
 
-    if (!displayItems.length) {
+    if (!displayItems.length && !shopItems.length) {
       html += `<div class="empty">No products added yet.</div>`;
     } else {
       html += displayItems.map(displayCard).join("");
+      html += shopItems.map(shopCard).join("");
     }
   });
 
   document.getElementById("products").innerHTML = html;
+
+  document.querySelectorAll("[data-d]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = Number(btn.dataset.id);
+      const delta = Number(btn.dataset.d);
+      const product = products.find(p => p.id === id);
+
+      if (!product) return;
+
+      const current = basket[id] || 0;
+      const next = Math.max(
+        0,
+        Math.min(product.stock, current + delta)
+      );
+
+      if (next === 0) {
+        delete basket[id];
+      } else {
+        basket[id] = next;
+      }
+
+      tg?.HapticFeedback?.selectionChanged();
+      render();
+    });
+  });
+}
+
+function basketCount() {
+  return Object.values(basket).reduce((sum, qty) => sum + qty, 0);
+}
+
+function basketTotalValue() {
+  return Object.entries(basket).reduce((sum, [id, qty]) => {
+    const product = products.find(p => p.id === Number(id));
+    return sum + (product ? product.pricePence * qty : 0);
+  }, 0);
 }
 
 function renderBasket() {
   const basketLines = document.getElementById("basketLines");
   const basketTotal = document.getElementById("basketTotal");
   const cartCount = document.getElementById("cartCount");
+  const entries = Object.entries(basket);
 
-  if (basketLines) basketLines.textContent = "Your basket is empty.";
-  if (basketTotal) basketTotal.textContent = "£0.00";
-  if (cartCount) cartCount.textContent = "0";
+  if (cartCount) {
+    cartCount.textContent = basketCount();
+  }
+
+  if (basketTotal) {
+    basketTotal.textContent = money(basketTotalValue());
+  }
+
+  if (!basketLines) return;
+
+  if (!entries.length) {
+    basketLines.innerHTML = `<div class="empty">Your basket is empty.</div>`;
+    return;
+  }
+
+  basketLines.innerHTML = entries.map(([id, qty]) => {
+    const p = products.find(x => x.id === Number(id));
+
+    return `
+      <div class="basket-line">
+        <div>
+          <strong>${p.name}</strong><br>
+          <span>${qty} × ${money(p.pricePence)}</span>
+        </div>
+
+        <div class="basket-right">
+          <strong>${money(p.pricePence * qty)}</strong>
+          <button data-remove="${p.id}">Remove</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  document.querySelectorAll("[data-remove]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      delete basket[Number(btn.dataset.remove)];
+      tg?.HapticFeedback?.selectionChanged();
+      render();
+    });
+  });
 }
 
 function render() {
