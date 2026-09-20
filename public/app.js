@@ -619,11 +619,16 @@ const displayProducts = [
    }
 
    Anything added here will receive + / - basket controls.
+
+   Products now live in /public/products.json so the server can
+   validate prices/stock against the exact same list the shop
+   displays. Add lawful products there.
    ========================================================= */
-const products = [];
+let products = [];
 
 const basket = {};
 let currentCategory = categories[0].name;
+let appliedCode = null; // { code, discountType, discountValue } once validated by the server
 
 const money = p => `£${(p / 100).toFixed(2)}`;
 
@@ -770,25 +775,49 @@ function basketCount() {
   return Object.values(basket).reduce((sum, qty) => sum + qty, 0);
 }
 
-function basketTotalValue() {
+function basketSubtotalValue() {
   return Object.entries(basket).reduce((sum, [id, qty]) => {
     const product = products.find(p => p.id === Number(id));
     return sum + (product ? product.pricePence * qty : 0);
   }, 0);
 }
 
+function discountForSubtotal(subtotalPence) {
+  if (!appliedCode) return 0;
+
+  const raw = appliedCode.discountType === "percent"
+    ? Math.round(subtotalPence * (appliedCode.discountValue / 100))
+    : appliedCode.discountValue;
+
+  return Math.min(raw, subtotalPence);
+}
+
+function basketTotalValue() {
+  const subtotal = basketSubtotalValue();
+  return subtotal - discountForSubtotal(subtotal);
+}
+
 function renderBasket() {
   const basketLines = document.getElementById("basketLines");
   const basketTotal = document.getElementById("basketTotal");
   const cartCount = document.getElementById("cartCount");
+  const discountRow = document.getElementById("discountRow");
   const entries = Object.entries(basket);
+  const subtotal = basketSubtotalValue();
+  const discount = discountForSubtotal(subtotal);
 
   if (cartCount) {
     cartCount.textContent = basketCount();
   }
 
   if (basketTotal) {
-    basketTotal.textContent = money(basketTotalValue());
+    basketTotal.textContent = money(subtotal - discount);
+  }
+
+  if (discountRow) {
+    discountRow.innerHTML = discount > 0
+      ? `<div class="discount-line">Code <strong>${appliedCode.code}</strong> applied: −${money(discount)}</div>`
+      : "";
   }
 
   if (!basketLines) return;
@@ -831,4 +860,117 @@ function render() {
   renderBasket();
 }
 
-render();
+async function loadProducts() {
+  try {
+    const res = await fetch("/products.json");
+    products = await res.json();
+  } catch (err) {
+    console.error("Failed to load products", err);
+    products = [];
+  }
+  render();
+}
+
+function setStatus(message, kind = "") {
+  const status = document.getElementById("status");
+  if (!status) return;
+  status.textContent = message;
+  status.className = `status ${kind}`;
+}
+
+async function applyDiscountCode() {
+  const input = document.getElementById("discountCode");
+  const code = input?.value.trim();
+
+  if (!code) {
+    appliedCode = null;
+    renderBasket();
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/discount-codes/${encodeURIComponent(code)}`);
+    const data = await res.json();
+
+    if (!res.ok || !data.valid) {
+      appliedCode = null;
+      renderBasket();
+      setStatus(data.error || "That code isn't valid.", "error");
+      return;
+    }
+
+    appliedCode = {
+      code: data.code,
+      discountType: data.discountType,
+      discountValue: data.discountValue
+    };
+
+    setStatus("Code applied!", "success");
+    renderBasket();
+  } catch (err) {
+    setStatus("Couldn't check that code, try again.", "error");
+  }
+}
+
+async function submitOrder() {
+  const customerName = document.getElementById("name")?.value.trim();
+  const telegramUsername = document.getElementById("handle")?.value.trim();
+  const address = document.getElementById("address")?.value.trim();
+  const items = Object.entries(basket).map(([id, quantity]) => ({
+    id: Number(id),
+    quantity
+  }));
+
+  if (!items.length) {
+    setStatus("Your basket is empty.", "error");
+    return;
+  }
+
+  if (!customerName || !address) {
+    setStatus("Please add your name and delivery address.", "error");
+    return;
+  }
+
+  const checkoutBtn = document.getElementById("checkoutBtn");
+  if (checkoutBtn) checkoutBtn.disabled = true;
+  setStatus("Placing your order…");
+
+  try {
+    const res = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customerName,
+        telegramUsername,
+        address,
+        items,
+        discountCode: appliedCode?.code || undefined
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setStatus(data.error || "Something went wrong placing your order.", "error");
+      return;
+    }
+
+    setStatus(`Order #${data.orderId} created — total ${money(data.totalPence)}. ${data.payment?.instructions || ""}`, "success");
+    Object.keys(basket).forEach(id => delete basket[id]);
+    appliedCode = null;
+    if (document.getElementById("discountCode")) document.getElementById("discountCode").value = "";
+    render();
+  } catch (err) {
+    setStatus("Couldn't reach the server, try again.", "error");
+  } finally {
+    if (checkoutBtn) checkoutBtn.disabled = false;
+  }
+}
+
+document.getElementById("applyDiscount")?.addEventListener("click", applyDiscountCode);
+document.getElementById("checkoutBtn")?.addEventListener("click", submitOrder);
+document.getElementById("cartJump")?.addEventListener("click", () => {
+  document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth" });
+});
+
+loadProducts();

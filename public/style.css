@@ -188,3 +188,25 @@ textarea{min-height:100px;resize:vertical}
   font-weight:900;
 }
 .status{margin-top:12px;font-weight:800}
+.status.error{color:#a5362f}
+.status.success{color:#0b7a4d}
+.discount-line{
+  color:#0b7a4d;
+  font-weight:800;
+  font-size:14px;
+  margin-top:8px;
+}
+.discount-row{
+  display:flex;
+  gap:10px;
+}
+.discount-row input{flex:1}
+.apply-btn{
+  border:1px solid var(--gold);
+  background:var(--white);
+  color:var(--gold-dark);
+  border-radius:14px;
+  padding:0 18px;
+  font-weight:900;
+  white-space:nowrap;
+}
