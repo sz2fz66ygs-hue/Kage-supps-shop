@@ -33,17 +33,19 @@ body{
   font-weight:900;
   letter-spacing:1px;
   font-size:20px;
+  perspective:400px;
 }
 .brand-logo{
   width:28px;
   height:28px;
   display:block;
   flex-shrink:0;
-  animation:brand-logo-spin 4s linear infinite;
+  animation:brand-logo-spin 3s linear infinite;
+  transform-style:preserve-3d;
 }
 @keyframes brand-logo-spin{
-  from{transform:rotate(0deg)}
-  to{transform:rotate(360deg)}
+  from{transform:rotateY(0deg)}
+  to{transform:rotateY(360deg)}
 }
 @media (prefers-reduced-motion: reduce){
   .brand-logo{animation:none}
