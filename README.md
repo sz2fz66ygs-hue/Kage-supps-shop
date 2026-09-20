@@ -8,7 +8,7 @@ This is a clean lawful-store scaffold with:
 - automatic on-chain USDT (ERC-20, Ethereum mainnet) payment confirmation, with shipping details forwarded to the admin chat once confirmed
 - authenticated webhook skeleton (for a separate payment provider, if you use one instead)
 - admin Telegram notifications, including a weekly sales + basket-activity summary
-- /start bot menu with /myid and /summary commands, real Support message forwarding, and a real My Orders lookup
+- /start bot menu with /myid, /summary, and /earnings commands, real Support message forwarding, and a real My Orders lookup
 
 ## Render
 Build Command: `npm install`
@@ -64,6 +64,9 @@ gets `BIGLADSLIM_FIRST_USE_DISCOUNT_PERCENT` off and the owner earns
 `BIGLADSLIM_FIRST_USE_COMMISSION_PERCENT`; every order after that from the
 same buyer using the same code gets the lower repeat rate instead. A
 different buyer's first order is still treated as "first use" independently.
+It's seeded with `cashOnly: true` — its commission balance can only be paid
+out to `@BigLadSlim` in cash (see **Tracking and paying out commission**
+below), never spent as store credit by whoever else knows the code.
 
 **Loyalty codes** — once a buyer reaches `LOYALTY_ORDER_THRESHOLD` (10) paid
 orders, they're automatically minted their own flat-rate referral code (same
@@ -105,17 +108,35 @@ convenience data, not a signed proof) — a determined client could still spoof
 it — but it's far more reliable than free text, and orders placed before this
 change (or outside a real Telegram session) fall back to the typed username.
 
-**Store credit**: a referrer's commission is real, spendable store credit —
-not just a number to look up and pay out manually. On `POST /api/orders`,
-pass `storeCreditCode` (their own referral code) and the order total is
-reduced by whatever balance is available (capped at the order total and at
-the remaining balance after any `discountCode` is applied); the code's
-`balancePence` is debited by the same amount. The storefront's "Store credit
-code" field does this — it previews the available balance via the earnings
-endpoint above, then sends `storeCreditCode` on checkout. There's no
+**Store credit**: a loyalty referrer's commission is real, spendable store
+credit — not just a number to look up and pay out manually. On
+`POST /api/orders`, pass `storeCreditCode` (their own referral code) and the
+order total is reduced by whatever balance is available (capped at the order
+total and at the remaining balance after any `discountCode` is applied); the
+code's `balancePence` is debited by the same amount. The storefront's "Store
+credit code" field does this — it previews the available balance via the
+earnings endpoint above, then sends `storeCreditCode` on checkout. There's no
 ownership check beyond knowing the code, same as everywhere else in this
 demo, and it isn't a new referral use, so applying it doesn't earn further
-commission.
+commission. **`BIGLADSLIM` is rejected here** (`cashOnly: true` on its
+record) — its balance is only ever paid out in cash, so a customer can't
+drain @BigLadSlim's commission by passing `storeCreditCode: "BIGLADSLIM"` on
+their own order.
+
+## Tracking and paying out commission
+Since there's no automated bank/crypto payout (that would mean storing
+banking or wallet credentials on the server — not worth the risk here),
+commission has to be tracked and paid manually:
+- **`/earnings`** (Telegram, admin only) — lists every referral code with
+  commission, showing what's owed now (`balancePence`), lifetime earned, and
+  lifetime already paid out. Check this whenever you want to know what to pay
+  someone.
+- Every time a referral code is used, the admin chat also gets a line in the
+  new-order notification (`Referral: <owner> earns £X`) as a live heads-up.
+- Once you've actually paid someone (bank transfer, cash, crypto, however),
+  call `POST /api/referral-codes/:code/payout` (see above) to zero out (or
+  partially debit) their balance, so it's marked settled and — for loyalty
+  codes — can't be spent twice as store credit.
 
 All codes, referral earnings, and orders are persisted to a SQLite database
 (see **Data persistence** below) — see that section before relying on any of

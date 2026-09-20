@@ -271,6 +271,10 @@ if (!discountCodes.has(BIGLADSLIM_CODE)) {
     repeatDiscountPercent: BIGLADSLIM_REPEAT_DISCOUNT_PERCENT,
     firstUseCommissionPercent: BIGLADSLIM_FIRST_USE_COMMISSION_PERCENT,
     repeatCommissionPercent: BIGLADSLIM_REPEAT_COMMISSION_PERCENT,
+    // BIGLADSLIM's commission is paid to @BigLadSlim in cash manually — it
+    // must never be spendable as store credit by whoever else knows the
+    // code (see the storeCreditCode check in POST /api/orders).
+    cashOnly: true,
     uses: 0,
     active: true
   });
@@ -503,6 +507,12 @@ app.post("/api/orders", async (req, res) => {
 
   if (storeCreditCode) {
     const normalizedCreditCode = String(storeCreditCode).trim().toUpperCase();
+    const creditCodeRecord = discountCodes.get(normalizedCreditCode);
+
+    if (creditCodeRecord?.cashOnly) {
+      return res.status(400).json({ error: "This code's balance is paid out in cash, not usable as store credit" });
+    }
+
     const creditEarnings = referralEarnings.get(normalizedCreditCode);
 
     if (!creditEarnings || creditEarnings.balancePence <= 0) {
@@ -996,6 +1006,33 @@ if (bot) {
     const sinceIso = new Date(Date.now() - WEEKLY_SUMMARY_MS).toISOString();
     const summary = buildActivitySummary(sinceIso);
     await bot.sendMessage(msg.chat.id, `📊 Last 7 days\n\n${summary}`);
+  });
+
+  bot.onText(/\/earnings/, async (msg) => {
+    if (!adminTelegramId) {
+      return bot.sendMessage(msg.chat.id, "ADMIN_TELEGRAM_ID isn't configured yet — send /myid to get your ID.");
+    }
+    if (String(msg.from?.id) !== String(adminTelegramId)) {
+      return bot.sendMessage(msg.chat.id, "This command is admin-only.");
+    }
+
+    const rows = [...referralEarnings.entries()].filter(([, e]) => e.commissionPence > 0);
+
+    if (!rows.length) {
+      return bot.sendMessage(msg.chat.id, "No referral commission earned yet.");
+    }
+
+    const lines = rows.map(([code, e]) => {
+      const codeRecord = discountCodes.get(code);
+      const gbp = (pence) => `£${(pence / 100).toFixed(2)}`;
+      const cashNote = codeRecord?.cashOnly ? " (cash only)" : "";
+      return `${code} — ${e.owner}${cashNote}\nOwed now: ${gbp(e.balancePence)} | Lifetime earned: ${gbp(e.commissionPence)} | Already paid out: ${gbp(e.paidOutPence || 0)}`;
+    });
+
+    await bot.sendMessage(
+      msg.chat.id,
+      `💰 Referral earnings\n\n${lines.join("\n\n")}\n\nOnce you've paid someone manually, mark it settled: POST /api/referral-codes/<code>/payout (x-admin-secret header) so it can't also be spent as store credit.`
+    );
   });
 }
 
