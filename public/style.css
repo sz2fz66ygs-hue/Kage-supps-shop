@@ -210,3 +210,25 @@ textarea{min-height:100px;resize:vertical}
   font-weight:900;
   white-space:nowrap;
 }
+.payment-panel{
+  margin-top:16px;
+  padding:16px;
+  border:1px solid var(--gold);
+  border-radius:16px;
+  background:var(--gold-soft);
+}
+.payment-address{
+  font-family:monospace;
+  font-size:13px;
+  word-break:break-all;
+  margin-top:6px;
+  padding:8px;
+  background:var(--white);
+  border-radius:10px;
+  border:1px solid var(--border);
+}
+.payment-quote{
+  margin-top:8px;
+  font-weight:900;
+  color:var(--gold-dark);
+}

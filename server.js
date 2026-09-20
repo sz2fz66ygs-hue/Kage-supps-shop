@@ -49,6 +49,126 @@ function generateReferralCode(owner) {
   return code;
 }
 
+// Crypto payment auto-confirmation (Ethereum mainnet: ETH and USDT ERC-20).
+const ETH_RECEIVING_ADDRESS = (process.env.ETH_RECEIVING_ADDRESS || "").toLowerCase();
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
+const USDT_CONTRACT_ADDRESS = (process.env.USDT_CONTRACT_ADDRESS || "0xdAC17F958D2ee523a2206206994597C13D831ec7").toLowerCase();
+const PAYMENT_TOLERANCE_PENCE = Number(process.env.PAYMENT_TOLERANCE_PENCE || 10);
+const MIN_CONFIRMATIONS = Number(process.env.MIN_CONFIRMATIONS || 2);
+const ETHERSCAN_API_URL = "https://api.etherscan.io/v2/api";
+const ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
+async function etherscanCall(params) {
+  if (!ETHERSCAN_API_KEY) {
+    throw Object.assign(new Error("Crypto payments are not configured"), { code: "not_configured" });
+  }
+
+  const url = new URL(ETHERSCAN_API_URL);
+  url.searchParams.set("chainid", "1");
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+  url.searchParams.set("apikey", ETHERSCAN_API_KEY);
+
+  const res = await fetch(url);
+  const data = await res.json();
+
+  if (data.status === "0" && typeof data.result === "string" && !data.result.startsWith("0x")) {
+    throw Object.assign(new Error(`Etherscan error: ${data.result}`), { code: "provider_error" });
+  }
+
+  return data;
+}
+
+async function getGbpRates() {
+  const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=ethereum,tether&vs_currencies=gbp");
+  const data = await res.json();
+  return { ethGbp: data.ethereum.gbp, usdtGbp: data.tether.gbp };
+}
+
+async function getEthTransaction(txHash) {
+  const [txRes, receiptRes, blockRes] = await Promise.all([
+    etherscanCall({ module: "proxy", action: "eth_getTransactionByHash", txhash: txHash }),
+    etherscanCall({ module: "proxy", action: "eth_getTransactionReceipt", txhash: txHash }),
+    etherscanCall({ module: "proxy", action: "eth_blockNumber" })
+  ]);
+
+  return { tx: txRes.result, receipt: receiptRes.result, currentBlock: blockRes.result };
+}
+
+function confirmationsFor(tx, currentBlock) {
+  return Number(BigInt(currentBlock) - BigInt(tx.blockNumber));
+}
+
+async function verifyEthPayment(txHash) {
+  if (!ETH_RECEIVING_ADDRESS) {
+    throw Object.assign(new Error("Crypto payments are not configured"), { code: "not_configured" });
+  }
+
+  const { tx, receipt, currentBlock } = await getEthTransaction(txHash);
+
+  if (!tx) throw Object.assign(new Error("Transaction not found"), { code: "not_found" });
+  if (!receipt || receipt.status !== "0x1") {
+    throw Object.assign(new Error("Transaction failed or is not yet mined"), { code: "not_confirmed" });
+  }
+  if ((tx.to || "").toLowerCase() !== ETH_RECEIVING_ADDRESS) {
+    throw Object.assign(new Error("Transaction was not sent to our receiving address"), { code: "wrong_recipient" });
+  }
+
+  const confirmations = confirmationsFor(tx, currentBlock);
+  if (confirmations < MIN_CONFIRMATIONS) {
+    throw Object.assign(
+      new Error(`Only ${confirmations} confirmation(s) so far, need ${MIN_CONFIRMATIONS}`),
+      { code: "insufficient_confirmations" }
+    );
+  }
+
+  const ethPaid = Number(BigInt(tx.value)) / 1e18;
+  const { ethGbp } = await getGbpRates();
+  const gbpPencePaid = Math.round(ethPaid * ethGbp * 100);
+
+  return { gbpPencePaid, confirmations, amountDisplay: `${ethPaid.toFixed(6)} ETH` };
+}
+
+async function verifyUsdtPayment(txHash) {
+  if (!ETH_RECEIVING_ADDRESS) {
+    throw Object.assign(new Error("Crypto payments are not configured"), { code: "not_configured" });
+  }
+
+  const { tx, receipt, currentBlock } = await getEthTransaction(txHash);
+
+  if (!tx) throw Object.assign(new Error("Transaction not found"), { code: "not_found" });
+  if (!receipt || receipt.status !== "0x1") {
+    throw Object.assign(new Error("Transaction failed or is not yet mined"), { code: "not_confirmed" });
+  }
+
+  const confirmations = confirmationsFor(tx, currentBlock);
+  if (confirmations < MIN_CONFIRMATIONS) {
+    throw Object.assign(
+      new Error(`Only ${confirmations} confirmation(s) so far, need ${MIN_CONFIRMATIONS}`),
+      { code: "insufficient_confirmations" }
+    );
+  }
+
+  const transferLog = (receipt.logs || []).find(log =>
+    (log.address || "").toLowerCase() === USDT_CONTRACT_ADDRESS &&
+    (log.topics?.[0] || "").toLowerCase() === ERC20_TRANSFER_TOPIC &&
+    log.topics?.[2] &&
+    ("0x" + log.topics[2].slice(-40)).toLowerCase() === ETH_RECEIVING_ADDRESS
+  );
+
+  if (!transferLog) {
+    throw Object.assign(
+      new Error("No USDT transfer to our receiving address was found in this transaction"),
+      { code: "wrong_recipient" }
+    );
+  }
+
+  const usdtPaid = Number(BigInt(transferLog.data)) / 1e6;
+  const { usdtGbp } = await getGbpRates();
+  const gbpPencePaid = Math.round(usdtPaid * usdtGbp * 100);
+
+  return { gbpPencePaid, confirmations, amountDisplay: `${usdtPaid.toFixed(2)} USDT` };
+}
+
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const webAppUrl = process.env.WEBAPP_URL;
 const adminTelegramId = process.env.ADMIN_TELEGRAM_ID;
@@ -69,7 +189,7 @@ app.get("/health", (_req, res) => {
 // canonical product list — a client can only choose product ids/quantities
 // and, optionally, a discount code. It can never dictate its own price.
 app.post("/api/orders", async (req, res) => {
-  const { customerName, telegramUsername, address, items, discountCode } = req.body || {};
+  const { customerName, telegramUsername, address, items, discountCode, storeCreditCode } = req.body || {};
 
   if (!customerName || !address || !Array.isArray(items) || !items.length) {
     return res.status(400).json({ error: "Missing order details" });
@@ -142,15 +262,35 @@ app.post("/api/orders", async (req, res) => {
       const earnings = referralEarnings.get(normalizedCode) || {
         owner: codeRecord.referralOwner,
         commissionPence: 0,
+        balancePence: 0,
         orderCount: 0
       };
       earnings.commissionPence += commissionPence;
+      earnings.balancePence += commissionPence;
       earnings.orderCount += 1;
       referralEarnings.set(normalizedCode, earnings);
     }
   }
 
-  const totalPence = subtotalPence - discountPence;
+  let storeCreditPence = 0;
+  let appliedStoreCreditCode = null;
+
+  if (storeCreditCode) {
+    const normalizedCreditCode = String(storeCreditCode).trim().toUpperCase();
+    const creditEarnings = referralEarnings.get(normalizedCreditCode);
+
+    if (!creditEarnings || creditEarnings.balancePence <= 0) {
+      return res.status(400).json({ error: "Invalid or empty store credit code" });
+    }
+
+    const remainingAfterDiscount = subtotalPence - discountPence;
+    storeCreditPence = Math.min(creditEarnings.balancePence, remainingAfterDiscount);
+    creditEarnings.balancePence -= storeCreditPence;
+    referralEarnings.set(normalizedCreditCode, creditEarnings);
+    appliedStoreCreditCode = normalizedCreditCode;
+  }
+
+  const totalPence = Math.max(0, subtotalPence - discountPence - storeCreditPence);
 
   const orderId = nextOrderId++;
   const order = {
@@ -162,6 +302,8 @@ app.post("/api/orders", async (req, res) => {
     subtotalPence,
     discountCode: appliedCode,
     discountPence,
+    storeCreditCode: appliedStoreCreditCode,
+    storeCreditPence,
     totalPence,
     referral,
     paymentStatus: "awaiting_payment",
@@ -177,6 +319,9 @@ app.post("/api/orders", async (req, res) => {
     const referralLine = referral
       ? `\nReferral: ${referral.owner} earns £${(referral.commissionPence / 100).toFixed(2)}`
       : "";
+    const storeCreditLine = storeCreditPence > 0
+      ? `\nStore credit: ${appliedStoreCreditCode} (-£${(storeCreditPence / 100).toFixed(2)})`
+      : "";
 
     await bot.sendMessage(
       adminTelegramId,
@@ -185,25 +330,105 @@ app.post("/api/orders", async (req, res) => {
 Order: #${orderId}
 Customer: ${customerName}
 Telegram: ${telegramUsername || "Not supplied"}
-Total: £${(totalPence / 100).toFixed(2)}${discountLine}${referralLine}
+Total: £${(totalPence / 100).toFixed(2)}${discountLine}${storeCreditLine}${referralLine}
 Status: Awaiting payment`
     );
   }
 
-  // This is intentionally provider-neutral.
-  // Connect a lawful payment provider here later.
+  let payment = {
+    method: "crypto_demo",
+    instructions: "Crypto payments aren't configured yet — set ETH_RECEIVING_ADDRESS and ETHERSCAN_API_KEY."
+  };
+
+  if (ETH_RECEIVING_ADDRESS) {
+    try {
+      const { ethGbp, usdtGbp } = await getGbpRates();
+      const totalGbp = totalPence / 100;
+
+      payment = {
+        method: "crypto",
+        address: ETH_RECEIVING_ADDRESS,
+        accepted: ["ETH", "USDT (ERC-20, Ethereum mainnet)"],
+        quote: {
+          ETH: (totalGbp / ethGbp).toFixed(6),
+          USDT: (totalGbp / usdtGbp).toFixed(2)
+        },
+        instructions: "Send the exact amount shown to the address above on Ethereum mainnet, then submit your transaction hash to confirm. The quote is approximate — confirmation checks the live rate at payment time."
+      };
+    } catch (err) {
+      console.error("Failed to fetch crypto rates", err);
+    }
+  }
+
   res.json({
     ok: true,
     orderId,
     subtotalPence,
     discountPence,
+    storeCreditPence,
     totalPence,
     status: "awaiting_payment",
-    payment: {
-      method: "crypto_demo",
-      instructions: "Connect your approved payment provider to generate the real payment address/QR."
-    }
+    payment
   });
+});
+
+// Verify an on-chain ETH or USDT (ERC-20) payment against an order and, if it
+// matches within PAYMENT_TOLERANCE_PENCE, mark the order paid and forward the
+// shipping details to the admin chat for fulfillment.
+app.post("/api/orders/:id/confirm-payment", async (req, res) => {
+  const order = orders.get(Number(req.params.id));
+  if (!order) return res.status(404).json({ error: "Order not found" });
+  if (order.paymentStatus === "paid") return res.json({ ok: true, alreadyPaid: true });
+
+  const { transactionId, asset } = req.body || {};
+  if (!transactionId || !["ETH", "USDT"].includes(asset)) {
+    return res.status(400).json({ error: "Provide transactionId and asset (ETH or USDT)" });
+  }
+
+  let result;
+  try {
+    result = asset === "ETH" ? await verifyEthPayment(transactionId) : await verifyUsdtPayment(transactionId);
+  } catch (err) {
+    const statusCode = err.code === "not_configured" ? 501 : err.code === "provider_error" ? 502 : 400;
+    return res.status(statusCode).json({ error: err.message });
+  }
+
+  const diffPence = Math.abs(result.gbpPencePaid - order.totalPence);
+  if (diffPence > PAYMENT_TOLERANCE_PENCE) {
+    return res.status(400).json({
+      error: `Amount mismatch: received ${result.amountDisplay} (~£${(result.gbpPencePaid / 100).toFixed(2)}), expected £${(order.totalPence / 100).toFixed(2)}`
+    });
+  }
+
+  order.paymentStatus = "paid";
+  order.transactionId = transactionId;
+  order.paymentAsset = asset;
+  order.paidAt = new Date().toISOString();
+  orders.set(order.orderId, order);
+
+  if (bot && adminTelegramId) {
+    const itemLines = order.items.map(i => `${i.quantity} × ${i.name}`).join("\n");
+
+    await bot.sendMessage(
+      adminTelegramId,
+      `💰 PAYMENT CONFIRMED (auto)
+
+Order: #${order.orderId}
+Customer: ${order.customerName}
+Telegram: ${order.telegramUsername || "Not supplied"}
+Total: £${(order.totalPence / 100).toFixed(2)} (${result.amountDisplay}, ${result.confirmations} confirmations)
+
+Shipping address:
+${order.address}
+
+Items:
+${itemLines}
+
+Status: Paid ✅ — ready to ship`
+    );
+  }
+
+  res.json({ ok: true, paymentStatus: "paid" });
 });
 
 // Look up (validate) a discount/referral code without revealing who owns it.
@@ -303,6 +528,7 @@ app.get("/api/referral-codes/:code/earnings", (req, res) => {
   const earnings = referralEarnings.get(normalizedCode) || {
     owner: codeRecord.referralOwner,
     commissionPence: 0,
+    balancePence: 0,
     orderCount: 0
   };
 
@@ -310,6 +536,7 @@ app.get("/api/referral-codes/:code/earnings", (req, res) => {
     code: normalizedCode,
     owner: codeRecord.referralOwner,
     commissionPence: earnings.commissionPence,
+    balancePence: earnings.balancePence,
     orderCount: earnings.orderCount
   });
 });
@@ -364,6 +591,7 @@ app.get("/api/orders/:id", (req, res) => {
     paymentStatus: order.paymentStatus,
     subtotalPence: order.subtotalPence,
     discountPence: order.discountPence,
+    storeCreditPence: order.storeCreditPence,
     totalPence: order.totalPence
   });
 });
