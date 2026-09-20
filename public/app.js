@@ -11,8 +11,7 @@ if (tg) {
    that exact same file to validate prices and stock, so a client
    can never submit its own price or exceed stock. Every product in
    it automatically gets add/remove-to-basket controls; there is no
-   separate "display-only" list. Add lawful products there, using
-   one of the category/section pairs below.
+   separate "display-only" list.
    ========================================================= */
 
 const categories = [
