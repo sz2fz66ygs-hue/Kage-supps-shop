@@ -7,17 +7,24 @@ This is a clean lawful-store scaffold with:
 - server-side order creation with prices/stock recalculated from the canonical product list
 - automatic on-chain ETH / USDT (ERC-20) payment confirmation, with shipping details forwarded to the admin chat once confirmed
 - authenticated webhook skeleton (for a separate payment provider, if you use one instead)
-- admin Telegram notifications
-- /start bot menu with a /refer command
+- admin Telegram notifications, including a weekly sales + basket-activity summary
+- /start bot menu with /refer, /myid and /summary commands
 
 ## Render
 Build Command: `npm install`
 Start Command: `npm start`
 
+## Getting order/shipping notifications and weekly summaries
+`ADMIN_TELEGRAM_ID` has to be set for you to receive anything from the bot
+(new orders, payment confirmations with shipping details, weekly summaries).
+To find your numeric Telegram ID: message your own bot with `/myid`, it
+replies with your ID, set that as `ADMIN_TELEGRAM_ID` in Render's environment
+variables, and redeploy.
+
 ## Environment variables
 - TELEGRAM_BOT_TOKEN
 - WEBAPP_URL
-- ADMIN_TELEGRAM_ID
+- ADMIN_TELEGRAM_ID — see above; without this, order/payment/summary messages have nowhere to go
 - PAYMENT_WEBHOOK_SECRET
 - REFERRAL_DISCOUNT_PERCENT (default 10) — % off given to a buyer who uses a referral code
 - REFERRAL_COMMISSION_PERCENT (default 5) — % of the order the referrer earns
@@ -27,6 +34,7 @@ Start Command: `npm start`
 - USDT_CONTRACT_ADDRESS (optional) — defaults to the real mainnet USDT contract; only override for a testnet
 - PAYMENT_TOLERANCE_PENCE (default 10) — how many pence the on-chain amount (converted to GBP at the live rate) may differ from the order total and still auto-confirm
 - MIN_CONFIRMATIONS (default 2) — block confirmations required before a payment is accepted
+- DATA_DIR (default `.`) — where the SQLite database file lives; point this at a Render Persistent Disk's mount path for data to survive redeploys (see **Data persistence** below)
 
 ## Adding products
 Only lawful, purchasable products go in `public/products.json`. It's the
@@ -43,6 +51,10 @@ separate and intentionally display-only — it is never wired into the basket
 or checkout.
 
 ## Discount codes & referrals
+- A referral code is just the person's Telegram name/username, sanitized and
+  uppercased (e.g. `@jane_doe` → `JANE_DOE`) — simple to read out loud, and
+  already unique per person. Asking again for the same owner returns the same
+  code rather than minting a new one.
 - `POST /api/referral-codes` `{ ownerName | ownerTelegramUsername }` — anyone
   can self-serve generate a referral code. Buyers who use it get
   `REFERRAL_DISCOUNT_PERCENT` off; the referrer earns
@@ -70,8 +82,9 @@ ownership check beyond knowing the code, same as everywhere else in this
 demo, and it isn't a new referral use, so applying it doesn't earn further
 commission.
 
-All codes and referral earnings are stored in-memory and reset on restart —
-move them to a persistent database for production, same as orders.
+All codes, referral earnings, and orders are persisted to a SQLite database
+(see **Data persistence** below) — see that section before relying on any of
+this in production.
 
 ## Payment
 Once `ETH_RECEIVING_ADDRESS` and `ETHERSCAN_API_KEY` are set, `POST /api/orders`
@@ -98,5 +111,37 @@ Bitcoin, Tron/USDT-TRC20, or another chain, that's a similar shape (a
 different explorer API and address format) — ask and it can be added the same
 way. Alternatively, plug a payment provider into `/api/payment-webhook` instead.
 
-For production, use a persistent database instead of the in-memory Map —
-orders, discount codes, and referral earnings are all lost on restart.
+## Weekly summary
+Once `ADMIN_TELEGRAM_ID` is set, the bot sends a weekly message covering, per
+product, since the last summary: units ordered, units paid (+ revenue), how
+many times it was added to a basket, and how many times it was fully removed
+before checkout. It's a plain hourly check against a `lastWeeklySummaryAt`
+timestamp (persisted, so it survives restarts) rather than a cron job — no
+extra dependency, but it means the exact send time can drift by up to an
+hour. Send `/summary` to the bot any time (admin only) for the same report
+covering the trailing 7 days on demand.
+
+Basket add/remove events are recorded by the storefront on every add-to-basket
+and every full removal (not on every +/- quantity tweak) via
+`POST /api/cart-events` — best-effort, fire-and-forget, no personal data
+attached (just a product id, an action, and a timestamp).
+
+## Data persistence
+Orders, discount/referral codes, referral earnings, basket add/remove events,
+and the weekly summary's last-sent timestamp are all stored in a SQLite
+database (via Node's built-in `node:sqlite`, so no extra service or
+dependency) at `<DATA_DIR>/kage.sqlite`. Orders/codes/earnings are loaded into
+memory on startup and written through on every change; cart events and meta
+values are read/written straight from the database.
+
+**This only survives redeploys if `DATA_DIR` points at a Render Persistent
+Disk** (Render dashboard → your service → Disks → add a disk, then set
+`DATA_DIR` to its mount path, e.g. `/data`). Render web services otherwise
+have an ephemeral filesystem — without a disk attached, the database file is
+recreated empty on every deploy, same as the old in-memory-only version. If
+you'd rather use a real hosted database (e.g. Render Postgres) instead of a
+disk, that's a reasonable upgrade path — ask and it can be swapped in.
+
+Requires Node >= 22.5 (`node:sqlite` is experimental as of this Node version;
+`.node-version` and `engines.node` are set so Render provisions a compatible
+version).

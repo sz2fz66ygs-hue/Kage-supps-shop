@@ -615,6 +615,16 @@ let appliedStoreCredit = null; // { code, balancePence } once validated by the s
 
 const money = p => `£${(p / 100).toFixed(2)}`;
 
+// Best-effort basket telemetry for the admin's weekly summary. Never blocks
+// the UI and failures are silently ignored.
+function postCartEvent(productId, action) {
+  fetch("/api/cart-events", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ productId, action })
+  }).catch(() => {});
+}
+
 function stockBadge(stock, unit = "items") {
   if (stock === null || stock === undefined) {
     return `<span class="stock low">Stock not entered</span>`;
@@ -744,8 +754,10 @@ function renderProducts() {
 
       if (next === 0) {
         delete basket[id];
+        if (current > 0) postCartEvent(id, "remove");
       } else {
         basket[id] = next;
+        if (current === 0) postCartEvent(id, "add");
       }
 
       tg?.HapticFeedback?.selectionChanged();
@@ -845,7 +857,9 @@ function renderBasket() {
 
   document.querySelectorAll("[data-remove]").forEach(btn => {
     btn.addEventListener("click", () => {
-      delete basket[Number(btn.dataset.remove)];
+      const id = Number(btn.dataset.remove);
+      delete basket[id];
+      postCartEvent(id, "remove");
       tg?.HapticFeedback?.selectionChanged();
       render();
     });

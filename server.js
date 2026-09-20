@@ -1,8 +1,8 @@
 import "dotenv/config";
-import { readFileSync } from "fs";
+import { readFileSync, mkdirSync } from "fs";
 import { fileURLToPath } from "url";
 import path from "path";
-import crypto from "crypto";
+import { DatabaseSync } from "node:sqlite";
 import express from "express";
 import TelegramBot from "node-telegram-bot-api";
 
@@ -13,6 +13,46 @@ const port = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.static("public"));
+
+// Persistent storage (orders, discount/referral codes, commission balances).
+// DATA_DIR must point at a Render Persistent Disk (or any durable volume) —
+// otherwise this file is wiped on every redeploy just like the old in-memory
+// Maps were. Locally it just creates ./data/kage.sqlite.
+const DATA_DIR = process.env.DATA_DIR || ".";
+mkdirSync(DATA_DIR, { recursive: true });
+const db = new DatabaseSync(path.join(DATA_DIR, "kage.sqlite"));
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY, json TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS discount_codes (code TEXT PRIMARY KEY, json TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS referral_earnings (code TEXT PRIMARY KEY, json TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS cart_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    productId INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+  );
+`);
+
+const upsertOrderStmt = db.prepare(
+  "INSERT INTO orders (id, json) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET json = excluded.json"
+);
+const upsertDiscountCodeStmt = db.prepare(
+  "INSERT INTO discount_codes (code, json) VALUES (?, ?) ON CONFLICT(code) DO UPDATE SET json = excluded.json"
+);
+const upsertReferralEarningsStmt = db.prepare(
+  "INSERT INTO referral_earnings (code, json) VALUES (?, ?) ON CONFLICT(code) DO UPDATE SET json = excluded.json"
+);
+const upsertMetaStmt = db.prepare(
+  "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+);
+const insertCartEventStmt = db.prepare(
+  "INSERT INTO cart_events (productId, action, createdAt) VALUES (?, ?, ?)"
+);
+const cartEventCountsStmt = db.prepare(
+  "SELECT productId, action, COUNT(*) as cnt FROM cart_events WHERE createdAt >= ? GROUP BY productId, action"
+);
 
 const orders = new Map();
 let nextOrderId = 1001;
@@ -31,20 +71,78 @@ const discountCodes = new Map();
 // { owner, commissionPence, orderCount }
 const referralEarnings = new Map();
 
+function saveOrder(order) {
+  orders.set(order.orderId, order);
+  upsertOrderStmt.run(order.orderId, JSON.stringify(order));
+}
+
+function saveDiscountCode(code, record) {
+  discountCodes.set(code, record);
+  upsertDiscountCodeStmt.run(code, JSON.stringify(record));
+}
+
+function saveReferralEarnings(code, earnings) {
+  referralEarnings.set(code, earnings);
+  upsertReferralEarningsStmt.run(code, JSON.stringify(earnings));
+}
+
+function saveNextOrderId(id) {
+  nextOrderId = id;
+  upsertMetaStmt.run("nextOrderId", String(id));
+}
+
+function getMeta(key) {
+  const row = db.prepare("SELECT value FROM meta WHERE key = ?").get(key);
+  return row ? row.value : null;
+}
+
+function setMeta(key, value) {
+  upsertMetaStmt.run(key, String(value));
+}
+
+function recordCartEvent(productId, action) {
+  insertCartEventStmt.run(productId, action, new Date().toISOString());
+}
+
+// Load everything back into memory from disk at startup.
+for (const row of db.prepare("SELECT id, json FROM orders").all()) {
+  orders.set(row.id, JSON.parse(row.json));
+}
+for (const row of db.prepare("SELECT code, json FROM discount_codes").all()) {
+  discountCodes.set(row.code, JSON.parse(row.json));
+}
+for (const row of db.prepare("SELECT code, json FROM referral_earnings").all()) {
+  referralEarnings.set(row.code, JSON.parse(row.json));
+}
+const nextOrderIdRow = db.prepare("SELECT value FROM meta WHERE key = ?").get("nextOrderId");
+if (nextOrderIdRow) nextOrderId = Number(nextOrderIdRow.value);
+
 const REFERRAL_DISCOUNT_PERCENT = Number(process.env.REFERRAL_DISCOUNT_PERCENT || 10);
 const REFERRAL_COMMISSION_PERCENT = Number(process.env.REFERRAL_COMMISSION_PERCENT || 5);
 const adminApiSecret = process.env.ADMIN_API_SECRET || "";
 
+// The code is just the customer's Telegram name/username, sanitized and
+// uppercased — simple to read out loud and to remember, and already unique
+// per person since Telegram usernames are unique.
 function generateReferralCode(owner) {
-  const slug = String(owner || "friend")
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .toUpperCase()
-    .slice(0, 10) || "FRIEND";
+  const slug = String(owner || "friend").replace(/[^a-zA-Z0-9_]/g, "").toUpperCase();
+  return slug || "FRIEND";
+}
 
-  let code;
-  do {
-    code = `KAGE-${slug}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
-  } while (discountCodes.has(code));
+// Returns the existing code for this owner if one exists, otherwise creates it.
+function getOrCreateReferralCode(owner) {
+  const code = generateReferralCode(owner);
+
+  if (!discountCodes.has(code)) {
+    saveDiscountCode(code, {
+      discountType: "percent",
+      discountValue: REFERRAL_DISCOUNT_PERCENT,
+      referralOwner: owner,
+      commissionPercent: REFERRAL_COMMISSION_PERCENT,
+      uses: 0,
+      active: true
+    });
+  }
 
   return code;
 }
@@ -248,6 +346,7 @@ app.post("/api/orders", async (req, res) => {
 
     appliedCode = normalizedCode;
     codeRecord.uses += 1;
+    saveDiscountCode(normalizedCode, codeRecord);
 
     if (codeRecord.referralOwner) {
       const totalAfterDiscount = subtotalPence - discountPence;
@@ -268,7 +367,7 @@ app.post("/api/orders", async (req, res) => {
       earnings.commissionPence += commissionPence;
       earnings.balancePence += commissionPence;
       earnings.orderCount += 1;
-      referralEarnings.set(normalizedCode, earnings);
+      saveReferralEarnings(normalizedCode, earnings);
     }
   }
 
@@ -286,13 +385,14 @@ app.post("/api/orders", async (req, res) => {
     const remainingAfterDiscount = subtotalPence - discountPence;
     storeCreditPence = Math.min(creditEarnings.balancePence, remainingAfterDiscount);
     creditEarnings.balancePence -= storeCreditPence;
-    referralEarnings.set(normalizedCreditCode, creditEarnings);
+    saveReferralEarnings(normalizedCreditCode, creditEarnings);
     appliedStoreCreditCode = normalizedCreditCode;
   }
 
   const totalPence = Math.max(0, subtotalPence - discountPence - storeCreditPence);
 
-  const orderId = nextOrderId++;
+  const orderId = nextOrderId;
+  saveNextOrderId(nextOrderId + 1);
   const order = {
     orderId,
     customerName,
@@ -310,7 +410,7 @@ app.post("/api/orders", async (req, res) => {
     createdAt: new Date().toISOString()
   };
 
-  orders.set(orderId, order);
+  saveOrder(order);
 
   if (bot && adminTelegramId) {
     const discountLine = discountPence > 0
@@ -404,7 +504,7 @@ app.post("/api/orders/:id/confirm-payment", async (req, res) => {
   order.transactionId = transactionId;
   order.paymentAsset = asset;
   order.paidAt = new Date().toISOString();
-  orders.set(order.orderId, order);
+  saveOrder(order);
 
   if (bot && adminTelegramId) {
     const itemLines = order.items.map(i => `${i.quantity} × ${i.name}`).join("\n");
@@ -459,16 +559,7 @@ app.post("/api/referral-codes", (req, res) => {
     return res.status(400).json({ error: "Provide ownerName or ownerTelegramUsername" });
   }
 
-  const code = generateReferralCode(owner);
-
-  discountCodes.set(code, {
-    discountType: "percent",
-    discountValue: REFERRAL_DISCOUNT_PERCENT,
-    referralOwner: owner,
-    commissionPercent: REFERRAL_COMMISSION_PERCENT,
-    uses: 0,
-    active: true
-  });
+  const code = getOrCreateReferralCode(owner);
 
   res.json({
     ok: true,
@@ -504,7 +595,7 @@ app.post("/api/discount-codes", (req, res) => {
     return res.status(400).json({ error: "Percent discount cannot exceed 100" });
   }
 
-  discountCodes.set(normalizedCode, {
+  saveDiscountCode(normalizedCode, {
     discountType,
     discountValue,
     referralOwner: null,
@@ -565,7 +656,7 @@ app.post("/api/payment-webhook", async (req, res) => {
   order.paymentStatus = "paid";
   order.transactionId = transactionId || "";
   order.paidAt = new Date().toISOString();
-  orders.set(order.orderId, order);
+  saveOrder(order);
 
   if (bot && adminTelegramId) {
     await bot.sendMessage(
@@ -596,9 +687,140 @@ app.get("/api/orders/:id", (req, res) => {
   });
 });
 
+// Basket telemetry for the weekly summary: fired by the storefront whenever
+// a product is added to the basket, or fully removed from it (not on every
+// quantity tweak). Best-effort — the client doesn't wait on this.
+app.post("/api/cart-events", (req, res) => {
+  const { productId, action } = req.body || {};
+  const id = Number(productId);
+
+  if (!productsById.has(id) || !["add", "remove"].includes(action)) {
+    return res.status(400).json({ error: "Invalid cart event" });
+  }
+
+  recordCartEvent(id, action);
+  res.json({ ok: true });
+});
+
 app.listen(port, () => {
   console.log(`Kage storefront running on port ${port}`);
 });
+
+function formatMoney(pence) {
+  return `£${(pence / 100).toFixed(2)}`;
+}
+
+// Sales + basket add/remove activity since sinceIso, one line per product
+// that had either an order or a basket event in the window.
+function buildActivitySummary(sinceIso) {
+  const allOrders = [...orders.values()].filter(o => o.createdAt >= sinceIso);
+  const paidOrders = allOrders.filter(o => o.paymentStatus === "paid");
+
+  const perProduct = new Map();
+
+  for (const o of allOrders) {
+    for (const item of o.items) {
+      const entry = perProduct.get(item.id) || {
+        name: item.name,
+        unitsOrdered: 0,
+        unitsPaid: 0,
+        revenuePaidPence: 0
+      };
+      entry.unitsOrdered += item.quantity;
+      if (o.paymentStatus === "paid") {
+        entry.unitsPaid += item.quantity;
+        entry.revenuePaidPence += item.lineTotalPence;
+      }
+      perProduct.set(item.id, entry);
+    }
+  }
+
+  const eventsByProduct = new Map();
+  for (const row of cartEventCountsStmt.all(sinceIso)) {
+    const entry = eventsByProduct.get(row.productId) || { added: 0, removed: 0 };
+    entry[row.action === "add" ? "added" : "removed"] = row.cnt;
+    eventsByProduct.set(row.productId, entry);
+  }
+
+  const productIds = new Set([...perProduct.keys(), ...eventsByProduct.keys()]);
+
+  if (!productIds.size) {
+    return `No orders or basket activity since ${new Date(sinceIso).toLocaleDateString()}.`;
+  }
+
+  const lines = [...productIds].map(id => {
+    const product = productsById.get(id);
+    const name = product?.name || perProduct.get(id)?.name || `Product #${id}`;
+    const sales = perProduct.get(id);
+    const events = eventsByProduct.get(id) || { added: 0, removed: 0 };
+    const salesLine = sales
+      ? `${sales.unitsOrdered} ordered (${sales.unitsPaid} paid, ${formatMoney(sales.revenuePaidPence)})`
+      : "0 ordered";
+
+    return `• ${name}: ${salesLine} — added to basket ${events.added}×, removed ${events.removed}×`;
+  });
+
+  const totalRevenuePaid = paidOrders.reduce((sum, o) => sum + o.totalPence, 0);
+
+  return [
+    `Orders: ${allOrders.length} placed, ${paidOrders.length} paid (${formatMoney(totalRevenuePaid)})`,
+    "",
+    ...lines
+  ].join("\n");
+}
+
+const WEEKLY_SUMMARY_MS = 7 * 24 * 60 * 60 * 1000;
+
+async function maybeSendWeeklySummary() {
+  if (!bot || !adminTelegramId) return;
+
+  const last = getMeta("lastWeeklySummaryAt");
+
+  if (!last) {
+    // First boot: set a baseline so the first send happens a week from now,
+    // rather than immediately dumping "since the beginning of time".
+    setMeta("lastWeeklySummaryAt", new Date().toISOString());
+    return;
+  }
+
+  if (Date.now() - new Date(last).getTime() < WEEKLY_SUMMARY_MS) return;
+
+  const summary = buildActivitySummary(last);
+  const now = new Date().toISOString();
+
+  await bot.sendMessage(
+    adminTelegramId,
+    `📊 Weekly summary (since ${new Date(last).toLocaleDateString()})\n\n${summary}`
+  );
+  setMeta("lastWeeklySummaryAt", now);
+}
+
+if (bot) {
+  setInterval(() => {
+    maybeSendWeeklySummary().catch(err => console.error("Weekly summary failed", err));
+  }, 60 * 60 * 1000);
+  maybeSendWeeklySummary().catch(err => console.error("Weekly summary failed", err));
+
+  bot.onText(/\/myid/, async (msg) => {
+    await bot.sendMessage(
+      msg.chat.id,
+      `Your Telegram ID: ${msg.from.id}\n\nSet this as ADMIN_TELEGRAM_ID (env var) to receive order/shipping notifications and weekly summaries.`
+    );
+  });
+
+  bot.onText(/\/summary/, async (msg) => {
+    if (!adminTelegramId) {
+      return bot.sendMessage(msg.chat.id, "ADMIN_TELEGRAM_ID isn't configured yet — send /myid to get your ID.");
+    }
+    if (String(msg.from?.id) !== String(adminTelegramId)) {
+      return bot.sendMessage(msg.chat.id, "This command is admin-only.");
+    }
+
+    const sinceIso = new Date(Date.now() - WEEKLY_SUMMARY_MS).toISOString();
+    const summary = buildActivitySummary(sinceIso);
+    await bot.sendMessage(msg.chat.id, `📊 Last 7 days\n\n${summary}`);
+  });
+}
 
 if (bot && webAppUrl) {
   bot.onText(/\/start/, async (msg) => {
@@ -633,27 +855,7 @@ Choose an option below 👇`,
 
   bot.onText(/\/refer/, async (msg) => {
     const owner = msg.from?.username || `id${msg.from?.id}`;
-
-    let existingCode = null;
-    for (const [code, record] of discountCodes.entries()) {
-      if (record.referralOwner === owner) {
-        existingCode = code;
-        break;
-      }
-    }
-
-    const code = existingCode || generateReferralCode(owner);
-
-    if (!existingCode) {
-      discountCodes.set(code, {
-        discountType: "percent",
-        discountValue: REFERRAL_DISCOUNT_PERCENT,
-        referralOwner: owner,
-        commissionPercent: REFERRAL_COMMISSION_PERCENT,
-        uses: 0,
-        active: true
-      });
-    }
+    const code = getOrCreateReferralCode(owner);
 
     await bot.sendMessage(
       msg.chat.id,
@@ -680,27 +882,7 @@ Choose an option below 👇`,
 
     if (q.data === "refer") {
       const owner = q.from?.username || `id${q.from?.id}`;
-
-      let existingCode = null;
-      for (const [code, record] of discountCodes.entries()) {
-        if (record.referralOwner === owner) {
-          existingCode = code;
-          break;
-        }
-      }
-
-      const code = existingCode || generateReferralCode(owner);
-
-      if (!existingCode) {
-        discountCodes.set(code, {
-          discountType: "percent",
-          discountValue: REFERRAL_DISCOUNT_PERCENT,
-          referralOwner: owner,
-          commissionPercent: REFERRAL_COMMISSION_PERCENT,
-          uses: 0,
-          active: true
-        });
-      }
+      const code = getOrCreateReferralCode(owner);
 
       await bot.sendMessage(
         chatId,
