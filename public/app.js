@@ -578,24 +578,6 @@ const displayProducts = [
     subtitle: "10 tablets per strip",
     stock: 5,
     unit: "strips"
-  },
-  {
-    id: 332,
-    category: "Pharma",
-    section: "General Pharma",
-    name: "Clomid 50mg",
-    subtitle: "10 tablets per strip",
-    stock: 5,
-    unit: "strips"
-  },
-  {
-    id: 333,
-    category: "Pharma",
-    section: "General Pharma",
-    name: "Tamoxifen 25mg",
-    subtitle: "10 tablets per strip",
-    stock: 5,
-    unit: "strips"
   }
 ];
 
