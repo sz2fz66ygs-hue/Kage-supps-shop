@@ -937,15 +937,91 @@ async function submitOrder() {
       return;
     }
 
-    setStatus(`Order #${data.orderId} created — total ${money(data.totalPence)}. ${data.payment?.instructions || ""}`, "success");
+    setStatus(`Order #${data.orderId} created — total ${money(data.totalPence)}.`, "success");
     Object.keys(basket).forEach(id => delete basket[id]);
     appliedCode = null;
     if (document.getElementById("discountCode")) document.getElementById("discountCode").value = "";
     render();
+    renderPaymentPanel(data);
   } catch (err) {
     setStatus("Couldn't reach the server, try again.", "error");
   } finally {
     if (checkoutBtn) checkoutBtn.disabled = false;
+  }
+}
+
+function renderPaymentPanel(order) {
+  const panel = document.getElementById("paymentPanel");
+  if (!panel) return;
+
+  if (!order.payment || order.payment.method !== "crypto") {
+    panel.innerHTML = "";
+    return;
+  }
+
+  panel.innerHTML = `
+    <div class="payment-panel">
+      <div class="payment-title">Send payment to (Ethereum mainnet)</div>
+      <div class="payment-address">${order.payment.address}</div>
+      <div class="payment-quote">≈ ${order.payment.quote.ETH} ETH or ${order.payment.quote.USDT} USDT</div>
+      <div class="payment-sub">${order.payment.instructions}</div>
+
+      <label>Asset sent</label>
+      <select id="paymentAsset">
+        <option value="ETH">ETH</option>
+        <option value="USDT">USDT (ERC-20)</option>
+      </select>
+
+      <label>Transaction hash</label>
+      <input id="paymentTxId" placeholder="0x...">
+
+      <button id="confirmPaymentBtn" class="gold-btn" type="button">I've paid — confirm</button>
+      <div id="paymentStatus" class="status"></div>
+    </div>
+  `;
+
+  document.getElementById("confirmPaymentBtn")?.addEventListener("click", () => confirmPayment(order.orderId));
+}
+
+async function confirmPayment(orderId) {
+  const asset = document.getElementById("paymentAsset")?.value;
+  const transactionId = document.getElementById("paymentTxId")?.value.trim();
+  const paymentStatus = document.getElementById("paymentStatus");
+
+  const setPaymentStatus = (message, kind = "") => {
+    if (!paymentStatus) return;
+    paymentStatus.textContent = message;
+    paymentStatus.className = `status ${kind}`;
+  };
+
+  if (!transactionId) {
+    setPaymentStatus("Enter your transaction hash.", "error");
+    return;
+  }
+
+  const btn = document.getElementById("confirmPaymentBtn");
+  if (btn) btn.disabled = true;
+  setPaymentStatus("Checking the blockchain…");
+
+  try {
+    const res = await fetch(`/api/orders/${orderId}/confirm-payment`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transactionId, asset })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setPaymentStatus(data.error || "Could not confirm payment.", "error");
+      return;
+    }
+
+    setPaymentStatus("Payment confirmed! We're preparing your shipment.", "success");
+  } catch (err) {
+    setPaymentStatus("Couldn't reach the server, try again.", "error");
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
