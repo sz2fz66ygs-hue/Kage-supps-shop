@@ -242,6 +242,15 @@ const webAppUrl = process.env.WEBAPP_URL;
 const adminTelegramId = process.env.ADMIN_TELEGRAM_ID;
 const paymentWebhookSecret = process.env.PAYMENT_WEBHOOK_SECRET || "";
 
+// Comma-separated numeric Telegram IDs that receive forwarded support messages.
+const supportTelegramIds = (process.env.SUPPORT_TELEGRAM_IDS || "")
+  .split(",")
+  .map(s => s.trim())
+  .filter(Boolean);
+
+// Chat IDs that just tapped "Support" and are expected to send their message next.
+const pendingSupport = new Set();
+
 let bot = null;
 
 if (token) {
@@ -838,11 +847,33 @@ Choose an option below 👇`,
     await bot.answerCallbackQuery(q.id);
 
     if (q.data === "orders") {
-      await bot.sendMessage(chatId, "📦 My Orders\n\nOrder history can be connected to a persistent database next.");
+      const username = (q.from?.username || "").toLowerCase();
+      const matches = [...orders.values()]
+        .filter(o => (o.telegramUsername || "").replace(/^@/, "").toLowerCase() === username)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 10);
+
+      if (!username) {
+        await bot.sendMessage(chatId, "📦 My Orders\n\nSet a Telegram username in your Telegram settings, and enter it at checkout, to look up your orders here.");
+      } else if (!matches.length) {
+        await bot.sendMessage(chatId, "📦 My Orders\n\nNo orders found for your Telegram username. Make sure you enter it exactly (e.g. @yourname) at checkout.");
+      } else {
+        const lines = matches.map(o => {
+          const statusLabel = o.paymentStatus === "paid" ? "Paid ✅" : "Awaiting payment";
+          const date = new Date(o.createdAt).toLocaleDateString();
+          return `#${o.orderId} — £${(o.totalPence / 100).toFixed(2)} — ${statusLabel} (${date})`;
+        });
+        await bot.sendMessage(chatId, `📦 My Orders\n\n${lines.join("\n")}`);
+      }
     }
 
     if (q.data === "support") {
-      await bot.sendMessage(chatId, "💬 Support\n\nSend your support message here.");
+      if (!supportTelegramIds.length) {
+        await bot.sendMessage(chatId, "💬 Support\n\nSupport isn't configured yet — please try again later.");
+      } else {
+        pendingSupport.add(chatId);
+        await bot.sendMessage(chatId, "💬 Support\n\nSend your message below and our team will get it.");
+      }
     }
 
     if (q.data === "info") {
@@ -858,5 +889,25 @@ Choose an option below 👇`,
         `Your referral code: ${code}\n\nShare it — anyone who uses it gets ${REFERRAL_DISCOUNT_PERCENT}% off their order, and you earn ${REFERRAL_COMMISSION_PERCENT}% commission on every order that uses it.`
       );
     }
+  });
+
+  // Forwards a customer's next message to SUPPORT_TELEGRAM_IDS once they've
+  // tapped "Support" — ignored for anyone not currently in that flow, and
+  // for commands, so it never swallows /start, /refer, etc.
+  bot.on("message", async (msg) => {
+    const chatId = msg.chat?.id;
+    if (!chatId || !pendingSupport.has(chatId)) return;
+    if (!msg.text || msg.text.startsWith("/")) return;
+
+    pendingSupport.delete(chatId);
+
+    const from = msg.from?.username ? `@${msg.from.username}` : `Telegram id ${msg.from?.id}`;
+    const forwardText = `💬 New support message\n\nFrom: ${from}\nMessage: ${msg.text}`;
+
+    for (const id of supportTelegramIds) {
+      await bot.sendMessage(id, forwardText).catch(err => console.error("Failed to forward support message to", id, err));
+    }
+
+    await bot.sendMessage(chatId, "Thanks — your message has been sent to our support team. We'll get back to you soon.");
   });
 }

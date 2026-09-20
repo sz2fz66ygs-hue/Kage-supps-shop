@@ -25,6 +25,7 @@ variables, and redeploy.
 - TELEGRAM_BOT_TOKEN
 - WEBAPP_URL
 - ADMIN_TELEGRAM_ID — see above; without this, order/payment/summary messages have nowhere to go
+- SUPPORT_TELEGRAM_IDS (optional) — comma-separated numeric Telegram IDs (e.g. `123,456`) that receive forwarded support messages. Without this, tapping "Support" tells the customer it isn't configured yet.
 - PAYMENT_WEBHOOK_SECRET
 - REFERRAL_DISCOUNT_PERCENT (default 10) — % off given to a buyer who uses a referral code
 - REFERRAL_COMMISSION_PERCENT (default 5) — % of the order the referrer earns
@@ -110,6 +111,20 @@ itself, Bitcoin, Tron/USDT-TRC20, or another chain, that's a similar shape (a
 different explorer API and/or address format) — ask and it can be added the
 same way. Alternatively, plug a payment provider into `/api/payment-webhook`
 instead.
+
+## Support and My Orders
+Tapping "Support" from `/start` puts that chat into a one-message support
+flow: whatever the customer sends next (as long as it's not another command)
+gets forwarded verbatim to every ID in `SUPPORT_TELEGRAM_IDS`, and the
+customer gets a confirmation. Each recipient needs their numeric Telegram ID
+the same way as `ADMIN_TELEGRAM_ID` (send `/myid` to the bot).
+
+Tapping "My Orders" looks up the tapping user's Telegram `username` against
+`telegramUsername` on stored orders (case-insensitive, leading `@` ignored)
+and lists their 10 most recent, with status and total. This only works if
+the customer has a Telegram username set and entered it accurately at
+checkout — there's no login, so it's a best-effort match, not authenticated
+account history.
 
 ## Weekly summary
 Once `ADMIN_TELEGRAM_ID` is set, the bot sends a weekly message covering, per
