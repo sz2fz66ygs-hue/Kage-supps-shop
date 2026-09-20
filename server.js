@@ -180,12 +180,12 @@ app.post("/api/orders", async (req, res) => {
 
     await bot.sendMessage(
       adminTelegramId,
-      `ð§¾ New Order Created
+      `🧾 New Order Created
 
 Order: #${orderId}
 Customer: ${customerName}
 Telegram: ${telegramUsername || "Not supplied"}
-Total: Â£${(totalPence / 100).toFixed(2)}${discountLine}${referralLine}
+Total: £${(totalPence / 100).toFixed(2)}${discountLine}${referralLine}
 Status: Awaiting payment`
     );
   }
@@ -343,12 +343,12 @@ app.post("/api/payment-webhook", async (req, res) => {
   if (bot && adminTelegramId) {
     await bot.sendMessage(
       adminTelegramId,
-      `ð° PAYMENT CONFIRMED
+      `💰 PAYMENT CONFIRMED
 
 Order: #${order.orderId}
 Customer: ${order.customerName}
-Total: Â£${(order.totalPence / 100).toFixed(2)}
-Status: Paid â`
+Total: £${(order.totalPence / 100).toFixed(2)}
+Status: Paid ✅`
     );
   }
 
@@ -376,25 +376,25 @@ if (bot && webAppUrl) {
   bot.onText(/\/start/, async (msg) => {
     await bot.sendMessage(
       msg.chat.id,
-      `â¡ï¸ Welcome to Kage Supps
+      `⚡️ Welcome to Kage Supps
 
 Everything is in one place.
 
-ð Open Shop â browse the storefront
-ð¦ My Orders â view your order history
-ð¬ Support â get help
-â¹ï¸ Info â important information
+🛍 Open Shop — browse the storefront
+📦 My Orders — view your order history
+💬 Support — get help
+ℹ️ Info — important information
 
-Choose an option below ð`,
+Choose an option below 👇`,
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "ð Open Shop", web_app: { url: webAppUrl } }],
+            [{ text: "🛍 Open Shop", web_app: { url: webAppUrl } }],
             [
-              { text: "ð¦ My Orders", callback_data: "orders" },
-              { text: "ð¬ Support", callback_data: "support" }
+              { text: "📦 My Orders", callback_data: "orders" },
+              { text: "💬 Support", callback_data: "support" }
             ],
-            [{ text: "â¹ï¸ Info", callback_data: "info" },
+            [{ text: "ℹ️ Info", callback_data: "info" },
               { text: "🎁 Refer & Earn", callback_data: "refer" }
             ]
           ]
@@ -439,15 +439,15 @@ Choose an option below ð`,
     await bot.answerCallbackQuery(q.id);
 
     if (q.data === "orders") {
-      await bot.sendMessage(chatId, "ð¦ My Orders\n\nOrder history can be connected to a persistent database next.");
+      await bot.sendMessage(chatId, "📦 My Orders\n\nOrder history can be connected to a persistent database next.");
     }
 
     if (q.data === "support") {
-      await bot.sendMessage(chatId, "ð¬ Support\n\nSend your support message here.");
+      await bot.sendMessage(chatId, "💬 Support\n\nSend your support message here.");
     }
 
     if (q.data === "info") {
-      await bot.sendMessage(chatId, "â¹ï¸ Kage Supps\n\nTap ð Open Shop to launch the Mini App.");
+      await bot.sendMessage(chatId, "ℹ️ Kage Supps\n\nTap 🛍 Open Shop to launch the Mini App.");
     }
 
     if (q.data === "refer") {
