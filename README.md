@@ -37,18 +37,17 @@ variables, and redeploy.
 - DATA_DIR (default `.`) — where the SQLite database file lives; point this at a Render Persistent Disk's mount path for data to survive redeploys (see **Data persistence** below)
 
 ## Adding products
-Only lawful, purchasable products go in `public/products.json`. It's the
-single source of truth: the storefront renders it and the server reads the
-exact same file to price/validate every order, so a client can never submit
-its own price or exceed stock. Each entry needs `id`, `category`, `section`,
-`name`, `stock`, `unit` and `pricePence`; `subtitle` is optional. `category`/
-`section` must match the ones the storefront defines in `public/app.js`
-(`categories` / `sectionOrder`).
+Every product goes in `public/products.json` — it's the single source of
+truth: the storefront renders it and the server reads the exact same file to
+price/validate every order, so a client can never submit its own price or
+exceed stock. There's no separate display-only list; anything added here
+automatically gets add/remove-to-basket controls. Each entry needs `id`,
+`category`, `section`, `name`, `stock`, `unit` and `pricePence`; `subtitle`
+is optional. `category`/`section` must match one of the pairs defined in
+`public/app.js` (`categories` / `sectionOrder`).
 
 Anything sold must be legal to sell without a prescription in your
-jurisdiction. The catalogue in `public/app.js` (`displayProducts`) is kept
-separate and intentionally display-only — it is never wired into the basket
-or checkout.
+jurisdiction.
 
 ## Discount codes & referrals
 - A referral code is just the person's Telegram name/username, sanitized and
