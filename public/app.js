@@ -74,7 +74,7 @@ function renderTabs() {
       class="tab ${c.name === currentCategory ? "active" : ""}"
       data-category="${c.name}"
     >
-      ${c.icon} ${c.name}
+      ${c.name} ${c.icon}
     </button>
   `).join("");
 
