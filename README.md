@@ -43,6 +43,10 @@ separate and intentionally display-only — it is never wired into the basket
 or checkout.
 
 ## Discount codes & referrals
+- A referral code is just the person's Telegram name/username, sanitized and
+  uppercased (e.g. `@jane_doe` → `JANE_DOE`) — simple to read out loud, and
+  already unique per person. Asking again for the same owner returns the same
+  code rather than minting a new one.
 - `POST /api/referral-codes` `{ ownerName | ownerTelegramUsername }` — anyone
   can self-serve generate a referral code. Buyers who use it get
   `REFERRAL_DISCOUNT_PERCENT` off; the referrer earns

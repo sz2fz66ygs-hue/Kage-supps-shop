@@ -2,7 +2,6 @@ import "dotenv/config";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import path from "path";
-import crypto from "crypto";
 import express from "express";
 import TelegramBot from "node-telegram-bot-api";
 
@@ -35,16 +34,28 @@ const REFERRAL_DISCOUNT_PERCENT = Number(process.env.REFERRAL_DISCOUNT_PERCENT |
 const REFERRAL_COMMISSION_PERCENT = Number(process.env.REFERRAL_COMMISSION_PERCENT || 5);
 const adminApiSecret = process.env.ADMIN_API_SECRET || "";
 
+// The code is just the customer's Telegram name/username, sanitized and
+// uppercased — simple to read out loud and to remember, and already unique
+// per person since Telegram usernames are unique.
 function generateReferralCode(owner) {
-  const slug = String(owner || "friend")
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .toUpperCase()
-    .slice(0, 10) || "FRIEND";
+  const slug = String(owner || "friend").replace(/[^a-zA-Z0-9_]/g, "").toUpperCase();
+  return slug || "FRIEND";
+}
 
-  let code;
-  do {
-    code = `KAGE-${slug}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
-  } while (discountCodes.has(code));
+// Returns the existing code for this owner if one exists, otherwise creates it.
+function getOrCreateReferralCode(owner) {
+  const code = generateReferralCode(owner);
+
+  if (!discountCodes.has(code)) {
+    discountCodes.set(code, {
+      discountType: "percent",
+      discountValue: REFERRAL_DISCOUNT_PERCENT,
+      referralOwner: owner,
+      commissionPercent: REFERRAL_COMMISSION_PERCENT,
+      uses: 0,
+      active: true
+    });
+  }
 
   return code;
 }
@@ -459,16 +470,7 @@ app.post("/api/referral-codes", (req, res) => {
     return res.status(400).json({ error: "Provide ownerName or ownerTelegramUsername" });
   }
 
-  const code = generateReferralCode(owner);
-
-  discountCodes.set(code, {
-    discountType: "percent",
-    discountValue: REFERRAL_DISCOUNT_PERCENT,
-    referralOwner: owner,
-    commissionPercent: REFERRAL_COMMISSION_PERCENT,
-    uses: 0,
-    active: true
-  });
+  const code = getOrCreateReferralCode(owner);
 
   res.json({
     ok: true,
@@ -633,27 +635,7 @@ Choose an option below 👇`,
 
   bot.onText(/\/refer/, async (msg) => {
     const owner = msg.from?.username || `id${msg.from?.id}`;
-
-    let existingCode = null;
-    for (const [code, record] of discountCodes.entries()) {
-      if (record.referralOwner === owner) {
-        existingCode = code;
-        break;
-      }
-    }
-
-    const code = existingCode || generateReferralCode(owner);
-
-    if (!existingCode) {
-      discountCodes.set(code, {
-        discountType: "percent",
-        discountValue: REFERRAL_DISCOUNT_PERCENT,
-        referralOwner: owner,
-        commissionPercent: REFERRAL_COMMISSION_PERCENT,
-        uses: 0,
-        active: true
-      });
-    }
+    const code = getOrCreateReferralCode(owner);
 
     await bot.sendMessage(
       msg.chat.id,
@@ -680,27 +662,7 @@ Choose an option below 👇`,
 
     if (q.data === "refer") {
       const owner = q.from?.username || `id${q.from?.id}`;
-
-      let existingCode = null;
-      for (const [code, record] of discountCodes.entries()) {
-        if (record.referralOwner === owner) {
-          existingCode = code;
-          break;
-        }
-      }
-
-      const code = existingCode || generateReferralCode(owner);
-
-      if (!existingCode) {
-        discountCodes.set(code, {
-          discountType: "percent",
-          discountValue: REFERRAL_DISCOUNT_PERCENT,
-          referralOwner: owner,
-          commissionPercent: REFERRAL_COMMISSION_PERCENT,
-          uses: 0,
-          active: true
-        });
-      }
+      const code = getOrCreateReferralCode(owner);
 
       await bot.sendMessage(
         chatId,
