@@ -28,6 +28,7 @@ const categories = [
 ];
 
 
+
 const sectionOrder = {
   Oils: [
     "Oils",
@@ -52,12 +53,14 @@ const sectionOrder = {
   ],
 
   Peps: [
-    "Recovery",
-    "Performance",
-    "Weight Management",
-    "Other"
+    "Recovery Research",
+    "Metabolic Research",
+    "Copper Peptide",
+    "Other Peptides",
+    "Supplies"
   ]
 };
+
 let products = [];
 
 const basket = {};
