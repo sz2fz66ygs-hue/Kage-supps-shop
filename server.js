@@ -176,10 +176,10 @@ async function etherscanCall(params) {
   return data;
 }
 
-async function getGbpRates() {
-  const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=ethereum,tether&vs_currencies=gbp");
+async function getUsdtGbpRate() {
+  const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=gbp");
   const data = await res.json();
-  return { ethGbp: data.ethereum.gbp, usdtGbp: data.tether.gbp };
+  return data.tether.gbp;
 }
 
 async function getEthTransaction(txHash) {
@@ -194,36 +194,6 @@ async function getEthTransaction(txHash) {
 
 function confirmationsFor(tx, currentBlock) {
   return Number(BigInt(currentBlock) - BigInt(tx.blockNumber));
-}
-
-async function verifyEthPayment(txHash) {
-  if (!ETH_RECEIVING_ADDRESS) {
-    throw Object.assign(new Error("Crypto payments are not configured"), { code: "not_configured" });
-  }
-
-  const { tx, receipt, currentBlock } = await getEthTransaction(txHash);
-
-  if (!tx) throw Object.assign(new Error("Transaction not found"), { code: "not_found" });
-  if (!receipt || receipt.status !== "0x1") {
-    throw Object.assign(new Error("Transaction failed or is not yet mined"), { code: "not_confirmed" });
-  }
-  if ((tx.to || "").toLowerCase() !== ETH_RECEIVING_ADDRESS) {
-    throw Object.assign(new Error("Transaction was not sent to our receiving address"), { code: "wrong_recipient" });
-  }
-
-  const confirmations = confirmationsFor(tx, currentBlock);
-  if (confirmations < MIN_CONFIRMATIONS) {
-    throw Object.assign(
-      new Error(`Only ${confirmations} confirmation(s) so far, need ${MIN_CONFIRMATIONS}`),
-      { code: "insufficient_confirmations" }
-    );
-  }
-
-  const ethPaid = Number(BigInt(tx.value)) / 1e18;
-  const { ethGbp } = await getGbpRates();
-  const gbpPencePaid = Math.round(ethPaid * ethGbp * 100);
-
-  return { gbpPencePaid, confirmations, amountDisplay: `${ethPaid.toFixed(6)} ETH` };
 }
 
 async function verifyUsdtPayment(txHash) {
@@ -261,7 +231,7 @@ async function verifyUsdtPayment(txHash) {
   }
 
   const usdtPaid = Number(BigInt(transferLog.data)) / 1e6;
-  const { usdtGbp } = await getGbpRates();
+  const usdtGbp = await getUsdtGbpRate();
   const gbpPencePaid = Math.round(usdtPaid * usdtGbp * 100);
 
   return { gbpPencePaid, confirmations, amountDisplay: `${usdtPaid.toFixed(2)} USDT` };
@@ -442,18 +412,17 @@ Status: Awaiting payment`
 
   if (ETH_RECEIVING_ADDRESS) {
     try {
-      const { ethGbp, usdtGbp } = await getGbpRates();
+      const usdtGbp = await getUsdtGbpRate();
       const totalGbp = totalPence / 100;
 
       payment = {
         method: "crypto",
         address: ETH_RECEIVING_ADDRESS,
-        accepted: ["ETH", "USDT (ERC-20, Ethereum mainnet)"],
+        accepted: ["USDT (ERC-20, Ethereum mainnet)"],
         quote: {
-          ETH: (totalGbp / ethGbp).toFixed(6),
           USDT: (totalGbp / usdtGbp).toFixed(2)
         },
-        instructions: "Send the exact amount shown to the address above on Ethereum mainnet, then submit your transaction hash to confirm. The quote is approximate — confirmation checks the live rate at payment time."
+        instructions: "Send the exact USDT amount shown to the address above on Ethereum mainnet (ERC-20), then submit your transaction hash to confirm. The quote is approximate — confirmation checks the live rate at payment time."
       };
     } catch (err) {
       console.error("Failed to fetch crypto rates", err);
@@ -472,7 +441,7 @@ Status: Awaiting payment`
   });
 });
 
-// Verify an on-chain ETH or USDT (ERC-20) payment against an order and, if it
+// Verify an on-chain USDT (ERC-20) payment against an order and, if it
 // matches within PAYMENT_TOLERANCE_PENCE, mark the order paid and forward the
 // shipping details to the admin chat for fulfillment.
 app.post("/api/orders/:id/confirm-payment", async (req, res) => {
@@ -480,14 +449,14 @@ app.post("/api/orders/:id/confirm-payment", async (req, res) => {
   if (!order) return res.status(404).json({ error: "Order not found" });
   if (order.paymentStatus === "paid") return res.json({ ok: true, alreadyPaid: true });
 
-  const { transactionId, asset } = req.body || {};
-  if (!transactionId || !["ETH", "USDT"].includes(asset)) {
-    return res.status(400).json({ error: "Provide transactionId and asset (ETH or USDT)" });
+  const { transactionId } = req.body || {};
+  if (!transactionId) {
+    return res.status(400).json({ error: "Provide transactionId" });
   }
 
   let result;
   try {
-    result = asset === "ETH" ? await verifyEthPayment(transactionId) : await verifyUsdtPayment(transactionId);
+    result = await verifyUsdtPayment(transactionId);
   } catch (err) {
     const statusCode = err.code === "not_configured" ? 501 : err.code === "provider_error" ? 502 : 400;
     return res.status(statusCode).json({ error: err.message });
@@ -502,7 +471,7 @@ app.post("/api/orders/:id/confirm-payment", async (req, res) => {
 
   order.paymentStatus = "paid";
   order.transactionId = transactionId;
-  order.paymentAsset = asset;
+  order.paymentAsset = "USDT";
   order.paidAt = new Date().toISOString();
   saveOrder(order);
 

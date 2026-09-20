@@ -1030,16 +1030,10 @@ function renderPaymentPanel(order) {
 
   panel.innerHTML = `
     <div class="payment-panel">
-      <div class="payment-title">Send payment to (Ethereum mainnet)</div>
+      <div class="payment-title">Send USDT (ERC-20, Ethereum mainnet) to</div>
       <div class="payment-address">${order.payment.address}</div>
-      <div class="payment-quote">≈ ${order.payment.quote.ETH} ETH or ${order.payment.quote.USDT} USDT</div>
+      <div class="payment-quote">≈ ${order.payment.quote.USDT} USDT</div>
       <div class="payment-sub">${order.payment.instructions}</div>
-
-      <label>Asset sent</label>
-      <select id="paymentAsset">
-        <option value="ETH">ETH</option>
-        <option value="USDT">USDT (ERC-20)</option>
-      </select>
 
       <label>Transaction hash</label>
       <input id="paymentTxId" placeholder="0x...">
@@ -1053,7 +1047,6 @@ function renderPaymentPanel(order) {
 }
 
 async function confirmPayment(orderId) {
-  const asset = document.getElementById("paymentAsset")?.value;
   const transactionId = document.getElementById("paymentTxId")?.value.trim();
   const paymentStatus = document.getElementById("paymentStatus");
 
@@ -1076,7 +1069,7 @@ async function confirmPayment(orderId) {
     const res = await fetch(`/api/orders/${orderId}/confirm-payment`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transactionId, asset })
+      body: JSON.stringify({ transactionId })
     });
 
     const data = await res.json();

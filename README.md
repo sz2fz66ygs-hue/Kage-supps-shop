@@ -5,7 +5,7 @@ This is a clean lawful-store scaffold with:
 - basket with add/remove cart controls, wired to checkout
 - discount codes and self-serve referral codes (buyer discount + referrer commission)
 - server-side order creation with prices/stock recalculated from the canonical product list
-- automatic on-chain ETH / USDT (ERC-20) payment confirmation, with shipping details forwarded to the admin chat once confirmed
+- automatic on-chain USDT (ERC-20, Ethereum mainnet) payment confirmation, with shipping details forwarded to the admin chat once confirmed
 - authenticated webhook skeleton (for a separate payment provider, if you use one instead)
 - admin Telegram notifications, including a weekly sales + basket-activity summary
 - /start bot menu with /refer, /myid and /summary commands
@@ -29,7 +29,7 @@ variables, and redeploy.
 - REFERRAL_DISCOUNT_PERCENT (default 10) — % off given to a buyer who uses a referral code
 - REFERRAL_COMMISSION_PERCENT (default 5) — % of the order the referrer earns
 - ADMIN_API_SECRET (optional) — required to create flat, non-referral discount codes via the admin API
-- ETH_RECEIVING_ADDRESS — your Ethereum wallet address to receive ETH/USDT payments. Leave unset to disable crypto payment automation (orders fall back to a generic "not configured" message).
+- ETH_RECEIVING_ADDRESS — your Ethereum wallet address, used to receive USDT (ERC-20) payments. Leave unset to disable crypto payment automation (orders fall back to a generic "not configured" message).
 - ETHERSCAN_API_KEY — a free API key from https://etherscan.io/apis, used to look up transactions on-chain
 - USDT_CONTRACT_ADDRESS (optional) — defaults to the real mainnet USDT contract; only override for a testnet
 - PAYMENT_TOLERANCE_PENCE (default 10) — how many pence the on-chain amount (converted to GBP at the live rate) may differ from the order total and still auto-confirm
@@ -87,16 +87,16 @@ All codes, referral earnings, and orders are persisted to a SQLite database
 this in production.
 
 ## Payment
-Once `ETH_RECEIVING_ADDRESS` and `ETHERSCAN_API_KEY` are set, `POST /api/orders`
-returns a live quote (approximate ETH and USDT amounts for the order total) and
-your receiving address. The storefront shows this and lets the buyer submit
-the transaction hash they sent it with.
+Accepts USDT (ERC-20) on Ethereum mainnet only. Once `ETH_RECEIVING_ADDRESS`
+(despite the name, this is just your Ethereum wallet address — the same
+address receives ERC-20 tokens like USDT) and `ETHERSCAN_API_KEY` are set,
+`POST /api/orders` returns a live quote (approximate USDT amount for the
+order total) and your receiving address. The storefront shows this and lets
+the buyer submit the transaction hash they sent it with.
 
-`POST /api/orders/:id/confirm-payment` `{ transactionId, asset }` (`asset` is
-`"ETH"` or `"USDT"`) then looks the transaction up on-chain via Etherscan,
-checks:
-- it was sent to `ETH_RECEIVING_ADDRESS` (for USDT, as an ERC-20 `Transfer` to
-  that address from the token contract)
+`POST /api/orders/:id/confirm-payment` `{ transactionId }` then looks the
+transaction up on-chain via Etherscan, checks:
+- it's an ERC-20 `Transfer` of USDT to `ETH_RECEIVING_ADDRESS`
 - it has at least `MIN_CONFIRMATIONS` confirmations
 - the paid amount, converted to GBP at the live rate, is within
   `PAYMENT_TOLERANCE_PENCE` of the order total
@@ -106,10 +106,11 @@ is sent to `ADMIN_TELEGRAM_ID` for fulfillment. If not, the buyer gets back
 exactly why (wrong recipient, not enough confirmations, amount mismatch, etc.)
 so they can fix it and resubmit.
 
-This only supports Ethereum mainnet (ETH and USDT ERC-20) for now. If you want
-Bitcoin, Tron/USDT-TRC20, or another chain, that's a similar shape (a
-different explorer API and address format) — ask and it can be added the same
-way. Alternatively, plug a payment provider into `/api/payment-webhook` instead.
+This only supports USDT (ERC-20) on Ethereum mainnet for now. If you want ETH
+itself, Bitcoin, Tron/USDT-TRC20, or another chain, that's a similar shape (a
+different explorer API and/or address format) — ask and it can be added the
+same way. Alternatively, plug a payment provider into `/api/payment-webhook`
+instead.
 
 ## Weekly summary
 Once `ADMIN_TELEGRAM_ID` is set, the bot sends a weekly message covering, per
