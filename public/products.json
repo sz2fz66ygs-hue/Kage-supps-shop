@@ -1,12 +1,12 @@
 [
-  {
+ {
     "category": "Oils",
     "section": "Pre-Workout",
     "name": "INJ Anadrol",
     "stock": 15,
     "unit": "vials",
     "subtitle": "30mg/ml",
-    "displayPrice": "£25"
+    "pricePence": 2500
   },
   {
     "category": "Oils",
@@ -15,7 +15,7 @@
     "stock": 13,
     "unit": "vials",
     "subtitle": "20mg/ml",
-    "displayPrice": "£25"
+    "pricePence": 2500
   },
   {
     "category": "Oils",
@@ -24,7 +24,7 @@
     "stock": 15,
     "unit": "vials",
     "subtitle": "50mg/ml",
-    "displayPrice": "£25"
+    "pricePence": 2500
   },
   {
     "category": "Oils",
@@ -33,7 +33,7 @@
     "stock": 3,
     "unit": "vials",
     "subtitle": "20ml vial • 100mg/ml total (Test Base 50mg/ml + Anadrol 30mg/ml + Superdrol 20mg/ml)",
-    "displayPrice": "£75"
+    "pricePence": 7500
   },
   {
     "category": "Oils",
@@ -42,7 +42,7 @@
     "stock": 16,
     "unit": "vials",
     "subtitle": "300mg/ml • 10ml vial",
-    "displayPrice": "£32"
+    "pricePence": 3200
   },
   {
     "category": "Oils",
@@ -51,7 +51,7 @@
     "stock": 16,
     "unit": "vials",
     "subtitle": "200mg/ml • 10ml vial",
-    "displayPrice": "£32"
+    "pricePence": 3200
   },
   {
     "category": "Oils",
@@ -60,7 +60,7 @@
     "stock": 5,
     "unit": "vials",
     "subtitle": "400mg/ml • 10ml vial",
-    "displayPrice": "£40"
+    "pricePence": 4000
   },
   {
     "category": "Oils",
@@ -69,7 +69,7 @@
     "stock": 5,
     "unit": "vials",
     "subtitle": "250mg/ml • 10ml vial",
-    "displayPrice": "£32"
+    "pricePence": 3200
   },
   {
     "category": "Oils",
@@ -78,7 +78,7 @@
     "stock": 9,
     "unit": "vials",
     "subtitle": "100mg/ml • 10ml vial",
-    "displayPrice": "£33"
+    "pricePence": 3300
   },
   {
     "category": "Oils",
@@ -87,7 +87,7 @@
     "stock": 8,
     "unit": "vials",
     "subtitle": "200mg/ml • 10ml vial",
-    "displayPrice": "£35"
+    "pricePence": 3500
   },
   {
     "category": "Oils",
@@ -96,7 +96,7 @@
     "stock": 4,
     "unit": "vials",
     "subtitle": "300mg/ml • 10ml vial",
-    "displayPrice": "£35"
+    "pricePence": 3500
   },
   {
     "category": "Oils",
@@ -105,7 +105,7 @@
     "stock": 6,
     "unit": "vials",
     "subtitle": "150mg/ml • 10ml vial",
-    "displayPrice": "£32"
+    "pricePence": 3200
   },
   {
     "category": "Oils",
@@ -114,7 +114,7 @@
     "stock": 5,
     "unit": "vials",
     "subtitle": "400mg/ml • 10ml vial",
-    "displayPrice": "£35"
+    "pricePence": 3500
   },
   {
     "category": "Oils",
@@ -123,7 +123,7 @@
     "stock": 10,
     "unit": "vials",
     "subtitle": "250mg/ml • 10ml vial",
-    "displayPrice": "£60"
+    "pricePence": 6000
   },
   {
     "category": "Oils",
@@ -132,7 +132,7 @@
     "stock": 7,
     "unit": "vials",
     "subtitle": "150mg/ml • 10ml vial",
-    "displayPrice": "£40"
+    "pricePence": 4000
   },
   {
     "category": "Oils",
@@ -141,7 +141,7 @@
     "stock": 5,
     "unit": "vials",
     "subtitle": "375mg/ml total • 10ml vial (Test E 150mg/ml + Tren E 75mg/ml + Mast E 150mg/ml)",
-    "displayPrice": "£45"
+    "pricePence": 4500
   },
   {
     "category": "Oils",
@@ -150,7 +150,7 @@
     "stock": 5,
     "unit": "vials",
     "subtitle": "600mg/ml total • 10ml vial (Test Cyp 200mg/ml + EQ 250mg/ml + Deca 150mg/ml)",
-    "displayPrice": "£45"
+    "pricePence": 4500
   },
   {
     "category": "Orals",
@@ -159,7 +159,7 @@
     "stock": 15,
     "unit": "packs",
     "subtitle": "50 tablets per pack",
-    "displayPrice": "£30"
+    "pricePence": 3000
   },
   {
     "category": "Orals",
@@ -168,7 +168,7 @@
     "stock": 10,
     "unit": "packs",
     "subtitle": "50 tablets per pack",
-    "displayPrice": "£50"
+    "pricePence": 5000
   },
   {
     "category": "Orals",
@@ -177,7 +177,7 @@
     "stock": 10,
     "unit": "packs",
     "subtitle": "50 tablets per pack",
-    "displayPrice": "£35"
+    "pricePence": 3500
   },
   {
     "category": "Orals",
@@ -186,7 +186,7 @@
     "stock": 10,
     "unit": "packs",
     "subtitle": "50 tablets per pack",
-    "displayPrice": "£30"
+    "pricePence": 3000
   },
   {
     "category": "Orals",
@@ -195,7 +195,7 @@
     "stock": 2,
     "unit": "packs",
     "subtitle": "50 tablets per pack",
-    "displayPrice": "£25"
+    "pricePence": 2500
   },
   {
     "category": "Orals",
@@ -204,7 +204,7 @@
     "stock": 2,
     "unit": "packs",
     "subtitle": "50 tablets per pack",
-    "displayPrice": "£35"
+    "pricePence": 3500
   },
   {
     "category": "Orals",
@@ -213,7 +213,7 @@
     "stock": 2,
     "unit": "packs",
     "subtitle": "50 tablets per pack",
-    "displayPrice": "£30"
+    "pricePence": 3000
   },
   {
     "category": "Orals",
@@ -222,7 +222,7 @@
     "stock": 4,
     "unit": "packs",
     "subtitle": "50 tablets per pack",
-    "displayPrice": "£25"
+    "pricePence": 2500
   },
   {
     "category": "Orals",
@@ -231,7 +231,7 @@
     "stock": 4,
     "unit": "packs",
     "subtitle": "50 tablets per pack",
-    "displayPrice": "£35"
+    "pricePence": 3500
   },
   {
     "category": "Pharma",
@@ -240,7 +240,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -249,7 +249,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -258,7 +258,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -267,7 +267,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -276,7 +276,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -285,7 +285,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -294,7 +294,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -303,7 +303,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -312,7 +312,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -321,7 +321,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -330,7 +330,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -339,7 +339,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -348,7 +348,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -357,7 +357,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -366,7 +366,7 @@
     "stock": 30,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -375,7 +375,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -384,7 +384,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -393,7 +393,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -402,7 +402,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -411,7 +411,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -420,7 +420,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -429,7 +429,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -438,7 +438,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -447,7 +447,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -456,7 +456,7 @@
     "stock": 2,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -465,7 +465,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -474,7 +474,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -483,7 +483,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -492,7 +492,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -501,7 +501,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -510,7 +510,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -519,7 +519,7 @@
     "stock": 40,
     "unit": "strips",
     "subtitle": "14 tablets per strip • 560 tablets total",
-    "displayPrice": "£15 / strip"
+    "pricePence": 1500
   },
   {
     "category": "Pharma",
@@ -528,7 +528,7 @@
     "stock": 140,
     "unit": "strips",
     "subtitle": "10 strips per box originally • inventory converted to strips",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -537,7 +537,7 @@
     "stock": 160,
     "unit": "strips",
     "subtitle": "10 strips per box originally • inventory converted to strips",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -546,7 +546,7 @@
     "stock": 100,
     "unit": "strips",
     "subtitle": "10 strips per box originally • inventory converted to strips",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -555,7 +555,7 @@
     "stock": 90,
     "unit": "strips",
     "subtitle": "10 strips per box originally • inventory converted to strips",
-    "displayPrice": "£3 / strip"
+    "pricePence": 300
   },
   {
     "category": "Pharma",
@@ -564,7 +564,7 @@
     "stock": 15,
     "unit": "units",
     "subtitle": "",
-    "displayPrice": "£5"
+    "pricePence": 500
   },
   {
     "category": "Pharma",
@@ -573,7 +573,7 @@
     "stock": 15,
     "unit": "units",
     "subtitle": "",
-    "displayPrice": "£5"
+    "pricePence": 500
   },
   {
     "category": "Pharma",
@@ -582,6 +582,6 @@
     "stock": 15,
     "unit": "units",
     "subtitle": "",
-    "displayPrice": "£5"
+    "pricePence": 500
   }
-]
+  ]
