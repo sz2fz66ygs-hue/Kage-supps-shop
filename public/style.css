@@ -39,6 +39,14 @@ body{
   height:28px;
   display:block;
   flex-shrink:0;
+  animation:brand-logo-spin 4s linear infinite;
+}
+@keyframes brand-logo-spin{
+  from{transform:rotate(0deg)}
+  to{transform:rotate(360deg)}
+}
+@media (prefers-reduced-motion: reduce){
+  .brand-logo{animation:none}
 }
 .cart-pill{
   border:1px solid var(--gold);
