@@ -1,0 +1,32 @@
+[
+  {
+    "id": 4001,
+    "category": "Peps",
+    "section": "Recovery",
+    "name": "NAC",
+    "subtitle": "N-Acetyl Cysteine • 600mg • 60 capsules",
+    "stock": 20,
+    "unit": "bottles",
+    "pricePence": 1500
+  },
+  {
+    "id": 4002,
+    "category": "Peps",
+    "section": "Recovery",
+    "name": "TUDCA",
+    "subtitle": "250mg • 60 capsules",
+    "stock": 20,
+    "unit": "bottles",
+    "pricePence": 2500
+  },
+  {
+    "id": 4003,
+    "category": "Peps",
+    "section": "Recovery",
+    "name": "Multivitamin",
+    "subtitle": "90 tablets",
+    "stock": 20,
+    "unit": "bottles",
+    "pricePence": 1200
+  }
+]
