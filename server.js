@@ -750,7 +750,57 @@ app.get("/api/referral-codes/:code/earnings", (req, res) => {
     owner: codeRecord.referralOwner,
     commissionPence: earnings.commissionPence,
     balancePence: earnings.balancePence,
+    paidOutPence: earnings.paidOutPence || 0,
     orderCount: earnings.orderCount
+  });
+});
+
+// Admin-only: record that a referral code's owner has been paid out in cash
+// (bank transfer, crypto, whatever) outside the app, so that amount can no
+// longer also be spent as store credit. This does not move any money itself.
+app.post("/api/referral-codes/:code/payout", (req, res) => {
+  if (!adminApiSecret) {
+    return res.status(501).json({ error: "Admin API not configured" });
+  }
+
+  if (req.header("x-admin-secret") !== adminApiSecret) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const normalizedCode = String(req.params.code).trim().toUpperCase();
+  const codeRecord = discountCodes.get(normalizedCode);
+
+  if (!codeRecord || !codeRecord.referralOwner) {
+    return res.status(404).json({ error: "Referral code not found" });
+  }
+
+  const earnings = referralEarnings.get(normalizedCode);
+
+  if (!earnings || earnings.balancePence <= 0) {
+    return res.status(400).json({ error: "No balance to pay out" });
+  }
+
+  const { amountPence } = req.body || {};
+  const payoutPence = amountPence === undefined ? earnings.balancePence : amountPence;
+
+  if (!Number.isInteger(payoutPence) || payoutPence <= 0) {
+    return res.status(400).json({ error: "amountPence must be a positive integer" });
+  }
+
+  if (payoutPence > earnings.balancePence) {
+    return res.status(400).json({ error: "amountPence exceeds available balance" });
+  }
+
+  earnings.balancePence -= payoutPence;
+  earnings.paidOutPence = (earnings.paidOutPence || 0) + payoutPence;
+  saveReferralEarnings(normalizedCode, earnings);
+
+  res.json({
+    code: normalizedCode,
+    owner: codeRecord.referralOwner,
+    paidOutPence: payoutPence,
+    remainingBalancePence: earnings.balancePence,
+    lifetimePaidOutPence: earnings.paidOutPence
   });
 });
 

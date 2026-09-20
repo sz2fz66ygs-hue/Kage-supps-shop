@@ -81,8 +81,17 @@ Other endpoints:
   *this* buyer would actually get; the order endpoint recomputes it
   authoritatively regardless.
 - `GET /api/referral-codes/:code/earnings` — check a code's lifetime
-  commission (`commissionPence`) and current spendable balance
-  (`balancePence`).
+  commission (`commissionPence`), current spendable balance
+  (`balancePence`), and lifetime cash paid out (`paidOutPence`).
+- `POST /api/referral-codes/:code/payout` (admin only, needs `x-admin-secret`
+  matching `ADMIN_API_SECRET`) — record that you've paid the code's owner in
+  cash (bank transfer, crypto, however you actually pay them) **outside the
+  app**. This endpoint doesn't move any money itself — there's no bank/crypto
+  payout automation, since that would mean storing banking or wallet
+  credentials on the server, which isn't worth the risk for a shop this size.
+  It just debits `balancePence` by `amountPence` (or the full balance if you
+  omit `amountPence`) so that amount can't also be spent as store credit
+  later. Example: `curl -X POST https://your-app.onrender.com/api/referral-codes/BIGLADSLIM/payout -H "x-admin-secret: $ADMIN_API_SECRET" -H "Content-Type: application/json" -d '{}'`
 - `POST /api/discount-codes` (admin only, needs `x-admin-secret` header
   matching `ADMIN_API_SECRET`) — create a flat discount code with no referral
   attached.
