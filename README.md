@@ -51,11 +51,24 @@ or checkout.
   from `/start`, to get their own code.
 - `GET /api/discount-codes/:code` — validate a code (used by the storefront's
   "Apply" button) without revealing who owns it.
-- `GET /api/referral-codes/:code/earnings` — check a referral code's accrued
-  commission.
+- `GET /api/referral-codes/:code/earnings` — check a referral code's lifetime
+  commission (`commissionPence`) and current spendable balance
+  (`balancePence`).
 - `POST /api/discount-codes` (admin only, needs `x-admin-secret` header
   matching `ADMIN_API_SECRET`) — create a flat discount code with no referral
   attached.
+
+**Store credit**: a referrer's commission is real, spendable store credit —
+not just a number to look up and pay out manually. On `POST /api/orders`,
+pass `storeCreditCode` (their own referral code) and the order total is
+reduced by whatever balance is available (capped at the order total and at
+the remaining balance after any `discountCode` is applied); the code's
+`balancePence` is debited by the same amount. The storefront's "Store credit
+code" field does this — it previews the available balance via the earnings
+endpoint above, then sends `storeCreditCode` on checkout. There's no
+ownership check beyond knowing the code, same as everywhere else in this
+demo, and it isn't a new referral use, so applying it doesn't earn further
+commission.
 
 All codes and referral earnings are stored in-memory and reset on restart —
 move them to a persistent database for production, same as orders.

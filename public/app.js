@@ -611,6 +611,7 @@ let products = [];
 const basket = {};
 let currentCategory = categories[0].name;
 let appliedCode = null; // { code, discountType, discountValue } once validated by the server
+let appliedStoreCredit = null; // { code, balancePence } once validated by the server
 
 const money = p => `£${(p / 100).toFixed(2)}`;
 
@@ -774,9 +775,16 @@ function discountForSubtotal(subtotalPence) {
   return Math.min(raw, subtotalPence);
 }
 
+function storeCreditForRemaining(remainingPence) {
+  if (!appliedStoreCredit) return 0;
+  return Math.min(appliedStoreCredit.balancePence, remainingPence);
+}
+
 function basketTotalValue() {
   const subtotal = basketSubtotalValue();
-  return subtotal - discountForSubtotal(subtotal);
+  const discount = discountForSubtotal(subtotal);
+  const credit = storeCreditForRemaining(subtotal - discount);
+  return Math.max(0, subtotal - discount - credit);
 }
 
 function renderBasket() {
@@ -784,21 +792,29 @@ function renderBasket() {
   const basketTotal = document.getElementById("basketTotal");
   const cartCount = document.getElementById("cartCount");
   const discountRow = document.getElementById("discountRow");
+  const creditRow = document.getElementById("creditRow");
   const entries = Object.entries(basket);
   const subtotal = basketSubtotalValue();
   const discount = discountForSubtotal(subtotal);
+  const credit = storeCreditForRemaining(subtotal - discount);
 
   if (cartCount) {
     cartCount.textContent = basketCount();
   }
 
   if (basketTotal) {
-    basketTotal.textContent = money(subtotal - discount);
+    basketTotal.textContent = money(Math.max(0, subtotal - discount - credit));
   }
 
   if (discountRow) {
     discountRow.innerHTML = discount > 0
       ? `<div class="discount-line">Code <strong>${appliedCode.code}</strong> applied: −${money(discount)}</div>`
+      : "";
+  }
+
+  if (creditRow) {
+    creditRow.innerHTML = credit > 0
+      ? `<div class="discount-line">Store credit <strong>${appliedStoreCredit.code}</strong> applied: −${money(credit)}</div>`
       : "";
   }
 
@@ -894,6 +910,42 @@ async function applyDiscountCode() {
   }
 }
 
+async function applyStoreCredit() {
+  const input = document.getElementById("storeCreditCode");
+  const code = input?.value.trim();
+
+  if (!code) {
+    appliedStoreCredit = null;
+    renderBasket();
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/referral-codes/${encodeURIComponent(code)}/earnings`);
+    const data = await res.json();
+
+    if (!res.ok) {
+      appliedStoreCredit = null;
+      renderBasket();
+      setStatus(data.error || "That code isn't valid.", "error");
+      return;
+    }
+
+    if (!data.balancePence || data.balancePence <= 0) {
+      appliedStoreCredit = null;
+      renderBasket();
+      setStatus("No store credit available on that code.", "error");
+      return;
+    }
+
+    appliedStoreCredit = { code: data.code, balancePence: data.balancePence };
+    setStatus(`Store credit applied: ${money(data.balancePence)} available!`, "success");
+    renderBasket();
+  } catch (err) {
+    setStatus("Couldn't check that code, try again.", "error");
+  }
+}
+
 async function submitOrder() {
   const customerName = document.getElementById("name")?.value.trim();
   const telegramUsername = document.getElementById("handle")?.value.trim();
@@ -926,7 +978,8 @@ async function submitOrder() {
         telegramUsername,
         address,
         items,
-        discountCode: appliedCode?.code || undefined
+        discountCode: appliedCode?.code || undefined,
+        storeCreditCode: appliedStoreCredit?.code || undefined
       })
     });
 
@@ -940,7 +993,9 @@ async function submitOrder() {
     setStatus(`Order #${data.orderId} created — total ${money(data.totalPence)}.`, "success");
     Object.keys(basket).forEach(id => delete basket[id]);
     appliedCode = null;
+    appliedStoreCredit = null;
     if (document.getElementById("discountCode")) document.getElementById("discountCode").value = "";
+    if (document.getElementById("storeCreditCode")) document.getElementById("storeCreditCode").value = "";
     render();
     renderPaymentPanel(data);
   } catch (err) {
@@ -1026,6 +1081,7 @@ async function confirmPayment(orderId) {
 }
 
 document.getElementById("applyDiscount")?.addEventListener("click", applyDiscountCode);
+document.getElementById("applyStoreCredit")?.addEventListener("click", applyStoreCredit);
 document.getElementById("checkoutBtn")?.addEventListener("click", submitOrder);
 document.getElementById("cartJump")?.addEventListener("click", () => {
   document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth" });

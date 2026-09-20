@@ -189,7 +189,7 @@ app.get("/health", (_req, res) => {
 // canonical product list — a client can only choose product ids/quantities
 // and, optionally, a discount code. It can never dictate its own price.
 app.post("/api/orders", async (req, res) => {
-  const { customerName, telegramUsername, address, items, discountCode } = req.body || {};
+  const { customerName, telegramUsername, address, items, discountCode, storeCreditCode } = req.body || {};
 
   if (!customerName || !address || !Array.isArray(items) || !items.length) {
     return res.status(400).json({ error: "Missing order details" });
@@ -262,15 +262,35 @@ app.post("/api/orders", async (req, res) => {
       const earnings = referralEarnings.get(normalizedCode) || {
         owner: codeRecord.referralOwner,
         commissionPence: 0,
+        balancePence: 0,
         orderCount: 0
       };
       earnings.commissionPence += commissionPence;
+      earnings.balancePence += commissionPence;
       earnings.orderCount += 1;
       referralEarnings.set(normalizedCode, earnings);
     }
   }
 
-  const totalPence = subtotalPence - discountPence;
+  let storeCreditPence = 0;
+  let appliedStoreCreditCode = null;
+
+  if (storeCreditCode) {
+    const normalizedCreditCode = String(storeCreditCode).trim().toUpperCase();
+    const creditEarnings = referralEarnings.get(normalizedCreditCode);
+
+    if (!creditEarnings || creditEarnings.balancePence <= 0) {
+      return res.status(400).json({ error: "Invalid or empty store credit code" });
+    }
+
+    const remainingAfterDiscount = subtotalPence - discountPence;
+    storeCreditPence = Math.min(creditEarnings.balancePence, remainingAfterDiscount);
+    creditEarnings.balancePence -= storeCreditPence;
+    referralEarnings.set(normalizedCreditCode, creditEarnings);
+    appliedStoreCreditCode = normalizedCreditCode;
+  }
+
+  const totalPence = Math.max(0, subtotalPence - discountPence - storeCreditPence);
 
   const orderId = nextOrderId++;
   const order = {
@@ -282,6 +302,8 @@ app.post("/api/orders", async (req, res) => {
     subtotalPence,
     discountCode: appliedCode,
     discountPence,
+    storeCreditCode: appliedStoreCreditCode,
+    storeCreditPence,
     totalPence,
     referral,
     paymentStatus: "awaiting_payment",
@@ -297,6 +319,9 @@ app.post("/api/orders", async (req, res) => {
     const referralLine = referral
       ? `\nReferral: ${referral.owner} earns £${(referral.commissionPence / 100).toFixed(2)}`
       : "";
+    const storeCreditLine = storeCreditPence > 0
+      ? `\nStore credit: ${appliedStoreCreditCode} (-£${(storeCreditPence / 100).toFixed(2)})`
+      : "";
 
     await bot.sendMessage(
       adminTelegramId,
@@ -305,7 +330,7 @@ app.post("/api/orders", async (req, res) => {
 Order: #${orderId}
 Customer: ${customerName}
 Telegram: ${telegramUsername || "Not supplied"}
-Total: £${(totalPence / 100).toFixed(2)}${discountLine}${referralLine}
+Total: £${(totalPence / 100).toFixed(2)}${discountLine}${storeCreditLine}${referralLine}
 Status: Awaiting payment`
     );
   }
@@ -340,6 +365,7 @@ Status: Awaiting payment`
     orderId,
     subtotalPence,
     discountPence,
+    storeCreditPence,
     totalPence,
     status: "awaiting_payment",
     payment
@@ -502,6 +528,7 @@ app.get("/api/referral-codes/:code/earnings", (req, res) => {
   const earnings = referralEarnings.get(normalizedCode) || {
     owner: codeRecord.referralOwner,
     commissionPence: 0,
+    balancePence: 0,
     orderCount: 0
   };
 
@@ -509,6 +536,7 @@ app.get("/api/referral-codes/:code/earnings", (req, res) => {
     code: normalizedCode,
     owner: codeRecord.referralOwner,
     commissionPence: earnings.commissionPence,
+    balancePence: earnings.balancePence,
     orderCount: earnings.orderCount
   });
 });
@@ -563,6 +591,7 @@ app.get("/api/orders/:id", (req, res) => {
     paymentStatus: order.paymentStatus,
     subtotalPence: order.subtotalPence,
     discountPence: order.discountPence,
+    storeCreditPence: order.storeCreditPence,
     totalPence: order.totalPence
   });
 });
