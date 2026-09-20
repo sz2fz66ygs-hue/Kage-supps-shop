@@ -20,41 +20,11 @@ const telegramUser = tg?.initDataUnsafe?.user || null;
    ========================================================= */
 
 const categories = [
-  { name: "Oils", icon: "🛢️" },
-  { name: "Orals", icon: "💪" },
-  { name: "Pharma", icon: "💊" },
   { name: "Peps", icon: "⚡" }
 ];
 
 const sectionOrder = {
-  Oils: [
-    "Oils",
-    "Pre-Workout Injectables",
-    "Blends"
-  ],
-
-  Orals: [
-    "Tubs",
-    "Coming Soon — Pouches"
-  ],
-
-  Pharma: [
-    "Cardiovascular",
-    "Metabolic",
-    "Hormones & Related",
-    "Sleep",
-    "Neurology & Wakefulness",
-    "Sexual Health",
-    "Hair & Skin",
-    "Other Pharma"
-  ],
-
-  Peps: [
-    "Recovery",
-    "Performance",
-    "Weight Management",
-    "Other"
-  ]
+  Peps: ["Recovery", "Performance", "Weight Management", "Other"]
 };
 
 let products = [];
