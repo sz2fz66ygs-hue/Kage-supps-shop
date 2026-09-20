@@ -27,6 +27,7 @@ Start Command: `npm start`
 - USDT_CONTRACT_ADDRESS (optional) — defaults to the real mainnet USDT contract; only override for a testnet
 - PAYMENT_TOLERANCE_PENCE (default 10) — how many pence the on-chain amount (converted to GBP at the live rate) may differ from the order total and still auto-confirm
 - MIN_CONFIRMATIONS (default 2) — block confirmations required before a payment is accepted
+- DATA_DIR (default `.`) — where the SQLite database file lives; point this at a Render Persistent Disk's mount path for data to survive redeploys (see **Data persistence** below)
 
 ## Adding products
 Only lawful, purchasable products go in `public/products.json`. It's the
@@ -74,8 +75,9 @@ ownership check beyond knowing the code, same as everywhere else in this
 demo, and it isn't a new referral use, so applying it doesn't earn further
 commission.
 
-All codes and referral earnings are stored in-memory and reset on restart —
-move them to a persistent database for production, same as orders.
+All codes, referral earnings, and orders are persisted to a SQLite database
+(see **Data persistence** below) — see that section before relying on any of
+this in production.
 
 ## Payment
 Once `ETH_RECEIVING_ADDRESS` and `ETHERSCAN_API_KEY` are set, `POST /api/orders`
@@ -102,5 +104,20 @@ Bitcoin, Tron/USDT-TRC20, or another chain, that's a similar shape (a
 different explorer API and address format) — ask and it can be added the same
 way. Alternatively, plug a payment provider into `/api/payment-webhook` instead.
 
-For production, use a persistent database instead of the in-memory Map —
-orders, discount codes, and referral earnings are all lost on restart.
+## Data persistence
+Orders, discount/referral codes, and referral earnings are stored in a SQLite
+database (via Node's built-in `node:sqlite`, so no extra service or
+dependency) at `<DATA_DIR>/kage.sqlite`, loaded into memory on startup and
+written through on every change.
+
+**This only survives redeploys if `DATA_DIR` points at a Render Persistent
+Disk** (Render dashboard → your service → Disks → add a disk, then set
+`DATA_DIR` to its mount path, e.g. `/data`). Render web services otherwise
+have an ephemeral filesystem — without a disk attached, the database file is
+recreated empty on every deploy, same as the old in-memory-only version. If
+you'd rather use a real hosted database (e.g. Render Postgres) instead of a
+disk, that's a reasonable upgrade path — ask and it can be swapped in.
+
+Requires Node >= 22.5 (`node:sqlite` is experimental as of this Node version;
+`.node-version` and `engines.node` are set so Render provisions a compatible
+version).

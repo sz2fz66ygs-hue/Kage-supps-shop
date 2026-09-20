@@ -1,7 +1,8 @@
 import "dotenv/config";
-import { readFileSync } from "fs";
+import { readFileSync, mkdirSync } from "fs";
 import { fileURLToPath } from "url";
 import path from "path";
+import { DatabaseSync } from "node:sqlite";
 import express from "express";
 import TelegramBot from "node-telegram-bot-api";
 
@@ -12,6 +13,34 @@ const port = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.static("public"));
+
+// Persistent storage (orders, discount/referral codes, commission balances).
+// DATA_DIR must point at a Render Persistent Disk (or any durable volume) —
+// otherwise this file is wiped on every redeploy just like the old in-memory
+// Maps were. Locally it just creates ./data/kage.sqlite.
+const DATA_DIR = process.env.DATA_DIR || ".";
+mkdirSync(DATA_DIR, { recursive: true });
+const db = new DatabaseSync(path.join(DATA_DIR, "kage.sqlite"));
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY, json TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS discount_codes (code TEXT PRIMARY KEY, json TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS referral_earnings (code TEXT PRIMARY KEY, json TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+`);
+
+const upsertOrderStmt = db.prepare(
+  "INSERT INTO orders (id, json) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET json = excluded.json"
+);
+const upsertDiscountCodeStmt = db.prepare(
+  "INSERT INTO discount_codes (code, json) VALUES (?, ?) ON CONFLICT(code) DO UPDATE SET json = excluded.json"
+);
+const upsertReferralEarningsStmt = db.prepare(
+  "INSERT INTO referral_earnings (code, json) VALUES (?, ?) ON CONFLICT(code) DO UPDATE SET json = excluded.json"
+);
+const upsertMetaStmt = db.prepare(
+  "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+);
 
 const orders = new Map();
 let nextOrderId = 1001;
@@ -30,6 +59,39 @@ const discountCodes = new Map();
 // { owner, commissionPence, orderCount }
 const referralEarnings = new Map();
 
+function saveOrder(order) {
+  orders.set(order.orderId, order);
+  upsertOrderStmt.run(order.orderId, JSON.stringify(order));
+}
+
+function saveDiscountCode(code, record) {
+  discountCodes.set(code, record);
+  upsertDiscountCodeStmt.run(code, JSON.stringify(record));
+}
+
+function saveReferralEarnings(code, earnings) {
+  referralEarnings.set(code, earnings);
+  upsertReferralEarningsStmt.run(code, JSON.stringify(earnings));
+}
+
+function saveNextOrderId(id) {
+  nextOrderId = id;
+  upsertMetaStmt.run("nextOrderId", String(id));
+}
+
+// Load everything back into memory from disk at startup.
+for (const row of db.prepare("SELECT id, json FROM orders").all()) {
+  orders.set(row.id, JSON.parse(row.json));
+}
+for (const row of db.prepare("SELECT code, json FROM discount_codes").all()) {
+  discountCodes.set(row.code, JSON.parse(row.json));
+}
+for (const row of db.prepare("SELECT code, json FROM referral_earnings").all()) {
+  referralEarnings.set(row.code, JSON.parse(row.json));
+}
+const nextOrderIdRow = db.prepare("SELECT value FROM meta WHERE key = ?").get("nextOrderId");
+if (nextOrderIdRow) nextOrderId = Number(nextOrderIdRow.value);
+
 const REFERRAL_DISCOUNT_PERCENT = Number(process.env.REFERRAL_DISCOUNT_PERCENT || 10);
 const REFERRAL_COMMISSION_PERCENT = Number(process.env.REFERRAL_COMMISSION_PERCENT || 5);
 const adminApiSecret = process.env.ADMIN_API_SECRET || "";
@@ -47,7 +109,7 @@ function getOrCreateReferralCode(owner) {
   const code = generateReferralCode(owner);
 
   if (!discountCodes.has(code)) {
-    discountCodes.set(code, {
+    saveDiscountCode(code, {
       discountType: "percent",
       discountValue: REFERRAL_DISCOUNT_PERCENT,
       referralOwner: owner,
@@ -259,6 +321,7 @@ app.post("/api/orders", async (req, res) => {
 
     appliedCode = normalizedCode;
     codeRecord.uses += 1;
+    saveDiscountCode(normalizedCode, codeRecord);
 
     if (codeRecord.referralOwner) {
       const totalAfterDiscount = subtotalPence - discountPence;
@@ -279,7 +342,7 @@ app.post("/api/orders", async (req, res) => {
       earnings.commissionPence += commissionPence;
       earnings.balancePence += commissionPence;
       earnings.orderCount += 1;
-      referralEarnings.set(normalizedCode, earnings);
+      saveReferralEarnings(normalizedCode, earnings);
     }
   }
 
@@ -297,13 +360,14 @@ app.post("/api/orders", async (req, res) => {
     const remainingAfterDiscount = subtotalPence - discountPence;
     storeCreditPence = Math.min(creditEarnings.balancePence, remainingAfterDiscount);
     creditEarnings.balancePence -= storeCreditPence;
-    referralEarnings.set(normalizedCreditCode, creditEarnings);
+    saveReferralEarnings(normalizedCreditCode, creditEarnings);
     appliedStoreCreditCode = normalizedCreditCode;
   }
 
   const totalPence = Math.max(0, subtotalPence - discountPence - storeCreditPence);
 
-  const orderId = nextOrderId++;
+  const orderId = nextOrderId;
+  saveNextOrderId(nextOrderId + 1);
   const order = {
     orderId,
     customerName,
@@ -321,7 +385,7 @@ app.post("/api/orders", async (req, res) => {
     createdAt: new Date().toISOString()
   };
 
-  orders.set(orderId, order);
+  saveOrder(order);
 
   if (bot && adminTelegramId) {
     const discountLine = discountPence > 0
@@ -415,7 +479,7 @@ app.post("/api/orders/:id/confirm-payment", async (req, res) => {
   order.transactionId = transactionId;
   order.paymentAsset = asset;
   order.paidAt = new Date().toISOString();
-  orders.set(order.orderId, order);
+  saveOrder(order);
 
   if (bot && adminTelegramId) {
     const itemLines = order.items.map(i => `${i.quantity} × ${i.name}`).join("\n");
@@ -506,7 +570,7 @@ app.post("/api/discount-codes", (req, res) => {
     return res.status(400).json({ error: "Percent discount cannot exceed 100" });
   }
 
-  discountCodes.set(normalizedCode, {
+  saveDiscountCode(normalizedCode, {
     discountType,
     discountValue,
     referralOwner: null,
@@ -567,7 +631,7 @@ app.post("/api/payment-webhook", async (req, res) => {
   order.paymentStatus = "paid";
   order.transactionId = transactionId || "";
   order.paidAt = new Date().toISOString();
-  orders.set(order.orderId, order);
+  saveOrder(order);
 
   if (bot && adminTelegramId) {
     await bot.sendMessage(
