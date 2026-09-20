@@ -47,6 +47,22 @@ automatically gets add/remove-to-basket controls. Each entry needs `id`,
 is optional. `category`/`section` must match one of the pairs defined in
 `public/app.js` (`categories` / `sectionOrder`).
 
+**Multi-buy discounts** are opt-in per product — add a `multiBuy` array only
+to the products you want it on; leave it off everything else. Each entry is
+`{ "quantity": N, "discountPercent": X }`, e.g.:
+```json
+"multiBuy": [
+  { "quantity": 2, "discountPercent": 10 },
+  { "quantity": 3, "discountPercent": 15 }
+]
+```
+The storefront shows "Buy 2+, save 10%" on that product's card, and the
+server applies the best (highest-quantity) tier the order's quantity of that
+exact product qualifies for — recalculated authoritatively regardless of
+what the client sends. It's applied to the subtotal *before* `discountCode`
+and `storeCreditCode`, so it always stacks with BIGLADSLIM, loyalty codes,
+and store credit rather than competing with them.
+
 Anything sold must be legal to sell without a prescription in your
 jurisdiction.
 

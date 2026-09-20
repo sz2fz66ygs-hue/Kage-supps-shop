@@ -91,6 +91,23 @@ let nextOrderId = 1001;
 const products = JSON.parse(readFileSync(path.join(__dirname, "public/products.json"), "utf8"));
 const productsById = new Map(products.map(p => [p.id, p]));
 
+// Optional per-product multi-buy pricing: a product's `multiBuy` array is
+// [{ quantity, discountPercent }, ...] — e.g. buy 2+ of this exact product,
+// get 10% off that line. Picks the highest-quantity tier the order qualifies
+// for. Applied to subtotalPence before discountCode/storeCreditCode, so it
+// always stacks with both rather than competing with them.
+function multiBuyDiscountPercentFor(product, quantity) {
+  if (!Array.isArray(product.multiBuy)) return 0;
+
+  let best = 0;
+  for (const tier of product.multiBuy) {
+    if (quantity >= tier.quantity && tier.discountPercent > best) {
+      best = tier.discountPercent;
+    }
+  }
+  return best;
+}
+
 // Discount / referral codes, keyed by uppercased code.
 // { discountType: "percent"|"fixed", discountValue, referralOwner, commissionPercent, uses, active }
 const discountCodes = new Map();
@@ -421,7 +438,10 @@ app.post("/api/orders", async (req, res) => {
       return res.status(400).json({ error: `Not enough stock for ${product.name}` });
     }
 
-    const lineTotalPence = product.pricePence * quantity;
+    const rawLineTotalPence = product.pricePence * quantity;
+    const multiBuyDiscountPercent = multiBuyDiscountPercentFor(product, quantity);
+    const multiBuyDiscountPence = Math.round(rawLineTotalPence * (multiBuyDiscountPercent / 100));
+    const lineTotalPence = rawLineTotalPence - multiBuyDiscountPence;
     subtotalPence += lineTotalPence;
 
     lineItems.push({
@@ -429,7 +449,8 @@ app.post("/api/orders", async (req, res) => {
       name: product.name,
       quantity,
       pricePence: product.pricePence,
-      lineTotalPence
+      lineTotalPence,
+      ...(multiBuyDiscountPercent > 0 ? { multiBuyDiscountPercent, multiBuyDiscountPence } : {})
     });
   }
 

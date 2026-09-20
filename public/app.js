@@ -81,6 +81,17 @@ function renderTabs() {
   });
 }
 
+function multiBuyHint(p) {
+  if (!Array.isArray(p.multiBuy) || !p.multiBuy.length) return "";
+
+  const tiers = [...p.multiBuy]
+    .sort((a, b) => a.quantity - b.quantity)
+    .map(t => `Buy ${t.quantity}+, save ${t.discountPercent}%`)
+    .join(" • ");
+
+  return `<div class="multi-buy-hint">${tiers}</div>`;
+}
+
 function shopCard(p) {
   const qty = basket[p.id] || 0;
 
@@ -90,6 +101,7 @@ function shopCard(p) {
         <h3>${p.name}</h3>
         ${p.subtitle ? `<div class="sub">${p.subtitle}</div>` : ""}
         ${stockBadge(p.stock, p.unit)}
+        ${multiBuyHint(p)}
       </div>
 
       <div>
@@ -170,10 +182,31 @@ function basketCount() {
   return Object.values(basket).reduce((sum, qty) => sum + qty, 0);
 }
 
+// Mirrors the server's multi-buy calculation (see server.js) so the basket
+// preview matches what checkout will actually charge. The server always
+// recalculates this itself — this is just for display.
+function multiBuyDiscountPercentFor(product, quantity) {
+  if (!Array.isArray(product.multiBuy)) return 0;
+
+  let best = 0;
+  for (const tier of product.multiBuy) {
+    if (quantity >= tier.quantity && tier.discountPercent > best) {
+      best = tier.discountPercent;
+    }
+  }
+  return best;
+}
+
+function lineTotalForProduct(product, quantity) {
+  const raw = product.pricePence * quantity;
+  const percent = multiBuyDiscountPercentFor(product, quantity);
+  return raw - Math.round(raw * (percent / 100));
+}
+
 function basketSubtotalValue() {
   return Object.entries(basket).reduce((sum, [id, qty]) => {
     const product = products.find(p => p.id === Number(id));
-    return sum + (product ? product.pricePence * qty : 0);
+    return sum + (product ? lineTotalForProduct(product, qty) : 0);
   }, 0);
 }
 
@@ -239,16 +272,19 @@ function renderBasket() {
 
   basketLines.innerHTML = entries.map(([id, qty]) => {
     const p = products.find(x => x.id === Number(id));
+    const lineTotal = lineTotalForProduct(p, qty);
+    const multiBuyPercent = multiBuyDiscountPercentFor(p, qty);
 
     return `
       <div class="basket-line">
         <div>
           <strong>${p.name}</strong><br>
           <span>${qty} × ${money(p.pricePence)}</span>
+          ${multiBuyPercent > 0 ? `<br><span class="discount-line">Multi-buy: ${multiBuyPercent}% off</span>` : ""}
         </div>
 
         <div class="basket-right">
-          <strong>${money(p.pricePence * qty)}</strong>
+          <strong>${money(lineTotal)}</strong>
           <button data-remove="${p.id}">Remove</button>
         </div>
       </div>

@@ -125,6 +125,12 @@ main{
 .good{background:#e4f7ec;color:#0b7a4d}
 .low{background:#fff2c8;color:#8e6013}
 .out{background:#fde2df;color:#a5362f}
+.multi-buy-hint{
+  margin-top:8px;
+  color:var(--gold-dark);
+  font-size:13px;
+  font-weight:800;
+}
 .price{
   font-size:20px;
   font-weight:900;
