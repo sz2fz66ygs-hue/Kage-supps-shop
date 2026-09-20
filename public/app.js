@@ -4,6 +4,11 @@ if (tg) {
   tg.expand();
 }
 
+// Telegram gives the Mini App the opener's real id/username when it's
+// launched from the bot (not cryptographically verified client-side, but
+// far more reliable than asking the buyer to type their own handle).
+const telegramUser = tg?.initDataUnsafe?.user || null;
+
 /* =========================================================
    KAGE SUPPS — PRODUCT CATALOGUE
 
@@ -302,7 +307,11 @@ async function applyDiscountCode() {
   }
 
   try {
-    const res = await fetch(`/api/discount-codes/${encodeURIComponent(code)}`);
+    const params = new URLSearchParams();
+    if (telegramUser?.id) params.set("telegramId", telegramUser.id);
+    if (telegramUser?.username) params.set("telegramUsername", telegramUser.username);
+
+    const res = await fetch(`/api/discount-codes/${encodeURIComponent(code)}?${params.toString()}`);
     const data = await res.json();
 
     if (!res.ok || !data.valid) {
@@ -363,7 +372,8 @@ async function applyStoreCredit() {
 
 async function submitOrder() {
   const customerName = document.getElementById("name")?.value.trim();
-  const telegramUsername = document.getElementById("handle")?.value.trim();
+  const telegramUsername = telegramUser?.username || document.getElementById("handle")?.value.trim();
+  const telegramId = telegramUser?.id || undefined;
   const address = document.getElementById("address")?.value.trim();
   const items = Object.entries(basket).map(([id, quantity]) => ({
     id: Number(id),
@@ -391,6 +401,7 @@ async function submitOrder() {
       body: JSON.stringify({
         customerName,
         telegramUsername,
+        telegramId,
         address,
         items,
         discountCode: appliedCode?.code || undefined,
@@ -485,6 +496,14 @@ async function confirmPayment(orderId) {
     setPaymentStatus("Couldn't reach the server, try again.", "error");
   } finally {
     if (btn) btn.disabled = false;
+  }
+}
+
+if (telegramUser?.username) {
+  const handleInput = document.getElementById("handle");
+  if (handleInput) {
+    handleInput.value = `@${telegramUser.username}`;
+    handleInput.disabled = true;
   }
 }
 

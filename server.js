@@ -33,6 +33,18 @@ db.exec(`
     action TEXT NOT NULL,
     createdAt TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS code_usage (
+    code TEXT NOT NULL,
+    buyerKey TEXT NOT NULL,
+    PRIMARY KEY (code, buyerKey)
+  );
+  CREATE TABLE IF NOT EXISTS buyer_stats (
+    buyerKey TEXT PRIMARY KEY,
+    paidOrderCount INTEGER NOT NULL DEFAULT 0,
+    telegramId TEXT,
+    telegramUsername TEXT,
+    ownReferralCode TEXT
+  );
 `);
 
 const upsertOrderStmt = db.prepare(
@@ -53,6 +65,22 @@ const insertCartEventStmt = db.prepare(
 const cartEventCountsStmt = db.prepare(
   "SELECT productId, action, COUNT(*) as cnt FROM cart_events WHERE createdAt >= ? GROUP BY productId, action"
 );
+const insertCodeUsageStmt = db.prepare(
+  "INSERT OR IGNORE INTO code_usage (code, buyerKey) VALUES (?, ?)"
+);
+const hasCodeUsageStmt = db.prepare(
+  "SELECT 1 FROM code_usage WHERE code = ? AND buyerKey = ?"
+);
+const upsertBuyerStatsStmt = db.prepare(`
+  INSERT INTO buyer_stats (buyerKey, paidOrderCount, telegramId, telegramUsername, ownReferralCode)
+  VALUES (?, ?, ?, ?, ?)
+  ON CONFLICT(buyerKey) DO UPDATE SET
+    paidOrderCount = excluded.paidOrderCount,
+    telegramId = excluded.telegramId,
+    telegramUsername = excluded.telegramUsername,
+    ownReferralCode = excluded.ownReferralCode
+`);
+const getBuyerStatsStmt = db.prepare("SELECT * FROM buyer_stats WHERE buyerKey = ?");
 
 const orders = new Map();
 let nextOrderId = 1001;
@@ -104,6 +132,84 @@ function recordCartEvent(productId, action) {
   insertCartEventStmt.run(productId, action, new Date().toISOString());
 }
 
+// Identifies a buyer across orders for per-buyer discount tiers and loyalty
+// tracking. Prefers the Telegram id the Mini App reports (not spoof-proof,
+// but far better than the free-typed username field), falling back to the
+// normalized username for orders placed without it (older orders, or
+// outside a real Telegram session).
+function buyerKeyFor({ telegramId, telegramUsername }) {
+  if (telegramId) return `id:${telegramId}`;
+  const username = String(telegramUsername || "").replace(/^@/, "").toLowerCase();
+  return username ? `user:${username}` : null;
+}
+
+// True if telegramId matches, or (as a fallback for older orders with no
+// telegramId) the normalized usernames match.
+function orderBelongsToViewer(order, viewer) {
+  if (viewer.telegramId && order.telegramId && String(order.telegramId) === String(viewer.telegramId)) {
+    return true;
+  }
+  const orderUsername = String(order.telegramUsername || "").replace(/^@/, "").toLowerCase();
+  const viewerUsername = String(viewer.telegramUsername || "").replace(/^@/, "").toLowerCase();
+  return Boolean(orderUsername) && orderUsername === viewerUsername;
+}
+
+function hasCodeUsage(code, buyerKey) {
+  return Boolean(hasCodeUsageStmt.get(code, buyerKey));
+}
+
+function recordCodeUsage(code, buyerKey) {
+  insertCodeUsageStmt.run(code, buyerKey);
+}
+
+function getBuyerStats(buyerKey) {
+  const row = getBuyerStatsStmt.get(buyerKey);
+  return row || { buyerKey, paidOrderCount: 0, telegramId: null, telegramUsername: null, ownReferralCode: null };
+}
+
+function saveBuyerStats(stats) {
+  upsertBuyerStatsStmt.run(
+    stats.buyerKey,
+    stats.paidOrderCount,
+    stats.telegramId != null ? String(stats.telegramId) : null,
+    stats.telegramUsername ?? null,
+    stats.ownReferralCode ?? null
+  );
+}
+
+const LOYALTY_ORDER_THRESHOLD = 10;
+
+// Call once, right after an order is marked paid. Bumps the buyer's paid
+// order count and, on reaching the threshold, mints them their own
+// (flat-rate) referral code -- and DMs them if we have a real chat id to
+// message (only works if they've started the bot before; Telegram won't
+// let a bot message someone who hasn't).
+async function handleLoyaltyOnPaid(order) {
+  const buyerKey = buyerKeyFor(order);
+  if (!buyerKey) return;
+
+  const stats = getBuyerStats(buyerKey);
+  stats.paidOrderCount += 1;
+  if (order.telegramId) stats.telegramId = order.telegramId;
+  if (order.telegramUsername) stats.telegramUsername = order.telegramUsername;
+
+  let justUnlocked = false;
+  if (stats.paidOrderCount >= LOYALTY_ORDER_THRESHOLD && !stats.ownReferralCode) {
+    const ownerLabel = stats.telegramUsername || `id${stats.telegramId}`;
+    stats.ownReferralCode = getOrCreateReferralCode(ownerLabel);
+    justUnlocked = true;
+  }
+
+  saveBuyerStats(stats);
+
+  if (justUnlocked && bot && stats.telegramId) {
+    await bot.sendMessage(
+      stats.telegramId,
+      `🎉 You've placed ${stats.paidOrderCount} orders with us! As a thank you, here's your own referral code: ${stats.ownReferralCode}\n\nShare it — anyone who uses it gets ${REFERRAL_DISCOUNT_PERCENT}% off their order, and you earn ${REFERRAL_COMMISSION_PERCENT}% commission on every order that uses it.`
+    ).catch(err => console.error("Failed to send loyalty unlock message", err));
+  }
+}
+
 // Load everything back into memory from disk at startup.
 for (const row of db.prepare("SELECT id, json FROM orders").all()) {
   orders.set(row.id, JSON.parse(row.json));
@@ -145,6 +251,29 @@ function getOrCreateReferralCode(owner) {
   }
 
   return code;
+}
+
+// The shop's one fixed referral code. Discount/commission are tiered by
+// whether this is the buyer's first order using it (tracked per-buyer via
+// code_usage) — seeded once on boot if it doesn't already exist, so it
+// survives redeploys without needing self-serve creation.
+const BIGLADSLIM_CODE = "BIGLADSLIM";
+const BIGLADSLIM_OWNER = "BigLadSlim";
+const BIGLADSLIM_FIRST_USE_DISCOUNT_PERCENT = 15;
+const BIGLADSLIM_REPEAT_DISCOUNT_PERCENT = 10;
+const BIGLADSLIM_FIRST_USE_COMMISSION_PERCENT = 7.5;
+const BIGLADSLIM_REPEAT_COMMISSION_PERCENT = 5;
+
+if (!discountCodes.has(BIGLADSLIM_CODE)) {
+  saveDiscountCode(BIGLADSLIM_CODE, {
+    referralOwner: BIGLADSLIM_OWNER,
+    firstUseDiscountPercent: BIGLADSLIM_FIRST_USE_DISCOUNT_PERCENT,
+    repeatDiscountPercent: BIGLADSLIM_REPEAT_DISCOUNT_PERCENT,
+    firstUseCommissionPercent: BIGLADSLIM_FIRST_USE_COMMISSION_PERCENT,
+    repeatCommissionPercent: BIGLADSLIM_REPEAT_COMMISSION_PERCENT,
+    uses: 0,
+    active: true
+  });
 }
 
 // Crypto payment auto-confirmation (Ethereum mainnet: ETH and USDT ERC-20).
@@ -266,7 +395,7 @@ app.get("/health", (_req, res) => {
 // canonical product list — a client can only choose product ids/quantities
 // and, optionally, a discount code. It can never dictate its own price.
 app.post("/api/orders", async (req, res) => {
-  const { customerName, telegramUsername, address, items, discountCode, storeCreditCode } = req.body || {};
+  const { customerName, telegramUsername, telegramId, address, items, discountCode, storeCreditCode } = req.body || {};
 
   if (!customerName || !address || !Array.isArray(items) || !items.length) {
     return res.status(400).json({ error: "Missing order details" });
@@ -304,6 +433,8 @@ app.post("/api/orders", async (req, res) => {
     return res.status(400).json({ error: "Invalid total" });
   }
 
+  const buyerKey = buyerKeyFor({ telegramId, telegramUsername });
+
   let discountPence = 0;
   let appliedCode = null;
   let referral = null;
@@ -316,10 +447,22 @@ app.post("/api/orders", async (req, res) => {
       return res.status(400).json({ error: "Invalid discount code" });
     }
 
+    const isTiered = typeof codeRecord.firstUseDiscountPercent === "number";
+    const isRepeatUse = isTiered && Boolean(buyerKey) && hasCodeUsage(normalizedCode, buyerKey);
+
+    const discountPercent = isTiered
+      ? (isRepeatUse ? codeRecord.repeatDiscountPercent : codeRecord.firstUseDiscountPercent)
+      : null;
+    const commissionPercent = isTiered
+      ? (isRepeatUse ? codeRecord.repeatCommissionPercent : codeRecord.firstUseCommissionPercent)
+      : codeRecord.commissionPercent;
+
     discountPence = Math.min(
-      codeRecord.discountType === "percent"
-        ? Math.round(subtotalPence * (codeRecord.discountValue / 100))
-        : codeRecord.discountValue,
+      isTiered
+        ? Math.round(subtotalPence * (discountPercent / 100))
+        : codeRecord.discountType === "percent"
+          ? Math.round(subtotalPence * (codeRecord.discountValue / 100))
+          : codeRecord.discountValue,
       subtotalPence
     );
 
@@ -327,14 +470,19 @@ app.post("/api/orders", async (req, res) => {
     codeRecord.uses += 1;
     saveDiscountCode(normalizedCode, codeRecord);
 
+    if (isTiered && buyerKey) {
+      recordCodeUsage(normalizedCode, buyerKey);
+    }
+
     if (codeRecord.referralOwner) {
       const totalAfterDiscount = subtotalPence - discountPence;
-      const commissionPence = Math.round(totalAfterDiscount * (codeRecord.commissionPercent / 100));
+      const commissionPence = Math.round(totalAfterDiscount * (commissionPercent / 100));
 
       referral = {
         owner: codeRecord.referralOwner,
         code: normalizedCode,
-        commissionPence
+        commissionPence,
+        tier: isTiered ? (isRepeatUse ? "repeat" : "first") : null
       };
 
       const earnings = referralEarnings.get(normalizedCode) || {
@@ -376,6 +524,7 @@ app.post("/api/orders", async (req, res) => {
     orderId,
     customerName,
     telegramUsername: telegramUsername || "",
+    telegramId: telegramId || null,
     address,
     items: lineItems,
     subtotalPence,
@@ -483,6 +632,7 @@ app.post("/api/orders/:id/confirm-payment", async (req, res) => {
   order.paymentAsset = "USDT";
   order.paidAt = new Date().toISOString();
   saveOrder(order);
+  await handleLoyaltyOnPaid(order);
 
   if (bot && adminTelegramId) {
     const itemLines = order.items.map(i => `${i.quantity} × ${i.name}`).join("\n");
@@ -510,6 +660,9 @@ Status: Paid ✅ — ready to ship`
 });
 
 // Look up (validate) a discount/referral code without revealing who owns it.
+// Optional ?telegramId=&telegramUsername= lets a tiered code preview the
+// rate this specific buyer would actually get (first-use vs repeat) —
+// the order endpoint recomputes this authoritatively regardless.
 app.get("/api/discount-codes/:code", (req, res) => {
   const normalizedCode = String(req.params.code).trim().toUpperCase();
   const codeRecord = discountCodes.get(normalizedCode);
@@ -518,32 +671,23 @@ app.get("/api/discount-codes/:code", (req, res) => {
     return res.status(404).json({ valid: false, error: "Invalid discount code" });
   }
 
+  if (typeof codeRecord.firstUseDiscountPercent === "number") {
+    const buyerKey = buyerKeyFor({ telegramId: req.query.telegramId, telegramUsername: req.query.telegramUsername });
+    const isRepeatUse = Boolean(buyerKey) && hasCodeUsage(normalizedCode, buyerKey);
+
+    return res.json({
+      valid: true,
+      code: normalizedCode,
+      discountType: "percent",
+      discountValue: isRepeatUse ? codeRecord.repeatDiscountPercent : codeRecord.firstUseDiscountPercent
+    });
+  }
+
   res.json({
     valid: true,
     code: normalizedCode,
     discountType: codeRecord.discountType,
     discountValue: codeRecord.discountValue
-  });
-});
-
-// Self-serve referral code creation: anyone can generate a code to share.
-// Buyers who use it get REFERRAL_DISCOUNT_PERCENT off; the referrer earns
-// REFERRAL_COMMISSION_PERCENT of each resulting order (tracked in-memory).
-app.post("/api/referral-codes", (req, res) => {
-  const { ownerName, ownerTelegramUsername } = req.body || {};
-  const owner = (ownerTelegramUsername || ownerName || "").trim();
-
-  if (!owner) {
-    return res.status(400).json({ error: "Provide ownerName or ownerTelegramUsername" });
-  }
-
-  const code = getOrCreateReferralCode(owner);
-
-  res.json({
-    ok: true,
-    code,
-    discountPercent: REFERRAL_DISCOUNT_PERCENT,
-    commissionPercent: REFERRAL_COMMISSION_PERCENT
   });
 });
 
@@ -631,10 +775,15 @@ app.post("/api/payment-webhook", async (req, res) => {
     return res.json({ ok: true, ignored: true });
   }
 
+  if (order.paymentStatus === "paid") {
+    return res.json({ ok: true, alreadyPaid: true });
+  }
+
   order.paymentStatus = "paid";
   order.transactionId = transactionId || "";
   order.paidAt = new Date().toISOString();
   saveOrder(order);
+  await handleLoyaltyOnPaid(order);
 
   if (bot && adminTelegramId) {
     await bot.sendMessage(
@@ -822,22 +971,10 @@ Choose an option below 👇`,
               { text: "📦 My Orders", callback_data: "orders" },
               { text: "💬 Support", callback_data: "support" }
             ],
-            [{ text: "ℹ️ Info", callback_data: "info" },
-              { text: "🎁 Refer & Earn", callback_data: "refer" }
-            ]
+            [{ text: "ℹ️ Info", callback_data: "info" }]
           ]
         }
       }
-    );
-  });
-
-  bot.onText(/\/refer/, async (msg) => {
-    const owner = msg.from?.username || `id${msg.from?.id}`;
-    const code = getOrCreateReferralCode(owner);
-
-    await bot.sendMessage(
-      msg.chat.id,
-      `Your referral code: ${code}\n\nShare it — anyone who uses it gets ${REFERRAL_DISCOUNT_PERCENT}% off their order, and you earn ${REFERRAL_COMMISSION_PERCENT}% commission on every order that uses it.`
     );
   });
 
@@ -847,23 +984,29 @@ Choose an option below 👇`,
     await bot.answerCallbackQuery(q.id);
 
     if (q.data === "orders") {
-      const username = (q.from?.username || "").toLowerCase();
+      const viewer = { telegramId: q.from?.id, telegramUsername: q.from?.username };
       const matches = [...orders.values()]
-        .filter(o => (o.telegramUsername || "").replace(/^@/, "").toLowerCase() === username)
+        .filter(o => orderBelongsToViewer(o, viewer))
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, 10);
 
-      if (!username) {
-        await bot.sendMessage(chatId, "📦 My Orders\n\nSet a Telegram username in your Telegram settings, and enter it at checkout, to look up your orders here.");
-      } else if (!matches.length) {
-        await bot.sendMessage(chatId, "📦 My Orders\n\nNo orders found for your Telegram username. Make sure you enter it exactly (e.g. @yourname) at checkout.");
+      const buyerKey = buyerKeyFor(viewer);
+      const stats = buyerKey ? getBuyerStats(buyerKey) : null;
+      const loyaltyLine = stats
+        ? stats.ownReferralCode
+          ? `\n\n🎁 You've unlocked your own referral code: ${stats.ownReferralCode} (${stats.paidOrderCount} paid orders)`
+          : `\n\nPaid orders: ${stats.paidOrderCount}/${LOYALTY_ORDER_THRESHOLD} — ${Math.max(0, LOYALTY_ORDER_THRESHOLD - stats.paidOrderCount)} more to unlock your own referral code!`
+        : "";
+
+      if (!matches.length) {
+        await bot.sendMessage(chatId, `📦 My Orders\n\nNo orders found yet.${loyaltyLine}`);
       } else {
         const lines = matches.map(o => {
           const statusLabel = o.paymentStatus === "paid" ? "Paid ✅" : "Awaiting payment";
           const date = new Date(o.createdAt).toLocaleDateString();
           return `#${o.orderId} — £${(o.totalPence / 100).toFixed(2)} — ${statusLabel} (${date})`;
         });
-        await bot.sendMessage(chatId, `📦 My Orders\n\n${lines.join("\n")}`);
+        await bot.sendMessage(chatId, `📦 My Orders\n\n${lines.join("\n")}${loyaltyLine}`);
       }
     }
 
@@ -879,21 +1022,11 @@ Choose an option below 👇`,
     if (q.data === "info") {
       await bot.sendMessage(chatId, "ℹ️ Kage Supps\n\nTap 🛍 Open Shop to launch the Mini App.");
     }
-
-    if (q.data === "refer") {
-      const owner = q.from?.username || `id${q.from?.id}`;
-      const code = getOrCreateReferralCode(owner);
-
-      await bot.sendMessage(
-        chatId,
-        `Your referral code: ${code}\n\nShare it — anyone who uses it gets ${REFERRAL_DISCOUNT_PERCENT}% off their order, and you earn ${REFERRAL_COMMISSION_PERCENT}% commission on every order that uses it.`
-      );
-    }
   });
 
   // Forwards a customer's next message to SUPPORT_TELEGRAM_IDS once they've
   // tapped "Support" — ignored for anyone not currently in that flow, and
-  // for commands, so it never swallows /start, /refer, etc.
+  // for commands, so it never swallows /start, /myid, etc.
   bot.on("message", async (msg) => {
     const chatId = msg.chat?.id;
     if (!chatId || !pendingSupport.has(chatId)) return;

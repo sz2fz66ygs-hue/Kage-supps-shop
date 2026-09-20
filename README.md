@@ -3,12 +3,12 @@
 This is a clean lawful-store scaffold with:
 - gold/white Mini App UI
 - basket with add/remove cart controls, wired to checkout
-- discount codes and self-serve referral codes (buyer discount + referrer commission)
+- a fixed referral code (`BIGLADSLIM`) with first-use vs. repeat-use discount/commission tiers, plus a loyalty program that auto-mints a customer their own flat-rate referral code after 10 paid orders
 - server-side order creation with prices/stock recalculated from the canonical product list
 - automatic on-chain USDT (ERC-20, Ethereum mainnet) payment confirmation, with shipping details forwarded to the admin chat once confirmed
 - authenticated webhook skeleton (for a separate payment provider, if you use one instead)
 - admin Telegram notifications, including a weekly sales + basket-activity summary
-- /start bot menu with /refer, /myid and /summary commands
+- /start bot menu with /myid and /summary commands, real Support message forwarding, and a real My Orders lookup
 
 ## Render
 Build Command: `npm install`
@@ -27,8 +27,8 @@ variables, and redeploy.
 - ADMIN_TELEGRAM_ID — see above; without this, order/payment/summary messages have nowhere to go
 - SUPPORT_TELEGRAM_IDS (optional) — comma-separated numeric Telegram IDs (e.g. `123,456`) that receive forwarded support messages. Without this, tapping "Support" tells the customer it isn't configured yet.
 - PAYMENT_WEBHOOK_SECRET
-- REFERRAL_DISCOUNT_PERCENT (default 10) — % off given to a buyer who uses a referral code
-- REFERRAL_COMMISSION_PERCENT (default 5) — % of the order the referrer earns
+- REFERRAL_DISCOUNT_PERCENT (default 10) — flat discount % on a customer's own loyalty-earned referral code (see below); does not affect `BIGLADSLIM`, which has its own fixed tiers
+- REFERRAL_COMMISSION_PERCENT (default 5) — flat commission % on a customer's own loyalty-earned referral code; does not affect `BIGLADSLIM`
 - ADMIN_API_SECRET (optional) — required to create flat, non-referral discount codes via the admin API
 - ETH_RECEIVING_ADDRESS — your Ethereum wallet address, used to receive USDT (ERC-20) payments. Leave unset to disable crypto payment automation (orders fall back to a generic "not configured" message).
 - ETHERSCAN_API_KEY — a free API key from https://etherscan.io/apis, used to look up transactions on-chain
@@ -51,24 +51,50 @@ Anything sold must be legal to sell without a prescription in your
 jurisdiction.
 
 ## Discount codes & referrals
-- A referral code is just the person's Telegram name/username, sanitized and
-  uppercased (e.g. `@jane_doe` → `JANE_DOE`) — simple to read out loud, and
-  already unique per person. Asking again for the same owner returns the same
-  code rather than minting a new one.
-- `POST /api/referral-codes` `{ ownerName | ownerTelegramUsername }` — anyone
-  can self-serve generate a referral code. Buyers who use it get
-  `REFERRAL_DISCOUNT_PERCENT` off; the referrer earns
-  `REFERRAL_COMMISSION_PERCENT` of each resulting order.
-- Telegram users can also just send `/refer` to the bot, or tap "Refer & Earn"
-  from `/start`, to get their own code.
+There's no self-serve referral code generation anymore — codes come from two
+places:
+
+**`BIGLADSLIM`** — one fixed code, seeded automatically on server startup if
+it doesn't already exist (so it survives redeploys without any manual setup).
+Its owner and rates are constants near the top of `server.js`
+(`BIGLADSLIM_OWNER`, `BIGLADSLIM_FIRST_USE_DISCOUNT_PERCENT`, etc.) — edit
+those directly to change them. It's tiered **per buyer**, tracked by Telegram
+identity (see below): the first order a given buyer places using this code
+gets `BIGLADSLIM_FIRST_USE_DISCOUNT_PERCENT` off and the owner earns
+`BIGLADSLIM_FIRST_USE_COMMISSION_PERCENT`; every order after that from the
+same buyer using the same code gets the lower repeat rate instead. A
+different buyer's first order is still treated as "first use" independently.
+
+**Loyalty codes** — once a buyer reaches `LOYALTY_ORDER_THRESHOLD` (10) paid
+orders, they're automatically minted their own flat-rate referral code (same
+naming as the old self-serve scheme: their sanitized Telegram
+name/username), giving buyers of *that* code `REFERRAL_DISCOUNT_PERCENT` off
+and this customer `REFERRAL_COMMISSION_PERCENT` commission — not tiered. If
+we have a real chat id for them (see below), they get DMed their new code;
+either way it shows up next time they tap "My Orders", along with their
+progress if they haven't reached 10 yet.
+
+Other endpoints:
 - `GET /api/discount-codes/:code` — validate a code (used by the storefront's
-  "Apply" button) without revealing who owns it.
-- `GET /api/referral-codes/:code/earnings` — check a referral code's lifetime
+  "Apply" button) without revealing who owns it. Accepts optional
+  `?telegramId=&telegramUsername=` so a tiered code can preview the rate
+  *this* buyer would actually get; the order endpoint recomputes it
+  authoritatively regardless.
+- `GET /api/referral-codes/:code/earnings` — check a code's lifetime
   commission (`commissionPence`) and current spendable balance
   (`balancePence`).
 - `POST /api/discount-codes` (admin only, needs `x-admin-secret` header
   matching `ADMIN_API_SECRET`) — create a flat discount code with no referral
   attached.
+
+**Buyer identity**: the storefront now passes the Telegram id/username
+Telegram itself gives the Mini App on open (`tg.initDataUnsafe.user`) with
+every order, instead of relying solely on the free-text field a buyer types
+in. This is what makes first-use/repeat tracking and the loyalty counter
+possible. It's not cryptographically verified (`initDataUnsafe` is
+convenience data, not a signed proof) — a determined client could still spoof
+it — but it's far more reliable than free text, and orders placed before this
+change (or outside a real Telegram session) fall back to the typed username.
 
 **Store credit**: a referrer's commission is real, spendable store credit —
 not just a number to look up and pay out manually. On `POST /api/orders`,
