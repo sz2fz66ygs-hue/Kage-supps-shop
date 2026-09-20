@@ -32,18 +32,23 @@ const sectionOrder = {
     "Pre-Workout Injectables",
     "Blends"
   ],
+
   Orals: [
-    "Orals",
+    "Tubs",
     "Coming Soon — Pouches"
   ],
+
   Pharma: [
     "Cardiovascular",
+    "Metabolic",
     "Hormones & Related",
+    "Sleep",
+    "Neurology & Wakefulness",
     "Sexual Health",
     "Hair & Skin",
-    "Sleep",
     "Other Pharma"
   ],
+
   Peps: [
     "Recovery",
     "Performance",
