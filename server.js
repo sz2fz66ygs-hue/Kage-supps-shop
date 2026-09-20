@@ -27,6 +27,12 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS discount_codes (code TEXT PRIMARY KEY, json TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS referral_earnings (code TEXT PRIMARY KEY, json TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS cart_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    productId INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+  );
 `);
 
 const upsertOrderStmt = db.prepare(
@@ -40,6 +46,12 @@ const upsertReferralEarningsStmt = db.prepare(
 );
 const upsertMetaStmt = db.prepare(
   "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+);
+const insertCartEventStmt = db.prepare(
+  "INSERT INTO cart_events (productId, action, createdAt) VALUES (?, ?, ?)"
+);
+const cartEventCountsStmt = db.prepare(
+  "SELECT productId, action, COUNT(*) as cnt FROM cart_events WHERE createdAt >= ? GROUP BY productId, action"
 );
 
 const orders = new Map();
@@ -77,6 +89,19 @@ function saveReferralEarnings(code, earnings) {
 function saveNextOrderId(id) {
   nextOrderId = id;
   upsertMetaStmt.run("nextOrderId", String(id));
+}
+
+function getMeta(key) {
+  const row = db.prepare("SELECT value FROM meta WHERE key = ?").get(key);
+  return row ? row.value : null;
+}
+
+function setMeta(key, value) {
+  upsertMetaStmt.run(key, String(value));
+}
+
+function recordCartEvent(productId, action) {
+  insertCartEventStmt.run(productId, action, new Date().toISOString());
 }
 
 // Load everything back into memory from disk at startup.
@@ -662,9 +687,140 @@ app.get("/api/orders/:id", (req, res) => {
   });
 });
 
+// Basket telemetry for the weekly summary: fired by the storefront whenever
+// a product is added to the basket, or fully removed from it (not on every
+// quantity tweak). Best-effort — the client doesn't wait on this.
+app.post("/api/cart-events", (req, res) => {
+  const { productId, action } = req.body || {};
+  const id = Number(productId);
+
+  if (!productsById.has(id) || !["add", "remove"].includes(action)) {
+    return res.status(400).json({ error: "Invalid cart event" });
+  }
+
+  recordCartEvent(id, action);
+  res.json({ ok: true });
+});
+
 app.listen(port, () => {
   console.log(`Kage storefront running on port ${port}`);
 });
+
+function formatMoney(pence) {
+  return `£${(pence / 100).toFixed(2)}`;
+}
+
+// Sales + basket add/remove activity since sinceIso, one line per product
+// that had either an order or a basket event in the window.
+function buildActivitySummary(sinceIso) {
+  const allOrders = [...orders.values()].filter(o => o.createdAt >= sinceIso);
+  const paidOrders = allOrders.filter(o => o.paymentStatus === "paid");
+
+  const perProduct = new Map();
+
+  for (const o of allOrders) {
+    for (const item of o.items) {
+      const entry = perProduct.get(item.id) || {
+        name: item.name,
+        unitsOrdered: 0,
+        unitsPaid: 0,
+        revenuePaidPence: 0
+      };
+      entry.unitsOrdered += item.quantity;
+      if (o.paymentStatus === "paid") {
+        entry.unitsPaid += item.quantity;
+        entry.revenuePaidPence += item.lineTotalPence;
+      }
+      perProduct.set(item.id, entry);
+    }
+  }
+
+  const eventsByProduct = new Map();
+  for (const row of cartEventCountsStmt.all(sinceIso)) {
+    const entry = eventsByProduct.get(row.productId) || { added: 0, removed: 0 };
+    entry[row.action === "add" ? "added" : "removed"] = row.cnt;
+    eventsByProduct.set(row.productId, entry);
+  }
+
+  const productIds = new Set([...perProduct.keys(), ...eventsByProduct.keys()]);
+
+  if (!productIds.size) {
+    return `No orders or basket activity since ${new Date(sinceIso).toLocaleDateString()}.`;
+  }
+
+  const lines = [...productIds].map(id => {
+    const product = productsById.get(id);
+    const name = product?.name || perProduct.get(id)?.name || `Product #${id}`;
+    const sales = perProduct.get(id);
+    const events = eventsByProduct.get(id) || { added: 0, removed: 0 };
+    const salesLine = sales
+      ? `${sales.unitsOrdered} ordered (${sales.unitsPaid} paid, ${formatMoney(sales.revenuePaidPence)})`
+      : "0 ordered";
+
+    return `• ${name}: ${salesLine} — added to basket ${events.added}×, removed ${events.removed}×`;
+  });
+
+  const totalRevenuePaid = paidOrders.reduce((sum, o) => sum + o.totalPence, 0);
+
+  return [
+    `Orders: ${allOrders.length} placed, ${paidOrders.length} paid (${formatMoney(totalRevenuePaid)})`,
+    "",
+    ...lines
+  ].join("\n");
+}
+
+const WEEKLY_SUMMARY_MS = 7 * 24 * 60 * 60 * 1000;
+
+async function maybeSendWeeklySummary() {
+  if (!bot || !adminTelegramId) return;
+
+  const last = getMeta("lastWeeklySummaryAt");
+
+  if (!last) {
+    // First boot: set a baseline so the first send happens a week from now,
+    // rather than immediately dumping "since the beginning of time".
+    setMeta("lastWeeklySummaryAt", new Date().toISOString());
+    return;
+  }
+
+  if (Date.now() - new Date(last).getTime() < WEEKLY_SUMMARY_MS) return;
+
+  const summary = buildActivitySummary(last);
+  const now = new Date().toISOString();
+
+  await bot.sendMessage(
+    adminTelegramId,
+    `📊 Weekly summary (since ${new Date(last).toLocaleDateString()})\n\n${summary}`
+  );
+  setMeta("lastWeeklySummaryAt", now);
+}
+
+if (bot) {
+  setInterval(() => {
+    maybeSendWeeklySummary().catch(err => console.error("Weekly summary failed", err));
+  }, 60 * 60 * 1000);
+  maybeSendWeeklySummary().catch(err => console.error("Weekly summary failed", err));
+
+  bot.onText(/\/myid/, async (msg) => {
+    await bot.sendMessage(
+      msg.chat.id,
+      `Your Telegram ID: ${msg.from.id}\n\nSet this as ADMIN_TELEGRAM_ID (env var) to receive order/shipping notifications and weekly summaries.`
+    );
+  });
+
+  bot.onText(/\/summary/, async (msg) => {
+    if (!adminTelegramId) {
+      return bot.sendMessage(msg.chat.id, "ADMIN_TELEGRAM_ID isn't configured yet — send /myid to get your ID.");
+    }
+    if (String(msg.from?.id) !== String(adminTelegramId)) {
+      return bot.sendMessage(msg.chat.id, "This command is admin-only.");
+    }
+
+    const sinceIso = new Date(Date.now() - WEEKLY_SUMMARY_MS).toISOString();
+    const summary = buildActivitySummary(sinceIso);
+    await bot.sendMessage(msg.chat.id, `📊 Last 7 days\n\n${summary}`);
+  });
+}
 
 if (bot && webAppUrl) {
   bot.onText(/\/start/, async (msg) => {

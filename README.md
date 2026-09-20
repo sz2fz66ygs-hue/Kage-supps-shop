@@ -7,17 +7,24 @@ This is a clean lawful-store scaffold with:
 - server-side order creation with prices/stock recalculated from the canonical product list
 - automatic on-chain ETH / USDT (ERC-20) payment confirmation, with shipping details forwarded to the admin chat once confirmed
 - authenticated webhook skeleton (for a separate payment provider, if you use one instead)
-- admin Telegram notifications
-- /start bot menu with a /refer command
+- admin Telegram notifications, including a weekly sales + basket-activity summary
+- /start bot menu with /refer, /myid and /summary commands
 
 ## Render
 Build Command: `npm install`
 Start Command: `npm start`
 
+## Getting order/shipping notifications and weekly summaries
+`ADMIN_TELEGRAM_ID` has to be set for you to receive anything from the bot
+(new orders, payment confirmations with shipping details, weekly summaries).
+To find your numeric Telegram ID: message your own bot with `/myid`, it
+replies with your ID, set that as `ADMIN_TELEGRAM_ID` in Render's environment
+variables, and redeploy.
+
 ## Environment variables
 - TELEGRAM_BOT_TOKEN
 - WEBAPP_URL
-- ADMIN_TELEGRAM_ID
+- ADMIN_TELEGRAM_ID — see above; without this, order/payment/summary messages have nowhere to go
 - PAYMENT_WEBHOOK_SECRET
 - REFERRAL_DISCOUNT_PERCENT (default 10) — % off given to a buyer who uses a referral code
 - REFERRAL_COMMISSION_PERCENT (default 5) — % of the order the referrer earns
@@ -104,11 +111,28 @@ Bitcoin, Tron/USDT-TRC20, or another chain, that's a similar shape (a
 different explorer API and address format) — ask and it can be added the same
 way. Alternatively, plug a payment provider into `/api/payment-webhook` instead.
 
+## Weekly summary
+Once `ADMIN_TELEGRAM_ID` is set, the bot sends a weekly message covering, per
+product, since the last summary: units ordered, units paid (+ revenue), how
+many times it was added to a basket, and how many times it was fully removed
+before checkout. It's a plain hourly check against a `lastWeeklySummaryAt`
+timestamp (persisted, so it survives restarts) rather than a cron job — no
+extra dependency, but it means the exact send time can drift by up to an
+hour. Send `/summary` to the bot any time (admin only) for the same report
+covering the trailing 7 days on demand.
+
+Basket add/remove events are recorded by the storefront on every add-to-basket
+and every full removal (not on every +/- quantity tweak) via
+`POST /api/cart-events` — best-effort, fire-and-forget, no personal data
+attached (just a product id, an action, and a timestamp).
+
 ## Data persistence
-Orders, discount/referral codes, and referral earnings are stored in a SQLite
+Orders, discount/referral codes, referral earnings, basket add/remove events,
+and the weekly summary's last-sent timestamp are all stored in a SQLite
 database (via Node's built-in `node:sqlite`, so no extra service or
-dependency) at `<DATA_DIR>/kage.sqlite`, loaded into memory on startup and
-written through on every change.
+dependency) at `<DATA_DIR>/kage.sqlite`. Orders/codes/earnings are loaded into
+memory on startup and written through on every change; cart events and meta
+values are read/written straight from the database.
 
 **This only survives redeploys if `DATA_DIR` points at a Render Persistent
 Disk** (Render dashboard → your service → Disks → add a disk, then set
