@@ -27,10 +27,29 @@ const categories = [
 ];
 
 const sectionOrder = {
-  Oils: ["Pre-Workout", "Oils", "Blends"],
-  Orals: ["Orals"],
-  Pharma: ["General Pharma"],
-  Peps: ["Recovery", "Performance", "Weight Management", "Other"]
+  Oils: [
+    "Oils",
+    "Pre-Workout Injectables",
+    "Blends"
+  ],
+  Orals: [
+    "Orals",
+    "Coming Soon — Pouches"
+  ],
+  Pharma: [
+    "Cardiovascular",
+    "Hormones & Related",
+    "Sexual Health",
+    "Hair & Skin",
+    "Sleep",
+    "Other Pharma"
+  ],
+  Peps: [
+    "Recovery",
+    "Performance",
+    "Weight Management",
+    "Other"
+  ]
 };
 
 let products = [];
