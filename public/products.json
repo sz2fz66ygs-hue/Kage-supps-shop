@@ -1,4 +1,4 @@
-const inventory = [
+
   {
     "category": "Oils",
     "section": "Pre-Workout",
@@ -471,4 +471,3 @@ const inventory = [
     "unit": "units",
     "subtitle": ""
   }
-];
