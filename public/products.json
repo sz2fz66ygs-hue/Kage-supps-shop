@@ -262,46 +262,57 @@
   {
     "id": 212,
     "category": "Orals",
-    "section": "Coming Soon — Pouches",
+    "section": "Pouches",
     "name": "ATX-304 × BAM-15",
-    "stock": null,
+    "stock": 16,
     "unit": "pouches",
     "subtitle": "100mg ATX-304 + 20mg BAM-15 per capsule • 30 capsules per pouch",
-    "displayPricePence": null,
-    "status": "Coming soon"
+    "displayPricePence": 5500,
+    "status": "In inventory"
+  },
+  {
+    "id": 214,
+    "category": "Orals",
+    "section": "Pouches",
+    "name": "BAM-15",
+    "stock": 30,
+    "unit": "pouches",
+    "subtitle": "20mg per capsule • 30 capsules per pouch",
+    "displayPricePence": 3500,
+    "status": "In inventory"
   },
   {
     "id": 210,
     "category": "Orals",
-    "section": "Coming Soon — Pouches",
+    "section": "Pouches",
     "name": "SLU-PP-332",
-    "stock": null,
+    "stock": 8,
     "unit": "pouches",
-    "subtitle": "50mg per capsule • 30 capsules per pouch",
-    "displayPricePence": null,
-    "status": "Coming soon"
+    "subtitle": "60mg per capsule • 30 capsules per pouch",
+    "displayPricePence": 3500,
+    "status": "In inventory"
   },
   {
     "id": 213,
     "category": "Orals",
-    "section": "Coming Soon — Pouches",
+    "section": "Pouches",
     "name": "SLU-PP-332",
-    "stock": null,
+    "stock": 8,
     "unit": "pouches",
     "subtitle": "100mg per capsule • 30 capsules per pouch",
-    "displayPricePence": null,
-    "status": "Coming soon"
+    "displayPricePence": 5000,
+    "status": "In inventory"
   },
   {
     "id": 211,
     "category": "Orals",
-    "section": "Coming Soon — Pouches",
+    "section": "Pouches",
     "name": "SLU-PP-332 × BAM-15",
-    "stock": null,
+    "stock": 15,
     "unit": "pouches",
     "subtitle": "100mg SLU-PP-332 + 20mg BAM-15 per capsule • 30 capsules per pouch",
-    "displayPricePence": null,
-    "status": "Coming soon"
+    "displayPricePence": 6000,
+    "status": "In inventory"
   },
   {
     "category": "Pharma",
