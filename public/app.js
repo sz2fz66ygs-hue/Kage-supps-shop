@@ -38,7 +38,7 @@ const sectionOrder = {
 
   Orals: [
     "Tubs",
-    "Coming Soon — Pouches"
+    "Pouches"
   ],
 
   Pharma: [
