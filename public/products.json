@@ -6,7 +6,7 @@
     "stock": 16,
     "unit": "vials",
     "subtitle": "300mg/ml • 10ml vial",
-    "displayPricePence": 3200,
+    "pricePence": 3200,
     "id": 105
   },
   {
@@ -16,7 +16,7 @@
     "stock": 16,
     "unit": "vials",
     "subtitle": "200mg/ml • 10ml vial",
-    "displayPricePence": 3200,
+    "pricePence": 3200,
     "id": 106
   },
   {
@@ -26,7 +26,7 @@
     "stock": 5,
     "unit": "vials",
     "subtitle": "400mg/ml • 10ml vial",
-    "displayPricePence": 4000,
+    "pricePence": 4000,
     "id": 107
   },
   {
@@ -36,7 +36,7 @@
     "stock": 5,
     "unit": "vials",
     "subtitle": "250mg/ml • 10ml vial",
-    "displayPricePence": 3200,
+    "pricePence": 3200,
     "id": 108
   },
   {
@@ -46,7 +46,7 @@
     "stock": 9,
     "unit": "vials",
     "subtitle": "100mg/ml • 10ml vial",
-    "displayPricePence": 3300,
+    "pricePence": 3300,
     "id": 109
   },
   {
@@ -56,7 +56,7 @@
     "stock": 8,
     "unit": "vials",
     "subtitle": "200mg/ml • 10ml vial",
-    "displayPricePence": 3500,
+    "pricePence": 3500,
     "id": 110
   },
   {
@@ -66,7 +66,7 @@
     "stock": 5,
     "unit": "vials",
     "subtitle": "400mg/ml • 10ml vial",
-    "displayPricePence": 3500,
+    "pricePence": 3500,
     "id": 113
   },
   {
@@ -76,7 +76,7 @@
     "stock": 4,
     "unit": "vials",
     "subtitle": "300mg/ml • 10ml vial",
-    "displayPricePence": 3500,
+    "pricePence": 3500,
     "id": 111
   },
   {
@@ -86,7 +86,7 @@
     "stock": 6,
     "unit": "vials",
     "subtitle": "150mg/ml • 10ml vial",
-    "displayPricePence": 3200,
+    "pricePence": 3200,
     "id": 112
   },
   {
@@ -96,7 +96,7 @@
     "stock": 10,
     "unit": "vials",
     "subtitle": "250mg/ml • 10ml vial",
-    "displayPricePence": 6000,
+    "pricePence": 6000,
     "id": 114
   },
   {
@@ -106,7 +106,7 @@
     "stock": 7,
     "unit": "vials",
     "subtitle": "150mg/ml • 10ml vial",
-    "displayPricePence": 4000,
+    "pricePence": 4000,
     "id": 115
   },
   {
@@ -116,7 +116,7 @@
     "stock": 3,
     "unit": "vials",
     "subtitle": "20ml vial • 100mg/ml total (Test Base 50mg/ml + Anadrol 30mg/ml + Superdrol 20mg/ml)",
-    "displayPricePence": 7500,
+    "pricePence": 7500,
     "id": 104
   },
   {
@@ -126,7 +126,7 @@
     "stock": 15,
     "unit": "vials",
     "subtitle": "30mg/ml",
-    "displayPricePence": 2500,
+    "pricePence": 2500,
     "id": 101
   },
   {
@@ -136,7 +136,7 @@
     "stock": 15,
     "unit": "vials",
     "subtitle": "50mg/ml",
-    "displayPricePence": 2500,
+    "pricePence": 2500,
     "id": 103
   },
   {
@@ -146,7 +146,7 @@
     "stock": 13,
     "unit": "vials",
     "subtitle": "20mg/ml",
-    "displayPricePence": 2500,
+    "pricePence": 2500,
     "id": 102
   },
   {
@@ -156,7 +156,7 @@
     "stock": 5,
     "unit": "vials",
     "subtitle": "600mg/ml total • 10ml vial (Test Cyp 200mg/ml + EQ 250mg/ml + Deca 150mg/ml)",
-    "displayPricePence": 4500,
+    "pricePence": 4500,
     "id": 117
   },
   {
@@ -166,7 +166,7 @@
     "stock": 5,
     "unit": "vials",
     "subtitle": "375mg/ml total • 10ml vial (Test E 150mg/ml + Tren E 75mg/ml + Mast E 150mg/ml)",
-    "displayPricePence": 4500,
+    "pricePence": 4500,
     "id": 116
   },
   {
@@ -176,7 +176,7 @@
     "stock": 10,
     "unit": "tubs",
     "subtitle": "50 tablets per tub",
-    "displayPricePence": 3500,
+    "pricePence": 3500,
     "id": 203
   },
   {
@@ -186,7 +186,7 @@
     "stock": 15,
     "unit": "tubs",
     "subtitle": "50 tablets per tub",
-    "displayPricePence": 3000,
+    "pricePence": 3000,
     "id": 201
   },
   {
@@ -196,7 +196,7 @@
     "stock": 10,
     "unit": "tubs",
     "subtitle": "50 tablets per tub",
-    "displayPricePence": 5000,
+    "pricePence": 5000,
     "id": 202
   },
   {
@@ -206,7 +206,7 @@
     "stock": 4,
     "unit": "tubs",
     "subtitle": "50 tablets per tub",
-    "displayPricePence": 2500,
+    "pricePence": 2500,
     "id": 208
   },
   {
@@ -216,7 +216,7 @@
     "stock": 4,
     "unit": "tubs",
     "subtitle": "50 tablets per tub",
-    "displayPricePence": 3500,
+    "pricePence": 3500,
     "id": 209
   },
   {
@@ -226,7 +226,7 @@
     "stock": 10,
     "unit": "tubs",
     "subtitle": "50 tablets per tub",
-    "displayPricePence": 3000,
+    "pricePence": 3000,
     "id": 204
   },
   {
@@ -236,7 +236,7 @@
     "stock": 2,
     "unit": "tubs",
     "subtitle": "50 tablets per tub",
-    "displayPricePence": 3000,
+    "pricePence": 3000,
     "id": 207
   },
   {
@@ -246,7 +246,7 @@
     "stock": 2,
     "unit": "tubs",
     "subtitle": "50 tablets per tub",
-    "displayPricePence": 2500,
+    "pricePence": 2500,
     "id": 205
   },
   {
@@ -256,7 +256,7 @@
     "stock": 2,
     "unit": "tubs",
     "subtitle": "50 tablets per tub",
-    "displayPricePence": 3500,
+    "pricePence": 3500,
     "id": 206
   },
   {
@@ -267,7 +267,7 @@
     "stock": 16,
     "unit": "pouches",
     "subtitle": "100mg ATX-304 + 20mg BAM-15 per capsule • 30 capsules per pouch",
-    "displayPricePence": 5500,
+    "pricePence": 5500,
     "status": "In inventory"
   },
   {
@@ -278,7 +278,7 @@
     "stock": 30,
     "unit": "pouches",
     "subtitle": "20mg per capsule • 30 capsules per pouch",
-    "displayPricePence": 3500,
+    "pricePence": 3500,
     "status": "In inventory"
   },
   {
@@ -289,7 +289,7 @@
     "stock": 8,
     "unit": "pouches",
     "subtitle": "60mg per capsule • 30 capsules per pouch",
-    "displayPricePence": 3500,
+    "pricePence": 3500,
     "status": "In inventory"
   },
   {
@@ -300,7 +300,7 @@
     "stock": 8,
     "unit": "pouches",
     "subtitle": "100mg per capsule • 30 capsules per pouch",
-    "displayPricePence": 5000,
+    "pricePence": 5000,
     "status": "In inventory"
   },
   {
@@ -311,7 +311,7 @@
     "stock": 15,
     "unit": "pouches",
     "subtitle": "100mg SLU-PP-332 + 20mg BAM-15 per capsule • 30 capsules per pouch",
-    "displayPricePence": 6000,
+    "pricePence": 6000,
     "status": "In inventory"
   },
   {
@@ -321,7 +321,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 303
   },
   {
@@ -331,7 +331,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 302
   },
   {
@@ -341,7 +341,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 304
   },
   {
@@ -351,7 +351,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 340
   },
   {
@@ -361,7 +361,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 310
   },
   {
@@ -371,7 +371,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 312
   },
   {
@@ -381,7 +381,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 311
   },
   {
@@ -391,7 +391,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 308
   },
   {
@@ -401,7 +401,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 309
   },
   {
@@ -411,7 +411,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 328
   },
   {
@@ -421,7 +421,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 329
   },
   {
@@ -431,7 +431,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 325
   },
   {
@@ -441,7 +441,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 307
   },
   {
@@ -451,7 +451,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 330
   },
   {
@@ -461,7 +461,7 @@
     "stock": 2,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 327
   },
   {
@@ -471,7 +471,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 305
   },
   {
@@ -481,7 +481,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 306
   },
   {
@@ -491,7 +491,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 331
   },
   {
@@ -501,7 +501,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 2000,
+    "pricePence": 2000,
     "id": 318
   },
   {
@@ -511,7 +511,7 @@
     "stock": 40,
     "unit": "strips",
     "subtitle": "14 tablets per strip • 560 tablets total",
-    "displayPricePence": 1500,
+    "pricePence": 1500,
     "id": 332
   },
   {
@@ -521,7 +521,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 500,
+    "pricePence": 500,
     "id": 319
   },
   {
@@ -531,7 +531,7 @@
     "stock": 155,
     "unit": "strips",
     "subtitle": "14 tablets per strip",
-    "displayPricePence": 500,
+    "pricePence": 500,
     "id": 322
   },
   {
@@ -541,7 +541,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 600,
+    "pricePence": 600,
     "id": 316
   },
   {
@@ -551,7 +551,7 @@
     "stock": 100,
     "unit": "strips",
     "subtitle": "10 strips per box originally • inventory converted to strips",
-    "displayPricePence": 800,
+    "pricePence": 800,
     "id": 335
   },
   {
@@ -561,7 +561,7 @@
     "stock": 30,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 400,
+    "pricePence": 400,
     "id": 315
   },
   {
@@ -571,7 +571,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "15 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 317
   },
   {
@@ -581,7 +581,7 @@
     "stock": 90,
     "unit": "strips",
     "subtitle": "15 tablets per strip",
-    "displayPricePence": 500,
+    "pricePence": 500,
     "id": 336
   },
   {
@@ -591,7 +591,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 301
   },
   {
@@ -601,7 +601,7 @@
     "stock": 140,
     "unit": "strips",
     "subtitle": "10 strips per box originally • inventory converted to strips",
-    "displayPricePence": 500,
+    "pricePence": 500,
     "id": 333
   },
   {
@@ -611,7 +611,7 @@
     "stock": 160,
     "unit": "strips",
     "subtitle": "10 strips per box originally • inventory converted to strips",
-    "displayPricePence": 500,
+    "pricePence": 500,
     "id": 334
   },
   {
@@ -621,7 +621,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 324
   },
   {
@@ -631,7 +631,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 313
   },
   {
@@ -641,7 +641,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 314
   },
   {
@@ -651,7 +651,7 @@
     "stock": 20,
     "unit": "units",
     "subtitle": "",
-    "displayPricePence": 500,
+    "pricePence": 500,
     "id": 338
   },
   {
@@ -661,7 +661,7 @@
     "stock": 15,
     "unit": "units",
     "subtitle": "",
-    "displayPricePence": 500,
+    "pricePence": 500,
     "id": 337
   },
   {
@@ -671,7 +671,7 @@
     "stock": 15,
     "unit": "units",
     "subtitle": "",
-    "displayPricePence": 500,
+    "pricePence": 500,
     "id": 339
   },
   {
@@ -681,7 +681,7 @@
     "stock": 4,
     "unit": "units",
     "subtitle": "15g • 1mg",
-    "displayPricePence": 500,
+    "pricePence": 500,
     "id": 341
   },
   {
@@ -691,7 +691,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 326
   },
   {
@@ -701,7 +701,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 321
   },
   {
@@ -711,7 +711,7 @@
     "stock": 5,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 323
   },
   {
@@ -721,7 +721,7 @@
     "stock": 4,
     "unit": "strips",
     "subtitle": "10 tablets per strip",
-    "displayPricePence": 300,
+    "pricePence": 300,
     "id": 320
   },
   {
@@ -732,7 +732,7 @@
     "stock": 8,
     "unit": "vials",
     "subtitle": "10mg",
-    "displayPricePence": 2000,
+    "pricePence": 2000,
     "status": "In inventory"
   },
   {
@@ -743,7 +743,7 @@
     "stock": 10,
     "unit": "vials",
     "subtitle": "5mg",
-    "displayPricePence": 4000,
+    "pricePence": 4000,
     "status": "In inventory"
   },
   {
@@ -754,7 +754,7 @@
     "stock": 5,
     "unit": "vials",
     "subtitle": "30mg",
-    "displayPricePence": 7000,
+    "pricePence": 7000,
     "status": "In inventory"
   },
   {
@@ -765,7 +765,7 @@
     "stock": 20,
     "unit": "vials",
     "subtitle": "60mg",
-    "displayPricePence": 12000,
+    "pricePence": 12000,
     "status": "In inventory"
   },
   {
@@ -776,7 +776,7 @@
     "stock": 21,
     "unit": "vials",
     "subtitle": "100mg",
-    "displayPricePence": 2000,
+    "pricePence": 2000,
     "status": "In inventory"
   },
   {
@@ -787,7 +787,7 @@
     "stock": 18,
     "unit": "vials",
     "subtitle": "10mg",
-    "displayPricePence": 1500,
+    "pricePence": 1500,
     "status": "In inventory"
   },
   {
@@ -798,7 +798,7 @@
     "stock": 7,
     "unit": "vials",
     "subtitle": "10ml per vial",
-    "displayPricePence": 500,
+    "pricePence": 500,
     "status": "In inventory"
   }
 ]
