@@ -6,57 +6,38 @@ import { DatabaseSync } from "node:sqlite";
 import express from "express";
 import TelegramBot from "node-telegram-bot-api";
 
-const __dirname = path.dirname(
-  fileURLToPath(import.meta.url)
-);
-
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-
-const port = Number(
-  process.env.PORT || 3000
-);
+const port = Number(process.env.PORT || 3000);
 
 /* =========================================================
    ENVIRONMENT VARIABLES
    ========================================================= */
 
-// Accepts either variable name in Render.
 const token =
   process.env.TELEGRAM ||
   process.env.TELEGRAM_BOT_TOKEN;
 
-const webAppUrl =
-  process.env.WEBAPP_URL;
+const webAppUrl = process.env.WEBAPP_URL;
+const adminTelegramId = process.env.ADMIN_TELEGRAM_ID;
+const DATA_DIR = process.env.DATA_DIR || ".";
 
-const adminTelegramId =
-  process.env.ADMIN_TELEGRAM_ID;
-
-const DATA_DIR =
-  process.env.DATA_DIR || ".";
-
-const supportTelegramIds =
-  (
-    process.env.SUPPORT_TELEGRAM_IDS ||
-    ""
-  )
-    .split(",")
-    .map(x => x.trim())
-    .filter(Boolean);
+const supportTelegramIds = (
+  process.env.SUPPORT_TELEGRAM_IDS || ""
+)
+  .split(",")
+  .map(x => x.trim())
+  .filter(Boolean);
 
 /* =========================================================
    EXPRESS
    ========================================================= */
 
-app.use(
-  express.json()
-);
+app.use(express.json());
 
 app.use(
   express.static(
-    path.join(
-      __dirname,
-      "public"
-    )
+    path.join(__dirname, "public")
   )
 );
 
@@ -64,30 +45,18 @@ app.use(
    DATABASE
    ========================================================= */
 
-mkdirSync(
-  DATA_DIR,
-  {
-    recursive: true
-  }
-);
+mkdirSync(DATA_DIR, {
+  recursive: true
+});
 
-const db =
-  new DatabaseSync(
-    path.join(
-      DATA_DIR,
-      "kage.sqlite"
-    )
-  );
+const db = new DatabaseSync(
+  path.join(DATA_DIR, "kage.sqlite")
+);
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS orders (
   id INTEGER PRIMARY KEY,
   json TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS meta (
-  key TEXT PRIMARY KEY,
-  value TEXT NOT NULL
 );
 `);
 
@@ -95,37 +64,29 @@ CREATE TABLE IF NOT EXISTS meta (
    PRODUCTS
    ========================================================= */
 
-let products = [];
+const products = JSON.parse(
+  readFileSync(
+    path.join(
+      __dirname,
+      "public",
+      "products.json"
+    ),
+    "utf8"
+  )
+);
 
-try {
-  products =
-    JSON.parse(
-      readFileSync(
-        path.join(
-          __dirname,
-          "public",
-          "products.json"
-        ),
-        "utf8"
-      )
-    );
-
-  console.log(
-    `Products loaded: ${products.length}`
-  );
-} catch (err) {
-  console.error(
-    "Could not load products.json:",
-    err?.message || err
-  );
-}
+const productsById = new Map(
+  products.map(product => [
+    Number(product.id),
+    product
+  ])
+);
 
 /* =========================================================
-   LOAD EXISTING ORDERS
+   LOAD ORDERS
    ========================================================= */
 
-const orders =
-  new Map();
+const orders = new Map();
 
 for (
   const row of db
@@ -137,43 +98,24 @@ for (
   try {
     orders.set(
       Number(row.id),
-      JSON.parse(
-        row.json
-      )
+      JSON.parse(row.json)
     );
-  } catch (err) {
-    console.error(
-      "Invalid stored order:",
-      row.id,
-      err
-    );
-  }
+  } catch {}
 }
 
 /* =========================================================
    HELPERS
    ========================================================= */
 
-function money(
-  pence
-) {
+function money(pence) {
   return `£${(
-    Number(
-      pence || 0
-    ) / 100
+    Number(pence || 0) / 100
   ).toFixed(2)}`;
 }
 
-function normaliseUsername(
-  value
-) {
-  return String(
-    value || ""
-  )
-    .replace(
-      /^@/,
-      ""
-    )
+function normaliseUsername(value) {
+  return String(value || "")
+    .replace(/^@/, "")
     .trim()
     .toLowerCase();
 }
@@ -185,57 +127,41 @@ function orderBelongsToViewer(
   if (
     viewer.telegramId &&
     order.telegramId &&
-    String(
-      viewer.telegramId
-    ) ===
-      String(
-        order.telegramId
-      )
+    String(viewer.telegramId) ===
+      String(order.telegramId)
   ) {
     return true;
   }
 
-  const orderUsername =
-    normaliseUsername(
-      order.telegramUsername
-    );
+  const a = normaliseUsername(
+    order.telegramUsername
+  );
 
-  const viewerUsername =
-    normaliseUsername(
-      viewer.telegramUsername
-    );
+  const b = normaliseUsername(
+    viewer.telegramUsername
+  );
 
   return Boolean(
-    orderUsername &&
-    viewerUsername &&
-    orderUsername ===
-      viewerUsername
+    a &&
+    b &&
+    a === b
   );
 }
 
 /* =========================================================
-   TELEGRAM BOT
+   TELEGRAM
    ========================================================= */
 
 let bot = null;
 
 if (token) {
   try {
-    bot =
-      new TelegramBot(
-        token,
-        {
-          polling: true
-        }
-      );
-
-    console.log(
-      "Telegram bot started."
+    bot = new TelegramBot(
+      token,
+      {
+        polling: true
+      }
     );
-
-    /* -------------------------
-       POLLING ERRORS
-       ------------------------- */
 
     bot.on(
       "polling_error",
@@ -259,6 +185,10 @@ if (token) {
         );
       }
     );
+
+    console.log(
+      "Telegram bot started."
+    );
   } catch (err) {
     console.error(
       "Telegram startup failed:",
@@ -272,7 +202,7 @@ if (token) {
 }
 
 /* =========================================================
-   SAFE SEND MESSAGE
+   SAFE SEND
    ========================================================= */
 
 async function safeSendMessage(
@@ -304,7 +234,7 @@ async function safeSendMessage(
 }
 
 /* =========================================================
-   HEALTH CHECK
+   HEALTH
    ========================================================= */
 
 app.get(
@@ -320,17 +250,13 @@ app.get(
         Boolean(token),
 
       webAppConfigured:
-        Boolean(webAppUrl),
-
-      supportConfigured:
-        supportTelegramIds.length >
-        0
+        Boolean(webAppUrl)
     });
   }
 );
 
 /* =========================================================
-   TELEGRAM COMMANDS
+   TELEGRAM MENU
    ========================================================= */
 
 const pendingSupport =
@@ -338,20 +264,16 @@ const pendingSupport =
 
 if (bot) {
 
-  /* =======================================================
-     /START
-     ======================================================= */
+  /* -------------------------
+     START
+     ------------------------- */
 
   bot.onText(
     /^\/start(?:@\w+)?(?:\s.*)?$/i,
+
     async msg => {
 
       const buttons = [];
-
-      /*
-        Only show Open Shop if
-        WEBAPP_URL exists.
-      */
 
       if (webAppUrl) {
         buttons.push([
@@ -415,14 +337,15 @@ if (bot) {
     }
   );
 
-  /* =======================================================
-     /MYID
-     ======================================================= */
+  /* -------------------------
+     MY ID
+     ------------------------- */
 
   bot.onText(
     /^\/myid(?:@\w+)?$/i,
 
     async msg => {
+
       await safeSendMessage(
         msg.chat.id,
 
@@ -431,9 +354,9 @@ if (bot) {
     }
   );
 
-  /* =======================================================
-     CALLBACK BUTTONS
-     ======================================================= */
+  /* -------------------------
+     BUTTONS
+     ------------------------- */
 
   bot.on(
     "callback_query",
@@ -447,25 +370,19 @@ if (bot) {
         return;
       }
 
-      /*
-        Stop Telegram's loading spinner.
-      */
-
       try {
-        await bot
-          .answerCallbackQuery(
-            q.id
-          );
+        await bot.answerCallbackQuery(
+          q.id
+        );
       } catch {}
 
-      /* -------------------------
-         MY ORDERS
-         ------------------------- */
+      /* MY ORDERS */
 
       if (
         q.data ===
         "orders"
       ) {
+
         const viewer = {
           telegramId:
             q.from?.id,
@@ -517,15 +434,13 @@ No orders found yet.`
                 "Awaiting payment";
 
               if (
-                order
-                  .fulfilmentStatus ===
+                order.fulfilmentStatus ===
                 "shipped"
               ) {
                 status =
                   "Shipped 📦";
               } else if (
-                order
-                  .paymentStatus ===
+                order.paymentStatus ===
                 "paid"
               ) {
                 status =
@@ -536,10 +451,9 @@ No orders found yet.`
                 order.createdAt
                   ? new Date(
                       order.createdAt
+                    ).toLocaleDateString(
+                      "en-GB"
                     )
-                      .toLocaleDateString(
-                        "en-GB"
-                      )
                   : "Unknown date";
 
               const tracking =
@@ -563,15 +477,11 @@ No orders found yet.`
 
           `📦 My Orders
 
-${lines.join(
-  "\n\n"
-)}`
+${lines.join("\n\n")}`
         );
       }
 
-      /* -------------------------
-         SUPPORT
-         ------------------------- */
+      /* SUPPORT */
 
       if (
         q.data ===
@@ -603,14 +513,13 @@ Send your message below and our team will get it.`
         );
       }
 
-      /* -------------------------
-         INFO
-         ------------------------- */
+      /* INFO */
 
       if (
         q.data ===
         "info"
       ) {
+
         return safeSendMessage(
           chatId,
 
@@ -626,9 +535,9 @@ ${
     }
   );
 
-  /* =======================================================
-     SUPPORT MESSAGE FORWARDING
-     ======================================================= */
+  /* -------------------------
+     SUPPORT MESSAGES
+     ------------------------- */
 
   bot.on(
     "message",
@@ -665,7 +574,7 @@ ${
           ? `@${msg.from.username}`
           : `Telegram ID ${msg.from?.id}`;
 
-      const supportMessage =
+      const text =
         `💬 New Support Message
 
 From: ${from}
@@ -679,7 +588,7 @@ ${msg.text}`;
       ) {
         await safeSendMessage(
           supportId,
-          supportMessage
+          text
         );
       }
 
@@ -693,7 +602,279 @@ ${msg.text}`;
 }
 
 /* =========================================================
-   READ EXISTING ORDER STATUS
+   GENERIC CHECKOUT
+   ========================================================= */
+
+/*
+  Checkout is available only for products
+  explicitly marked:
+
+  "purchasable": true
+
+  in products.json.
+*/
+
+app.post(
+  "/api/orders",
+
+  async (req, res) => {
+
+    try {
+
+      const {
+        customerName,
+        telegramUsername,
+        telegramId,
+        address,
+        items
+      } = req.body || {};
+
+      if (
+        !customerName ||
+        !address ||
+        !Array.isArray(items) ||
+        !items.length
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              "Missing order details"
+          });
+      }
+
+      const lineItems = [];
+
+      let subtotalPence = 0;
+
+      for (
+        const rawItem of items
+      ) {
+
+        const id =
+          Number(
+            rawItem?.id
+          );
+
+        const quantity =
+          Number(
+            rawItem?.quantity
+          );
+
+        const product =
+          productsById.get(
+            id
+          );
+
+        if (
+          !product ||
+          !Number.isInteger(
+            quantity
+          ) ||
+          quantity <= 0
+        ) {
+          return res
+            .status(400)
+            .json({
+              error:
+                "Invalid item in basket"
+            });
+        }
+
+        if (
+          product.purchasable !==
+          true
+        ) {
+          return res
+            .status(400)
+            .json({
+              error:
+                `${product.name} is not available for checkout.`
+            });
+        }
+
+        if (
+          Number.isFinite(
+            product.stock
+          ) &&
+          quantity >
+            product.stock
+        ) {
+          return res
+            .status(400)
+            .json({
+              error:
+                `Not enough stock for ${product.name}`
+            });
+        }
+
+        const pricePence =
+          Number(
+            product.pricePence
+          );
+
+        if (
+          !Number.isInteger(
+            pricePence
+          ) ||
+          pricePence < 0
+        ) {
+          return res
+            .status(500)
+            .json({
+              error:
+                `Invalid server price for ${product.name}`
+            });
+        }
+
+        const lineTotalPence =
+          pricePence *
+          quantity;
+
+        subtotalPence +=
+          lineTotalPence;
+
+        lineItems.push({
+          id:
+            Number(
+              product.id
+            ),
+
+          name:
+            product.name,
+
+          quantity,
+
+          pricePence,
+
+          lineTotalPence
+        });
+      }
+
+      const existingIds =
+        [...orders.keys()];
+
+      const highestId =
+        existingIds.length
+          ? Math.max(
+              ...existingIds
+            )
+          : 1000;
+
+      const orderId =
+        highestId + 1;
+
+      const order = {
+
+        orderId,
+
+        customerName:
+          String(
+            customerName
+          ).trim(),
+
+        telegramUsername:
+          telegramUsername ||
+          "",
+
+        telegramId:
+          telegramId ||
+          null,
+
+        address:
+          String(
+            address
+          ).trim(),
+
+        items:
+          lineItems,
+
+        subtotalPence,
+
+        totalPence:
+          subtotalPence,
+
+        paymentStatus:
+          "awaiting_payment",
+
+        fulfilmentStatus:
+          "not_shipped",
+
+        trackingNumber:
+          null,
+
+        shippedAt:
+          null,
+
+        createdAt:
+          new Date()
+            .toISOString()
+      };
+
+      orders.set(
+        orderId,
+        order
+      );
+
+      db.prepare(`
+        INSERT INTO orders
+        (id, json)
+
+        VALUES (?, ?)
+
+        ON CONFLICT(id)
+        DO UPDATE SET
+          json = excluded.json
+      `).run(
+        orderId,
+        JSON.stringify(
+          order
+        )
+      );
+
+      await safeSendMessage(
+        adminTelegramId,
+
+        `🧾 New Order
+
+Order: #${orderId}
+Customer: ${order.customerName}
+Total: ${money(
+          order.totalPence
+        )}`
+      );
+
+      return res.json({
+        ok: true,
+
+        orderId,
+
+        totalPence:
+          order.totalPence,
+
+        status:
+          order.paymentStatus
+      });
+
+    } catch (err) {
+
+      console.error(
+        "CREATE ORDER ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            "Server error while creating order."
+        });
+    }
+  }
+);
+
+/* =========================================================
+   ORDER STATUS
    ========================================================= */
 
 app.get(
@@ -718,6 +899,7 @@ app.get(
     }
 
     res.json({
+
       orderId:
         order.orderId,
 
@@ -742,46 +924,6 @@ app.get(
       totalPence:
         order.totalPence
     });
-  }
-);
-
-/* =========================================================
-   CHECKOUT
-   ========================================================= */
-
-/*
-  The current catalogue includes regulated
-  and prescription products.
-
-  This build therefore keeps catalogue
-  display, Telegram, support and existing
-  order-status functionality separate from
-  checkout/payment processing.
-*/
-
-app.post(
-  "/api/orders",
-
-  (_req, res) => {
-    res
-      .status(403)
-      .json({
-        error:
-          "Checkout is disabled on this build."
-      });
-  }
-);
-
-app.post(
-  "/api/orders/:id/confirm-payment",
-
-  (_req, res) => {
-    res
-      .status(403)
-      .json({
-        error:
-          "Payment confirmation is disabled on this build."
-      });
   }
 );
 
@@ -849,12 +991,6 @@ app.listen(
         webAppUrl
           ? "configured"
           : "missing"
-      }`
-    );
-
-    console.log(
-      `Support IDs: ${
-        supportTelegramIds.length
       }`
     );
   }
