@@ -7,6 +7,7 @@ import express from "express";
 import TelegramBot from "node-telegram-bot-api";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 const app = express();
 const port = Number(process.env.PORT || 3000);
 
@@ -18,9 +19,17 @@ const token =
   process.env.TELEGRAM ||
   process.env.TELEGRAM_BOT_TOKEN;
 
-const webAppUrl = process.env.WEBAPP_URL;
-const adminTelegramId = process.env.ADMIN_TELEGRAM_ID;
-const DATA_DIR = process.env.DATA_DIR || ".";
+const receivingAddress =
+  process.env.ETH_RECEIVING_ADDRESS;
+
+const webAppUrl =
+  process.env.WEBAPP_URL;
+
+const adminTelegramId =
+  process.env.ADMIN_TELEGRAM_ID;
+
+const DATA_DIR =
+  process.env.DATA_DIR || ".";
 
 const supportTelegramIds = (
   process.env.SUPPORT_TELEGRAM_IDS || ""
@@ -28,6 +37,12 @@ const supportTelegramIds = (
   .split(",")
   .map(x => x.trim())
   .filter(Boolean);
+
+/* =========================================================
+   SETTINGS
+   ========================================================= */
+
+const MINIMUM_ORDER_PENCE = 5000; // £50
 
 /* =========================================================
    EXPRESS
@@ -50,7 +65,10 @@ mkdirSync(DATA_DIR, {
 });
 
 const db = new DatabaseSync(
-  path.join(DATA_DIR, "kage.sqlite")
+  path.join(
+    DATA_DIR,
+    "kage.sqlite"
+  )
 );
 
 db.exec(`
@@ -58,7 +76,32 @@ CREATE TABLE IF NOT EXISTS orders (
   id INTEGER PRIMARY KEY,
   json TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
 `);
+
+const upsertOrderStmt =
+  db.prepare(`
+    INSERT INTO orders (id, json)
+    VALUES (?, ?)
+
+    ON CONFLICT(id)
+    DO UPDATE SET
+      json = excluded.json
+  `);
+
+const upsertMetaStmt =
+  db.prepare(`
+    INSERT INTO meta (key, value)
+    VALUES (?, ?)
+
+    ON CONFLICT(key)
+    DO UPDATE SET
+      value = excluded.value
+  `);
 
 /* =========================================================
    PRODUCTS
@@ -75,18 +118,23 @@ const products = JSON.parse(
   )
 );
 
-const productsById = new Map(
-  products.map(product => [
-    Number(product.id),
-    product
-  ])
-);
+const productsById =
+  new Map(
+    products.map(
+      product => [
+        Number(product.id),
+        product
+      ]
+    )
+  );
 
 /* =========================================================
-   LOAD ORDERS
+   ORDERS
    ========================================================= */
 
 const orders = new Map();
+
+let nextOrderId = 1001;
 
 for (
   const row of db
@@ -100,16 +148,60 @@ for (
       Number(row.id),
       JSON.parse(row.json)
     );
-  } catch {}
+  } catch (err) {
+    console.error(
+      "Invalid stored order:",
+      row.id,
+      err
+    );
+  }
+}
+
+const savedNextOrderId =
+  db
+    .prepare(
+      "SELECT value FROM meta WHERE key = ?"
+    )
+    .get(
+      "nextOrderId"
+    );
+
+if (savedNextOrderId) {
+  nextOrderId =
+    Number(
+      savedNextOrderId.value
+    ) || 1001;
 }
 
 /* =========================================================
    HELPERS
    ========================================================= */
 
+function saveOrder(order) {
+  orders.set(
+    Number(order.orderId),
+    order
+  );
+
+  upsertOrderStmt.run(
+    Number(order.orderId),
+    JSON.stringify(order)
+  );
+}
+
+function saveNextOrderId(value) {
+  nextOrderId = value;
+
+  upsertMetaStmt.run(
+    "nextOrderId",
+    String(value)
+  );
+}
+
 function money(pence) {
   return `£${(
-    Number(pence || 0) / 100
+    Number(pence || 0) /
+    100
   ).toFixed(2)}`;
 }
 
@@ -133,18 +225,21 @@ function orderBelongsToViewer(
     return true;
   }
 
-  const a = normaliseUsername(
-    order.telegramUsername
-  );
+  const orderUsername =
+    normaliseUsername(
+      order.telegramUsername
+    );
 
-  const b = normaliseUsername(
-    viewer.telegramUsername
-  );
+  const viewerUsername =
+    normaliseUsername(
+      viewer.telegramUsername
+    );
 
   return Boolean(
-    a &&
-    b &&
-    a === b
+    orderUsername &&
+    viewerUsername &&
+    orderUsername ===
+      viewerUsername
   );
 }
 
@@ -156,12 +251,13 @@ let bot = null;
 
 if (token) {
   try {
-    bot = new TelegramBot(
-      token,
-      {
-        polling: true
-      }
-    );
+    bot =
+      new TelegramBot(
+        token,
+        {
+          polling: true
+        }
+      );
 
     bot.on(
       "polling_error",
@@ -197,13 +293,9 @@ if (token) {
   }
 } else {
   console.warn(
-    "Telegram token missing. Set TELEGRAM or TELEGRAM_BOT_TOKEN in Render."
+    "Telegram token missing."
   );
 }
-
-/* =========================================================
-   SAFE SEND
-   ========================================================= */
 
 async function safeSendMessage(
   chatId,
@@ -234,7 +326,7 @@ async function safeSendMessage(
 }
 
 /* =========================================================
-   HEALTH
+   HEALTH CHECK
    ========================================================= */
 
 app.get(
@@ -250,7 +342,403 @@ app.get(
         Boolean(token),
 
       webAppConfigured:
-        Boolean(webAppUrl)
+        Boolean(webAppUrl),
+
+      paymentAddressConfigured:
+        Boolean(
+          receivingAddress
+        )
+    });
+  }
+);
+
+/* =========================================================
+   CREATE ORDER
+
+   EVERY VALID PRODUCT IS PURCHASABLE.
+   NO "purchasable" FIELD REQUIRED.
+   ========================================================= */
+
+app.post(
+  "/api/orders",
+
+  async (req, res) => {
+
+    try {
+
+      const {
+        customerName,
+        telegramUsername,
+        telegramId,
+        address,
+        items
+      } =
+        req.body || {};
+
+      if (
+        !customerName ||
+        !address ||
+        !Array.isArray(items) ||
+        !items.length
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              "Missing order details"
+          });
+      }
+
+      const lineItems = [];
+
+      let subtotalPence = 0;
+
+      for (
+        const rawItem of items
+      ) {
+
+        const id =
+          Number(
+            rawItem?.id
+          );
+
+        const quantity =
+          Number(
+            rawItem?.quantity
+          );
+
+        const product =
+          productsById.get(
+            id
+          );
+
+        /* -------------------------
+           VALID PRODUCT
+           ------------------------- */
+
+        if (
+          !product ||
+          !Number.isInteger(
+            quantity
+          ) ||
+          quantity <= 0
+        ) {
+          return res
+            .status(400)
+            .json({
+              error:
+                "Invalid item in basket"
+            });
+        }
+
+        /* -------------------------
+           STOCK
+           ------------------------- */
+
+        const stock =
+          product.stock;
+
+        if (
+          Number.isFinite(
+            stock
+          ) &&
+          quantity > stock
+        ) {
+          return res
+            .status(400)
+            .json({
+              error:
+                `Not enough stock for ${product.name}`
+            });
+        }
+
+        /* -------------------------
+           PRICE
+
+           EVERY PRODUCT WITH A
+           VALID pricePence CAN
+           CHECK OUT.
+           ------------------------- */
+
+        const pricePence =
+          Number(
+            product.pricePence
+          );
+
+        if (
+          !Number.isInteger(
+            pricePence
+          ) ||
+          pricePence < 0
+        ) {
+          return res
+            .status(400)
+            .json({
+              error:
+                `${product.name} has an invalid price.`
+            });
+        }
+
+        const lineTotalPence =
+          pricePence *
+          quantity;
+
+        subtotalPence +=
+          lineTotalPence;
+
+        lineItems.push({
+
+          id:
+            Number(
+              product.id
+            ),
+
+          name:
+            product.name,
+
+          quantity,
+
+          pricePence,
+
+          lineTotalPence
+        });
+      }
+
+      /* -------------------------
+         £50 MINIMUM ORDER
+         ------------------------- */
+
+      if (
+        subtotalPence <
+        MINIMUM_ORDER_PENCE
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              `Minimum order is ${money(
+                MINIMUM_ORDER_PENCE
+              )}.`
+          });
+      }
+
+      /* -------------------------
+         CREATE ORDER
+         ------------------------- */
+
+      const orderId =
+        nextOrderId;
+
+      saveNextOrderId(
+        nextOrderId + 1
+      );
+
+      const order = {
+
+        orderId,
+
+        customerName:
+          String(
+            customerName
+          ).trim(),
+
+        telegramUsername:
+          telegramUsername ||
+          "",
+
+        telegramId:
+          telegramId ||
+          null,
+
+        address:
+          String(
+            address
+          ).trim(),
+
+        items:
+          lineItems,
+
+        subtotalPence,
+
+        totalPence:
+          subtotalPence,
+
+        paymentStatus:
+          "awaiting_payment",
+
+        fulfilmentStatus:
+          "not_shipped",
+
+        transactionId:
+          null,
+
+        trackingNumber:
+          null,
+
+        shippedAt:
+          null,
+
+        createdAt:
+          new Date()
+            .toISOString()
+      };
+
+      saveOrder(
+        order
+      );
+
+      /* -------------------------
+         ADMIN MESSAGE
+         ------------------------- */
+
+      const itemLines =
+        lineItems
+          .map(
+            item =>
+              `${item.quantity} × ${item.name}`
+          )
+          .join("\n");
+
+      await safeSendMessage(
+        adminTelegramId,
+
+        `🧾 New Order
+
+Order: #${orderId}
+
+Customer:
+${order.customerName}
+
+Telegram:
+${
+  telegramUsername
+    ? `@${normaliseUsername(
+        telegramUsername
+      )}`
+    : "Not supplied"
+}
+
+Items:
+${itemLines}
+
+Total:
+${money(
+  order.totalPence
+)}
+
+Status:
+Awaiting payment`
+      );
+
+      /* -------------------------
+         RESPONSE TO WEB APP
+         ------------------------- */
+
+      const response = {
+
+        ok: true,
+
+        orderId,
+
+        subtotalPence,
+
+        totalPence:
+          order.totalPence,
+
+        status:
+          order.paymentStatus
+      };
+
+      if (
+        receivingAddress
+      ) {
+        response.payment = {
+
+          method:
+            "crypto",
+
+          network:
+            "ERC-20",
+
+          address:
+            receivingAddress,
+
+          instructions:
+            "Send payment using the displayed payment details."
+        };
+      }
+
+      return res.json(
+        response
+      );
+
+    } catch (err) {
+
+      console.error(
+        "CREATE ORDER ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            "Server error while creating order."
+        });
+    }
+  }
+);
+
+/* =========================================================
+   ORDER STATUS
+   ========================================================= */
+
+app.get(
+  "/api/orders/:id",
+
+  (req, res) => {
+
+    const order =
+      orders.get(
+        Number(
+          req.params.id
+        )
+      );
+
+    if (!order) {
+      return res
+        .status(404)
+        .json({
+          error:
+            "Order not found"
+        });
+    }
+
+    return res.json({
+
+      orderId:
+        order.orderId,
+
+      paymentStatus:
+        order.paymentStatus,
+
+      fulfilmentStatus:
+        order.fulfilmentStatus ||
+        "not_shipped",
+
+      trackingNumber:
+        order.trackingNumber ||
+        null,
+
+      shippedAt:
+        order.shippedAt ||
+        null,
+
+      subtotalPence:
+        order.subtotalPence,
+
+      totalPence:
+        order.totalPence
     });
   }
 );
@@ -264,10 +752,6 @@ const pendingSupport =
 
 if (bot) {
 
-  /* -------------------------
-     START
-     ------------------------- */
-
   bot.onText(
     /^\/start(?:@\w+)?(?:\s.*)?$/i,
 
@@ -275,7 +759,9 @@ if (bot) {
 
       const buttons = [];
 
-      if (webAppUrl) {
+      if (
+        webAppUrl
+      ) {
         buttons.push([
           {
             text:
@@ -337,9 +823,9 @@ if (bot) {
     }
   );
 
-  /* -------------------------
+  /* =======================================================
      MY ID
-     ------------------------- */
+     ======================================================= */
 
   bot.onText(
     /^\/myid(?:@\w+)?$/i,
@@ -354,9 +840,9 @@ if (bot) {
     }
   );
 
-  /* -------------------------
-     BUTTONS
-     ------------------------- */
+  /* =======================================================
+     CALLBACKS
+     ======================================================= */
 
   bot.on(
     "callback_query",
@@ -366,17 +852,22 @@ if (bot) {
       const chatId =
         q.message?.chat?.id;
 
-      if (!chatId) {
+      if (
+        !chatId
+      ) {
         return;
       }
 
       try {
-        await bot.answerCallbackQuery(
-          q.id
-        );
+        await bot
+          .answerCallbackQuery(
+            q.id
+          );
       } catch {}
 
-      /* MY ORDERS */
+      /* -------------------------
+         MY ORDERS
+         ------------------------- */
 
       if (
         q.data ===
@@ -384,6 +875,7 @@ if (bot) {
       ) {
 
         const viewer = {
+
           telegramId:
             q.from?.id,
 
@@ -439,7 +931,9 @@ No orders found yet.`
               ) {
                 status =
                   "Shipped 📦";
-              } else if (
+              }
+
+              else if (
                 order.paymentStatus ===
                 "paid"
               ) {
@@ -451,10 +945,11 @@ No orders found yet.`
                 order.createdAt
                   ? new Date(
                       order.createdAt
-                    ).toLocaleDateString(
-                      "en-GB"
                     )
-                  : "Unknown date";
+                      .toLocaleDateString(
+                        "en-GB"
+                      )
+                  : "Unknown";
 
               const tracking =
                 order.trackingNumber
@@ -477,11 +972,15 @@ No orders found yet.`
 
           `📦 My Orders
 
-${lines.join("\n\n")}`
+${lines.join(
+  "\n\n"
+)}`
         );
       }
 
-      /* SUPPORT */
+      /* -------------------------
+         SUPPORT
+         ------------------------- */
 
       if (
         q.data ===
@@ -489,7 +988,8 @@ ${lines.join("\n\n")}`
       ) {
 
         if (
-          !supportTelegramIds.length
+          !supportTelegramIds
+            .length
         ) {
           return safeSendMessage(
             chatId,
@@ -513,31 +1013,28 @@ Send your message below and our team will get it.`
         );
       }
 
-      /* INFO */
+      /* -------------------------
+         INFO
+         ------------------------- */
 
       if (
         q.data ===
         "info"
       ) {
-
         return safeSendMessage(
           chatId,
 
           `ℹ️ Info
 
-${
-  webAppUrl
-    ? "Tap Open Shop to launch the Mini App."
-    : "The Mini App URL isn't configured yet."
-}`
+Tap Open Shop to launch the Mini App.`
         );
       }
     }
   );
 
-  /* -------------------------
+  /* =======================================================
      SUPPORT MESSAGES
-     ------------------------- */
+     ======================================================= */
 
   bot.on(
     "message",
@@ -574,10 +1071,11 @@ ${
           ? `@${msg.from.username}`
           : `Telegram ID ${msg.from?.id}`;
 
-      const text =
+      const message =
         `💬 New Support Message
 
-From: ${from}
+From:
+${from}
 
 Message:
 ${msg.text}`;
@@ -588,7 +1086,7 @@ ${msg.text}`;
       ) {
         await safeSendMessage(
           supportId,
-          text
+          message
         );
       }
 
@@ -600,332 +1098,6 @@ ${msg.text}`;
     }
   );
 }
-
-/* =========================================================
-   GENERIC CHECKOUT
-   ========================================================= */
-
-/*
-  Checkout is available only for products
-  explicitly marked:
-
-  "purchasable": true
-
-  in products.json.
-*/
-
-app.post(
-  "/api/orders",
-
-  async (req, res) => {
-
-    try {
-
-      const {
-        customerName,
-        telegramUsername,
-        telegramId,
-        address,
-        items
-      } = req.body || {};
-
-      if (
-        !customerName ||
-        !address ||
-        !Array.isArray(items) ||
-        !items.length
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              "Missing order details"
-          });
-      }
-
-      const lineItems = [];
-
-      let subtotalPence = 0;
-
-      for (
-        const rawItem of items
-      ) {
-
-        const id =
-          Number(
-            rawItem?.id
-          );
-
-        const quantity =
-          Number(
-            rawItem?.quantity
-          );
-
-        const product =
-          productsById.get(
-            id
-          );
-
-        if (
-          !product ||
-          !Number.isInteger(
-            quantity
-          ) ||
-          quantity <= 0
-        ) {
-          return res
-            .status(400)
-            .json({
-              error:
-                "Invalid item in basket"
-            });
-        }
-
-        if (
-          product.purchasable !==
-          true
-        ) {
-          return res
-            .status(400)
-            .json({
-              error:
-                `${product.name} is not available for checkout.`
-            });
-        }
-
-        if (
-          Number.isFinite(
-            product.stock
-          ) &&
-          quantity >
-            product.stock
-        ) {
-          return res
-            .status(400)
-            .json({
-              error:
-                `Not enough stock for ${product.name}`
-            });
-        }
-
-        const pricePence =
-          Number(
-            product.pricePence
-          );
-
-        if (
-          !Number.isInteger(
-            pricePence
-          ) ||
-          pricePence < 0
-        ) {
-          return res
-            .status(500)
-            .json({
-              error:
-                `Invalid server price for ${product.name}`
-            });
-        }
-
-        const lineTotalPence =
-          pricePence *
-          quantity;
-
-        subtotalPence +=
-          lineTotalPence;
-
-        lineItems.push({
-          id:
-            Number(
-              product.id
-            ),
-
-          name:
-            product.name,
-
-          quantity,
-
-          pricePence,
-
-          lineTotalPence
-        });
-      }
-
-      const existingIds =
-        [...orders.keys()];
-
-      const highestId =
-        existingIds.length
-          ? Math.max(
-              ...existingIds
-            )
-          : 1000;
-
-      const orderId =
-        highestId + 1;
-
-      const order = {
-
-        orderId,
-
-        customerName:
-          String(
-            customerName
-          ).trim(),
-
-        telegramUsername:
-          telegramUsername ||
-          "",
-
-        telegramId:
-          telegramId ||
-          null,
-
-        address:
-          String(
-            address
-          ).trim(),
-
-        items:
-          lineItems,
-
-        subtotalPence,
-
-        totalPence:
-          subtotalPence,
-
-        paymentStatus:
-          "awaiting_payment",
-
-        fulfilmentStatus:
-          "not_shipped",
-
-        trackingNumber:
-          null,
-
-        shippedAt:
-          null,
-
-        createdAt:
-          new Date()
-            .toISOString()
-      };
-
-      orders.set(
-        orderId,
-        order
-      );
-
-      db.prepare(`
-        INSERT INTO orders
-        (id, json)
-
-        VALUES (?, ?)
-
-        ON CONFLICT(id)
-        DO UPDATE SET
-          json = excluded.json
-      `).run(
-        orderId,
-        JSON.stringify(
-          order
-        )
-      );
-
-      await safeSendMessage(
-        adminTelegramId,
-
-        `🧾 New Order
-
-Order: #${orderId}
-Customer: ${order.customerName}
-Total: ${money(
-          order.totalPence
-        )}`
-      );
-
-      return res.json({
-        ok: true,
-
-        orderId,
-
-        totalPence:
-          order.totalPence,
-
-        status:
-          order.paymentStatus
-      });
-
-    } catch (err) {
-
-      console.error(
-        "CREATE ORDER ERROR:",
-        err
-      );
-
-      return res
-        .status(500)
-        .json({
-          error:
-            "Server error while creating order."
-        });
-    }
-  }
-);
-
-/* =========================================================
-   ORDER STATUS
-   ========================================================= */
-
-app.get(
-  "/api/orders/:id",
-
-  (req, res) => {
-
-    const order =
-      orders.get(
-        Number(
-          req.params.id
-        )
-      );
-
-    if (!order) {
-      return res
-        .status(404)
-        .json({
-          error:
-            "Order not found"
-        });
-    }
-
-    res.json({
-
-      orderId:
-        order.orderId,
-
-      paymentStatus:
-        order.paymentStatus,
-
-      fulfilmentStatus:
-        order.fulfilmentStatus ||
-        "not_shipped",
-
-      trackingNumber:
-        order.trackingNumber ||
-        null,
-
-      shippedAt:
-        order.shippedAt ||
-        null,
-
-      subtotalPence:
-        order.subtotalPence,
-
-      totalPence:
-        order.totalPence
-    });
-  }
-);
 
 /* =========================================================
    ERROR HANDLER
@@ -992,6 +1164,10 @@ app.listen(
           ? "configured"
           : "missing"
       }`
+    );
+
+    console.log(
+      `Checkout: enabled for all valid catalogue products`
     );
   }
 );
