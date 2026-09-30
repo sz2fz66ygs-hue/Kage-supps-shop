@@ -15,7 +15,9 @@ const port = Number(process.env.PORT || 3000);
    ENVIRONMENT VARIABLES
    ========================================================= */
 
-const token = process.env.TELEGRAM;
+const token =
+  process.env.TELEGRAM ||
+  process.env.TELEGRAM_BOT_TOKEN;
 const etherscanApiKey = process.env.ETHERSCAN;
 const receivingAddress = process.env.ETH_RECEIVING_ADDRESS;
 const webAppUrl = process.env.WEBAPP_URL;
