@@ -565,12 +565,33 @@ async function confirmPayment(orderId) {
       body: JSON.stringify({ transactionId })
     });
 
-    const data = await res.json();
+    const raw = await res.text();
 
-    if (!res.ok) {
-      setPaymentStatus(data.error || "Could not confirm payment.", "error");
-      return;
-    }
+let data;
+
+try {
+  data = JSON.parse(raw);
+} catch {
+  console.error("Server returned non-JSON:", raw);
+
+  setStatus(
+    `Server error (${res.status}). Check Render logs.`,
+    "error"
+  );
+
+  return;
+}
+
+if (!res.ok) {
+  console.error("Checkout error:", res.status, data);
+
+  setStatus(
+    data.error || `Server error (${res.status})`,
+    "error"
+  );
+
+  return;
+}
 
     setPaymentStatus("Payment confirmed! We're preparing your shipment.", "success");
   } catch (err) {
