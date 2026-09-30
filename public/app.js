@@ -470,20 +470,73 @@ function renderPaymentPanel(order) {
 
   panel.innerHTML = `
     <div class="payment-panel">
-      <div class="payment-title">Send USDT (ERC-20, Ethereum mainnet) to</div>
-      <div class="payment-address">${order.payment.address}</div>
-      <div class="payment-quote">≈ ${order.payment.quote.USDT} USDT</div>
-      <div class="payment-sub">${order.payment.instructions}</div>
+      <div class="payment-title">
+        Send USDT (ERC-20, Ethereum mainnet) to
+      </div>
+
+      <div class="wallet-box">
+        <div class="payment-address" id="walletAddress">
+          ${order.payment.address}
+        </div>
+
+        <button id="copyWalletBtn" type="button" class="copy-btn">
+          📋 Copy address
+        </button>
+      </div>
+
+      <div class="payment-quote">
+        ${order.payment.quote.USDT === "QUOTE_PENDING"
+          ? "Waiting for secure quote"
+          : `≈ ${order.payment.quote.USDT} USDT`}
+      </div>
+
+      <div class="payment-sub">
+        ${order.payment.instructions}
+      </div>
 
       <label>Transaction hash</label>
       <input id="paymentTxId" placeholder="0x...">
 
-      <button id="confirmPaymentBtn" class="gold-btn" type="button">I've paid — confirm</button>
+      <button id="confirmPaymentBtn" class="gold-btn" type="button">
+        I've paid — confirm
+      </button>
+
       <div id="paymentStatus" class="status"></div>
     </div>
   `;
 
-  document.getElementById("confirmPaymentBtn")?.addEventListener("click", () => confirmPayment(order.orderId));
+  // COPY WALLET ADDRESS
+  async function copyWalletAddress() {
+    try {
+      await navigator.clipboard.writeText(order.payment.address);
+
+      const btn = document.getElementById("copyWalletBtn");
+
+      if (btn) {
+        btn.textContent = "✅ Copied!";
+
+        setTimeout(() => {
+          btn.textContent = "📋 Copy address";
+        }, 2000);
+      }
+
+      tg?.HapticFeedback?.notificationOccurred("success");
+    } catch (err) {
+      console.error("Couldn't copy wallet address:", err);
+    }
+  }
+
+  document
+    .getElementById("copyWalletBtn")
+    ?.addEventListener("click", copyWalletAddress);
+
+  document
+    .getElementById("walletAddress")
+    ?.addEventListener("click", copyWalletAddress);
+
+  document
+    .getElementById("confirmPaymentBtn")
+    ?.addEventListener("click", () => confirmPayment(order.orderId));
 }
 
 async function confirmPayment(orderId) {
