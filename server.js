@@ -54,8 +54,10 @@ const supportTelegramIds =
    SHOP SETTINGS
    ========================================================= */
 
+// Basket must reach £50 BEFORE discounts.
 const MINIMUM_ORDER_PENCE = 5000;
 
+// £5 delivery charge added AFTER discounts.
 const SHIPPING_PENCE = 500;
 
 /* =========================================================
@@ -63,11 +65,8 @@ const SHIPPING_PENCE = 500;
    ========================================================= */
 
 const Y8_CODE = "Y8";
-
 const Y8_OWNER = "@Y8_JKO";
-
 const Y8_DISCOUNT_PERCENT = 10;
-
 const Y8_COMMISSION_PERCENT = 5;
 
 /* =========================================================
@@ -360,7 +359,8 @@ function getLiveProducts() {
 }
 
 /* =========================================================
-   LIVE PRODUCTS
+   IMPORTANT:
+   SERVE LIVE STOCK AT /products.json
    ========================================================= */
 
 app.get(
@@ -1025,7 +1025,7 @@ async function getUsdtQuote(
 }
 
 /* =========================================================
-   TELEGRAM
+   TELEGRAM STARTUP
    ========================================================= */
 
 let bot =
@@ -1972,8 +1972,7 @@ ${
 
 ${
   referralCommissionPence
-    ? `Referral owner: ${referralOwner}
-Commission once paid: ${money(
+    ? `Referral owner: ${referralOwner}\nCommission once paid: ${money(
         referralCommissionPence
       )}`
     : ""
@@ -2804,15 +2803,1362 @@ document
 );
 
 /* =========================================================
-   TELEGRAM
+   TELEGRAM ADMIN + CUSTOMER CONTROLS
    ========================================================= */
 
 const pendingSupport =
   new Set();
 
+const pendingAdminOrderLookup =
+  new Set();
+
+const pendingAdminTracking =
+  new Map();
+
 if (
   bot
 ) {
+
+  /* =======================================================
+     ADMIN HELPERS
+     ======================================================= */
+
+  function getOrderStatusText(
+    order
+  ) {
+    if (
+      order.fulfilmentStatus ===
+      "shipped"
+    ) {
+      return "Shipped 📦";
+    }
+
+    if (
+      order.paymentStatus ===
+      "paid"
+    ) {
+      return "Paid ✅";
+    }
+
+    if (
+      order.paymentStatus ===
+      "payment_submitted"
+    ) {
+      return "Payment submitted ⏳";
+    }
+
+    return "Awaiting payment";
+  }
+
+  function getRecentOrders(
+    limit = 10
+  ) {
+    return [
+      ...orders.values()
+    ]
+      .sort(
+        (
+          a,
+          b
+        ) =>
+          new Date(
+            b.createdAt ||
+            0
+          ) -
+          new Date(
+            a.createdAt ||
+            0
+          )
+      )
+      .slice(
+        0,
+        limit
+      );
+  }
+
+  async function sendLongMessage(
+    chatId,
+    message
+  ) {
+    const maxLength =
+      3500;
+
+    if (
+      message.length <=
+      maxLength
+    ) {
+      return safeSendMessage(
+        chatId,
+        message
+      );
+    }
+
+    const paragraphs =
+      message.split(
+        "\n\n"
+      );
+
+    let chunk =
+      "";
+
+    for (
+      const paragraph
+      of paragraphs
+    ) {
+      const next =
+        chunk
+          ? `${chunk}\n\n${paragraph}`
+          : paragraph;
+
+      if (
+        next.length >
+        maxLength
+      ) {
+        if (
+          chunk
+        ) {
+          await safeSendMessage(
+            chatId,
+            chunk
+          );
+        }
+
+        chunk =
+          paragraph;
+
+      } else {
+        chunk =
+          next;
+      }
+    }
+
+    if (
+      chunk
+    ) {
+      await safeSendMessage(
+        chatId,
+        chunk
+      );
+    }
+  }
+
+  function getAdminDashboardOptions() {
+    return {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text:
+                "📦 Recent Orders",
+
+              callback_data:
+                "admin_recent_orders"
+            },
+
+            {
+              text:
+                "⏳ Payments Waiting",
+
+              callback_data:
+                "admin_payments"
+            }
+          ],
+
+          [
+            {
+              text:
+                "🚚 Ready to Dispatch",
+
+              callback_data:
+                "admin_dispatch"
+            },
+
+            {
+              text:
+                "🔎 Find Order",
+
+              callback_data:
+                "admin_find_order"
+            }
+          ],
+
+          [
+            {
+              text:
+                "⭐ Reviews",
+
+              callback_data:
+                "admin_reviews"
+            },
+
+            {
+              text:
+                "📊 7 Day Summary",
+
+              callback_data:
+                "admin_summary"
+            }
+          ],
+
+          [
+            {
+              text:
+                "📉 Low Stock",
+
+              callback_data:
+                "admin_low_stock"
+            },
+
+            {
+              text:
+                "💰 Y8 Earnings",
+
+              callback_data:
+                "admin_earnings"
+            }
+          ]
+        ]
+      }
+    };
+  }
+
+  async function sendAdminDashboard(
+    chatId
+  ) {
+    const paymentWaiting =
+      [...orders.values()]
+        .filter(
+          order =>
+            order.paymentStatus ===
+            "payment_submitted"
+        )
+        .length;
+
+    const dispatchWaiting =
+      [...orders.values()]
+        .filter(
+          order =>
+            order.paymentStatus ===
+              "paid" &&
+            order.fulfilmentStatus !==
+              "shipped"
+        )
+        .length;
+
+    const pendingReviews =
+      Number(
+        db.prepare(`
+          SELECT COUNT(*) AS count
+          FROM reviews
+          WHERE approved = 0
+        `).get()?.count ||
+        0
+      );
+
+    const lowStockCount =
+      getLiveProducts()
+        .filter(
+          product => {
+            const stock =
+              Number(
+                product.stock
+              );
+
+            return (
+              Number.isFinite(
+                stock
+              ) &&
+              stock <= 5
+            );
+          }
+        )
+        .length;
+
+    return safeSendMessage(
+      chatId,
+
+`🛠 ADMIN DASHBOARD
+
+⏳ Payments waiting:
+${paymentWaiting}
+
+🚚 Ready to dispatch:
+${dispatchWaiting}
+
+⭐ Reviews waiting:
+${pendingReviews}
+
+📉 Low-stock products:
+${lowStockCount}
+
+Choose an option below.`,
+
+      getAdminDashboardOptions()
+    );
+  }
+
+  function getAdminOrderButtons(
+    order
+  ) {
+    const buttons =
+      [];
+
+    if (
+      order.paymentStatus !==
+      "paid"
+    ) {
+      buttons.push([
+        {
+          text:
+            "✅ Mark Paid",
+
+          callback_data:
+            `admin_paid_${order.orderId}`
+        }
+      ]);
+    }
+
+    if (
+      order.paymentStatus ===
+        "paid" &&
+      order.fulfilmentStatus !==
+        "shipped"
+    ) {
+      buttons.push([
+        {
+          text:
+            "🚚 Add Tracking",
+
+          callback_data:
+            `admin_tracking_${order.orderId}`
+        }
+      ]);
+    }
+
+    if (
+      order.paymentStatus ===
+      "paid"
+    ) {
+      buttons.push([
+        {
+          text:
+            "⭐ Send Review Link",
+
+          callback_data:
+            `admin_review_${order.orderId}`
+        }
+      ]);
+    }
+
+    buttons.push([
+      {
+        text:
+          "⬅️ Admin Dashboard",
+
+        callback_data:
+          "admin_dashboard"
+      }
+    ]);
+
+    return {
+      reply_markup: {
+        inline_keyboard:
+          buttons
+      }
+    };
+  }
+
+  async function sendAdminOrder(
+    chatId,
+    order
+  ) {
+    if (
+      !order
+    ) {
+      return safeSendMessage(
+        chatId,
+        "❌ Order not found."
+      );
+    }
+
+    const itemLines =
+      (
+        order.items ||
+        []
+      )
+        .map(
+          item =>
+            `${item.quantity} × ${item.name} — ${money(
+              item.lineTotalPence ||
+              (
+                Number(
+                  item.pricePence ||
+                  0
+                ) *
+                Number(
+                  item.quantity ||
+                  0
+                )
+              )
+            )}`
+        )
+        .join(
+          "\n"
+        );
+
+    return safeSendMessage(
+      chatId,
+
+`📦 ORDER #${order.orderId}
+
+Status:
+${getOrderStatusText(
+  order
+)}
+
+Customer:
+${order.customerName}
+
+Telegram:
+${
+  order.telegramUsername
+    ? `@${normaliseUsername(
+        order.telegramUsername
+      )}`
+    : (
+        order.telegramId
+          ? `ID ${order.telegramId}`
+          : "Not supplied"
+      )
+}
+
+📍 Address:
+${order.address}
+
+Items:
+${itemLines || "No items"}
+
+Basket:
+${money(
+  order.subtotalPence
+)}
+
+Discount:
+-${money(
+  order.discountPence
+)}
+
+Store credit:
+-${money(
+  order.storeCreditPence
+)}
+
+Shipping:
+${money(
+  order.shippingPence
+)}
+
+TOTAL:
+${money(
+  order.totalPence
+)}
+
+Payment:
+${order.paymentStatus}
+
+Transaction:
+${
+  order.transactionId ||
+  "None"
+}
+
+Tracking:
+${
+  order.trackingNumber ||
+  "Not added"
+}
+
+Created:
+${
+  order.createdAt
+    ? new Date(
+        order.createdAt
+      ).toLocaleString(
+        "en-GB"
+      )
+    : "Unknown"
+}`,
+
+      getAdminOrderButtons(
+        order
+      )
+    );
+  }
+
+  async function sendAdminOrderList(
+    chatId,
+    title,
+    orderList
+  ) {
+    if (
+      !orderList.length
+    ) {
+      return safeSendMessage(
+        chatId,
+
+`${title}
+
+Nothing here at the moment.`,
+
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text:
+                    "⬅️ Admin Dashboard",
+
+                  callback_data:
+                    "admin_dashboard"
+                }
+              ]
+            ]
+          }
+        }
+      );
+    }
+
+    const buttons =
+      orderList.map(
+        order => [
+          {
+            text:
+              `#${order.orderId} • ${money(
+                order.totalPence
+              )} • ${getOrderStatusText(
+                order
+              )}`,
+
+            callback_data:
+              `admin_order_${order.orderId}`
+          }
+        ]
+      );
+
+    buttons.push([
+      {
+        text:
+          "⬅️ Admin Dashboard",
+
+        callback_data:
+          "admin_dashboard"
+      }
+    ]);
+
+    return safeSendMessage(
+      chatId,
+
+`${title}
+
+Tap an order to open it.`,
+
+      {
+        reply_markup: {
+          inline_keyboard:
+            buttons
+        }
+      }
+    );
+  }
+
+  async function sendPendingReviews(
+    chatId
+  ) {
+    const pending =
+      db.prepare(`
+        SELECT *
+        FROM reviews
+        WHERE approved = 0
+        ORDER BY id ASC
+        LIMIT 20
+      `).all();
+
+    if (
+      !pending.length
+    ) {
+      return safeSendMessage(
+        chatId,
+
+`⭐ REVIEWS
+
+No reviews are waiting for approval.`,
+
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text:
+                    "⬅️ Admin Dashboard",
+
+                  callback_data:
+                    "admin_dashboard"
+                }
+              ]
+            ]
+          }
+        }
+      );
+    }
+
+    await safeSendMessage(
+      chatId,
+
+`⭐ REVIEWS
+
+${pending.length} waiting for approval.`
+    );
+
+    for (
+      const review
+      of pending
+    ) {
+      await safeSendMessage(
+        chatId,
+
+`⭐ REVIEW #${review.id}
+
+Order:
+#${review.order_id}
+
+Customer:
+${review.display_name}
+
+Rating:
+${review.rating}/5
+
+Review:
+${review.review_text}`,
+
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text:
+                    "✅ Approve",
+
+                  callback_data:
+                    `review_approve_${review.id}`
+                },
+
+                {
+                  text:
+                    "❌ Reject",
+
+                  callback_data:
+                    `review_reject_${review.id}`
+                }
+              ]
+            ]
+          }
+        }
+      );
+    }
+
+    return safeSendMessage(
+      chatId,
+      "Review queue loaded.",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text:
+                  "⬅️ Admin Dashboard",
+
+                callback_data:
+                  "admin_dashboard"
+              }
+            ]
+          ]
+        }
+      }
+    );
+  }
+
+  function buildSummaryMessage() {
+    const sevenDaysAgo =
+      Date.now() -
+      (
+        7 *
+        24 *
+        60 *
+        60 *
+        1000
+      );
+
+    const sinceIso =
+      new Date(
+        sevenDaysAgo
+      ).toISOString();
+
+    const recentOrders =
+      [...orders.values()]
+        .filter(
+          order => {
+            const created =
+              new Date(
+                order.createdAt ||
+                0
+              ).getTime();
+
+            return (
+              Number.isFinite(
+                created
+              ) &&
+              created >=
+                sevenDaysAgo
+            );
+          }
+        );
+
+    const paidOrders =
+      recentOrders.filter(
+        order =>
+          order.paymentStatus ===
+          "paid"
+      );
+
+    let revenuePence =
+      0;
+
+    let shippingPence =
+      0;
+
+    let discountsPence =
+      0;
+
+    let storeCreditPence =
+      0;
+
+    let unitsOrdered =
+      0;
+
+    let unitsPaid =
+      0;
+
+    const productStats =
+      new Map();
+
+    function statFor(
+      id,
+      name
+    ) {
+      const key =
+        Number(id);
+
+      if (
+        !productStats.has(
+          key
+        )
+      ) {
+        productStats.set(
+          key,
+
+          {
+            name:
+              name ||
+              `Product ${key}`,
+
+            ordered:
+              0,
+
+            paid:
+              0,
+
+            revenuePence:
+              0,
+
+            basketAdds:
+              0,
+
+            basketRemoves:
+              0
+          }
+        );
+      }
+
+      return productStats.get(
+        key
+      );
+    }
+
+    for (
+      const order
+      of recentOrders
+    ) {
+      discountsPence +=
+        Number(
+          order.discountPence ||
+          0
+        );
+
+      storeCreditPence +=
+        Number(
+          order.storeCreditPence ||
+          0
+        );
+
+      for (
+        const item
+        of order.items || []
+      ) {
+        const qty =
+          Number(
+            item.quantity ||
+            0
+          );
+
+        statFor(
+          item.id,
+          item.name
+        ).ordered +=
+          qty;
+
+        unitsOrdered +=
+          qty;
+      }
+
+      if (
+        order.paymentStatus ===
+        "paid"
+      ) {
+        revenuePence +=
+          Number(
+            order.totalPence ||
+            0
+          );
+
+        shippingPence +=
+          Number(
+            order.shippingPence ||
+            0
+          );
+
+        for (
+          const item
+          of order.items || []
+        ) {
+          const qty =
+            Number(
+              item.quantity ||
+              0
+            );
+
+          const stat =
+            statFor(
+              item.id,
+              item.name
+            );
+
+          stat.paid +=
+            qty;
+
+          unitsPaid +=
+            qty;
+
+          stat.revenuePence +=
+            Number(
+              item.lineTotalPence ||
+              (
+                Number(
+                  item.pricePence ||
+                  0
+                ) *
+                qty
+              )
+            );
+        }
+      }
+    }
+
+    const cartRows =
+      db.prepare(`
+        SELECT
+          productId,
+          action,
+          COUNT(*) AS count
+        FROM cart_events
+        WHERE createdAt >= ?
+        GROUP BY
+          productId,
+          action
+      `).all(
+        sinceIso
+      );
+
+    let basketAdds =
+      0;
+
+    let basketRemoves =
+      0;
+
+    for (
+      const row
+      of cartRows
+    ) {
+      const product =
+        productsById.get(
+          Number(
+            row.productId
+          )
+        );
+
+      const stat =
+        statFor(
+          row.productId,
+          product?.name
+        );
+
+      const count =
+        Number(
+          row.count ||
+          0
+        );
+
+      if (
+        row.action ===
+        "add"
+      ) {
+        stat.basketAdds +=
+          count;
+
+        basketAdds +=
+          count;
+
+      } else if (
+        row.action ===
+        "remove"
+      ) {
+        stat.basketRemoves +=
+          count;
+
+        basketRemoves +=
+          count;
+      }
+    }
+
+    const pendingReviews =
+      Number(
+        db.prepare(`
+          SELECT COUNT(*) AS count
+          FROM reviews
+          WHERE approved = 0
+        `).get()?.count ||
+        0
+      );
+
+    const approvedReviews =
+      Number(
+        db.prepare(`
+          SELECT COUNT(*) AS count
+          FROM reviews
+          WHERE approved = 1
+        `).get()?.count ||
+        0
+      );
+
+    const productLines =
+      [...productStats.values()]
+        .filter(
+          product =>
+            product.ordered ||
+            product.paid ||
+            product.basketAdds ||
+            product.basketRemoves
+        )
+        .sort(
+          (
+            a,
+            b
+          ) =>
+            b.paid -
+              a.paid ||
+            b.ordered -
+              a.ordered
+        )
+        .map(
+          product =>
+`• ${product.name}
+Ordered: ${product.ordered}
+Paid: ${product.paid}
+Sales: ${money(
+  product.revenuePence
+)}
+Basket adds: ${product.basketAdds}
+Basket removals: ${product.basketRemoves}`
+        )
+        .join(
+          "\n\n"
+        );
+
+    return `📊 7 DAY SUMMARY
+
+Orders created:
+${recentOrders.length}
+
+Paid orders:
+${paidOrders.length}
+
+Paid revenue:
+${money(
+  revenuePence
+)}
+
+Shipping collected:
+${money(
+  shippingPence
+)}
+
+Discounts:
+${money(
+  discountsPence
+)}
+
+Store credit used:
+${money(
+  storeCreditPence
+)}
+
+Units ordered:
+${unitsOrdered}
+
+Units paid:
+${unitsPaid}
+
+Basket adds:
+${basketAdds}
+
+Basket removals:
+${basketRemoves}
+
+Reviews waiting:
+${pendingReviews}
+
+Reviews approved:
+${approvedReviews}
+
+PRODUCTS
+
+${
+  productLines ||
+  "No activity in the last 7 days."
+}`;
+  }
+
+  async function sendY8Earnings(
+    chatId
+  ) {
+    const earnings =
+      referralEarnings.get(
+        Y8_CODE
+      );
+
+    return safeSendMessage(
+      chatId,
+
+`💰 Y8 EARNINGS
+
+Owner:
+${Y8_OWNER}
+
+Current balance:
+${money(
+  earnings?.balancePence ||
+  0
+)}
+
+Lifetime earned:
+${money(
+  earnings?.totalEarnedPence ||
+  0
+)}
+
+Paid out:
+${money(
+  earnings?.paidOutPence ||
+  0
+)}`,
+
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text:
+                  "⬅️ Admin Dashboard",
+
+                callback_data:
+                  "admin_dashboard"
+              }
+            ]
+          ]
+        }
+      }
+    );
+  }
+
+  async function sendLowStock(
+    chatId
+  ) {
+    const lowStock =
+      getLiveProducts()
+        .filter(
+          product => {
+            const stock =
+              Number(
+                product.stock
+              );
+
+            return (
+              Number.isFinite(
+                stock
+              ) &&
+              stock <= 5
+            );
+          }
+        )
+        .sort(
+          (
+            a,
+            b
+          ) =>
+            Number(
+              a.stock
+            ) -
+            Number(
+              b.stock
+            )
+        );
+
+    if (
+      !lowStock.length
+    ) {
+      return safeSendMessage(
+        chatId,
+
+`📉 LOW STOCK
+
+Nothing is currently at 5 units or below.`,
+
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text:
+                    "⬅️ Admin Dashboard",
+
+                  callback_data:
+                    "admin_dashboard"
+                }
+              ]
+            ]
+          }
+        }
+      );
+    }
+
+    const lines =
+      lowStock
+        .map(
+          product =>
+            `• ${product.name}: ${product.stock}`
+        )
+        .join(
+          "\n"
+        );
+
+    await sendLongMessage(
+      chatId,
+
+`📉 LOW STOCK
+
+Products with 5 units or fewer:
+
+${lines}`
+    );
+
+    return safeSendMessage(
+      chatId,
+      "Admin controls:",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text:
+                  "⬅️ Admin Dashboard",
+
+                callback_data:
+                  "admin_dashboard"
+              }
+            ]
+          ]
+        }
+      }
+    );
+  }
+
+  /* =======================================================
+     TELEGRAM COMMAND MENU
+     ======================================================= */
+
+  async function setupBotCommands() {
+    try {
+      await bot.setMyCommands(
+        [
+          {
+            command:
+              "start",
+
+            description:
+              "Open the main menu"
+          },
+
+          {
+            command:
+              "myid",
+
+            description:
+              "Show your Telegram ID"
+          }
+        ],
+
+        {
+          scope: {
+            type:
+              "default"
+          }
+        }
+      );
+
+      if (
+        adminTelegramId
+      ) {
+        await bot.setMyCommands(
+          [
+            {
+              command:
+                "admin",
+
+              description:
+                "Open admin dashboard"
+            },
+
+            {
+              command:
+                "order",
+
+              description:
+                "Find an order by number"
+            },
+
+            {
+              command:
+                "summary",
+
+              description:
+                "View 7 day shop summary"
+            },
+
+            {
+              command:
+                "reviews",
+
+              description:
+                "Approve or reject reviews"
+            },
+
+            {
+              command:
+                "lowstock",
+
+              description:
+                "View low stock"
+            },
+
+            {
+              command:
+                "earnings",
+
+              description:
+                "View Y8 earnings"
+            },
+
+            {
+              command:
+                "paid",
+
+              description:
+                "Mark order paid"
+            },
+
+            {
+              command:
+                "tracking",
+
+              description:
+                "Add tracking to an order"
+            },
+
+            {
+              command:
+                "start",
+
+              description:
+                "Open the main menu"
+            },
+
+            {
+              command:
+                "myid",
+
+              description:
+                "Show your Telegram ID"
+            }
+          ],
+
+          {
+            scope: {
+              type:
+                "chat",
+
+              chat_id:
+                Number(
+                  adminTelegramId
+                )
+            }
+          }
+        );
+      }
+
+      console.log(
+        "Telegram command menus loaded."
+      );
+
+    } catch (err) {
+      console.error(
+        "COMMAND MENU ERROR:",
+        err?.response?.body ||
+        err?.message ||
+        err
+      );
+    }
+  }
+
+  setupBotCommands();
 
   /* =======================================================
      START
@@ -2869,15 +4215,37 @@ if (
         }
       ]);
 
+      if (
+        isAdmin(
+          msg.from?.id
+        )
+      ) {
+        buttons.push([
+          {
+            text:
+              "🛠 Admin Dashboard",
+
+            callback_data:
+              "admin_dashboard"
+          }
+        ]);
+      }
+
       await safeSendMessage(
         msg.chat.id,
 
-        `⚡️ Welcome
+`⚡️ Welcome
 
 🛍 Open Shop
 📦 My Orders
 💬 Support
-ℹ️ Info`,
+ℹ️ Info${
+  isAdmin(
+    msg.from?.id
+  )
+    ? "\n🛠 Admin Dashboard"
+    : ""
+}`,
 
         {
           reply_markup: {
@@ -2906,6 +4274,175 @@ if (
   );
 
   /* =======================================================
+     ADMIN DASHBOARD
+     ======================================================= */
+
+  bot.onText(
+    /^\/admin(?:@\w+)?$/i,
+
+    async msg => {
+      if (
+        !isAdmin(
+          msg.from?.id
+        )
+      ) {
+        return safeSendMessage(
+          msg.chat.id,
+          "This command is admin-only."
+        );
+      }
+
+      return sendAdminDashboard(
+        msg.chat.id
+      );
+    }
+  );
+
+  /* =======================================================
+     FIND ORDER COMMAND
+     ======================================================= */
+
+  bot.onText(
+    /^\/order\s+(\d+)$/i,
+
+    async (
+      msg,
+      match
+    ) => {
+      if (
+        !isAdmin(
+          msg.from?.id
+        )
+      ) {
+        return safeSendMessage(
+          msg.chat.id,
+          "This command is admin-only."
+        );
+      }
+
+      const orderId =
+        Number(
+          match[1]
+        );
+
+      const order =
+        orders.get(
+          orderId
+        );
+
+      return sendAdminOrder(
+        msg.chat.id,
+        order
+      );
+    }
+  );
+
+  bot.onText(
+    /^\/order(?:@\w+)?$/i,
+
+    async msg => {
+      if (
+        !isAdmin(
+          msg.from?.id
+        )
+      ) {
+        return;
+      }
+
+      pendingAdminOrderLookup.add(
+        msg.chat.id
+      );
+
+      return safeSendMessage(
+        msg.chat.id,
+
+`🔎 FIND ORDER
+
+Send the order number.
+
+Example:
+1030`
+      );
+    }
+  );
+
+  /* =======================================================
+     SUMMARY
+     ======================================================= */
+
+  bot.onText(
+    /^\/summary(?:@\w+)?$/i,
+
+    async msg => {
+      if (
+        !isAdmin(
+          msg.from?.id
+        )
+      ) {
+        return safeSendMessage(
+          msg.chat.id,
+          "This command is admin-only."
+        );
+      }
+
+      return sendLongMessage(
+        msg.chat.id,
+        buildSummaryMessage()
+      );
+    }
+  );
+
+  /* =======================================================
+     REVIEWS
+     ======================================================= */
+
+  bot.onText(
+    /^\/reviews(?:@\w+)?$/i,
+
+    async msg => {
+      if (
+        !isAdmin(
+          msg.from?.id
+        )
+      ) {
+        return safeSendMessage(
+          msg.chat.id,
+          "This command is admin-only."
+        );
+      }
+
+      return sendPendingReviews(
+        msg.chat.id
+      );
+    }
+  );
+
+  /* =======================================================
+     LOW STOCK
+     ======================================================= */
+
+  bot.onText(
+    /^\/lowstock(?:@\w+)?$/i,
+
+    async msg => {
+      if (
+        !isAdmin(
+          msg.from?.id
+        )
+      ) {
+        return safeSendMessage(
+          msg.chat.id,
+          "This command is admin-only."
+        );
+      }
+
+      return sendLowStock(
+        msg.chat.id
+      );
+    }
+  );
+
+  /* =======================================================
      Y8 EARNINGS
      ======================================================= */
 
@@ -2920,41 +4457,12 @@ if (
       ) {
         return safeSendMessage(
           msg.chat.id,
-
           "This command is admin-only."
         );
       }
 
-      const earnings =
-        referralEarnings.get(
-          Y8_CODE
-        );
-
-      return safeSendMessage(
-        msg.chat.id,
-
-        `💰 Y8 Earnings
-
-Owner:
-${Y8_OWNER}
-
-Current balance:
-${money(
-  earnings?.balancePence ||
-  0
-)}
-
-Lifetime earned:
-${money(
-  earnings?.totalEarnedPence ||
-  0
-)}
-
-Paid out:
-${money(
-  earnings?.paidOutPence ||
-  0
-)}`
+      return sendY8Earnings(
+        msg.chat.id
       );
     }
   );
@@ -2977,7 +4485,6 @@ ${money(
       ) {
         return safeSendMessage(
           msg.chat.id,
-
           "This command is admin-only."
         );
       }
@@ -3013,7 +4520,7 @@ ${money(
         return safeSendMessage(
           msg.chat.id,
 
-          `❌ Could not mark order paid.
+`❌ Could not mark order paid.
 
 ${result.error}`
         );
@@ -3025,18 +4532,48 @@ ${result.error}`
         return safeSendMessage(
           msg.chat.id,
 
-          `ℹ️ Order #${orderId} was already paid.
+`ℹ️ Order #${orderId} was already paid.
 
 Stock has NOT been deducted again.`
         );
       }
 
+      await safeSendMessage(
+        msg.chat.id,
+
+`✅ Order #${orderId} marked paid.
+
+Stock has been updated.`
+      );
+
+      return sendAdminOrder(
+        msg.chat.id,
+        order
+      );
+    }
+  );
+
+  bot.onText(
+    /^\/paid(?:@\w+)?$/i,
+
+    async msg => {
+      if (
+        !isAdmin(
+          msg.from?.id
+        )
+      ) {
+        return;
+      }
+
       return safeSendMessage(
         msg.chat.id,
 
-        `✅ Order #${orderId} marked paid.
+`Use:
 
-Stock has been updated.`
+/paid ORDER_NUMBER
+
+Example:
+/paid 1030`
       );
     }
   );
@@ -3059,7 +4596,6 @@ Stock has been updated.`
       ) {
         return safeSendMessage(
           msg.chat.id,
-
           "This command is admin-only."
         );
       }
@@ -3117,7 +4653,7 @@ Stock has been updated.`
       await safeSendMessage(
         msg.chat.id,
 
-        `✅ Tracking saved
+`✅ Tracking saved
 
 Order:
 #${orderId}
@@ -3132,7 +4668,7 @@ ${trackingNumber}`
         await safeSendMessage(
           order.telegramId,
 
-          `📦 Your order has been dispatched
+`📦 Your order has been dispatched
 
 Order:
 #${orderId}
@@ -3141,15 +4677,16 @@ Tracking:
 ${trackingNumber}`
         );
       }
+
+      return sendAdminOrder(
+        msg.chat.id,
+        order
+      );
     }
   );
 
-  /* =======================================================
-     PENDING REVIEWS
-     ======================================================= */
-
   bot.onText(
-    /^\/reviews(?:@\w+)?$/i,
+    /^\/tracking(?:@\w+)?$/i,
 
     async msg => {
       if (
@@ -3157,470 +4694,18 @@ ${trackingNumber}`
           msg.from?.id
         )
       ) {
-        return safeSendMessage(
-          msg.chat.id,
-          "This command is admin-only."
-        );
+        return;
       }
-
-      const pending =
-        db.prepare(`
-          SELECT *
-          FROM reviews
-          WHERE approved = 0
-          ORDER BY id ASC
-          LIMIT 20
-        `).all();
-
-      if (
-        !pending.length
-      ) {
-        return safeSendMessage(
-          msg.chat.id,
-
-          `⭐ Reviews
-
-No reviews are waiting for approval.`
-        );
-      }
-
-      for (
-        const review
-        of pending
-      ) {
-        await safeSendMessage(
-          msg.chat.id,
-
-`⭐ REVIEW #${review.id}
-
-Order:
-#${review.order_id}
-
-Customer:
-${review.display_name}
-
-Rating:
-${review.rating}/5
-
-Review:
-${review.review_text}`,
-
-          {
-            reply_markup: {
-              inline_keyboard: [
-                [
-                  {
-                    text:
-                      "✅ Approve",
-
-                    callback_data:
-                      `review_approve_${review.id}`
-                  },
-
-                  {
-                    text:
-                      "❌ Reject",
-
-                    callback_data:
-                      `review_reject_${review.id}`
-                  }
-                ]
-              ]
-            }
-          }
-        );
-      }
-    }
-  );
-
-  /* =======================================================
-     7 DAY SUMMARY
-     ======================================================= */
-
-  bot.onText(
-    /^\/summary(?:@\w+)?$/i,
-
-    async msg => {
-      if (
-        !isAdmin(
-          msg.from?.id
-        )
-      ) {
-        return safeSendMessage(
-          msg.chat.id,
-          "This command is admin-only."
-        );
-      }
-
-      const sevenDaysAgo =
-        Date.now() -
-        (
-          7 *
-          24 *
-          60 *
-          60 *
-          1000
-        );
-
-      const sinceIso =
-        new Date(
-          sevenDaysAgo
-        ).toISOString();
-
-      const recentOrders =
-        [...orders.values()]
-          .filter(
-            order => {
-              const created =
-                new Date(
-                  order.createdAt ||
-                  0
-                ).getTime();
-
-              return (
-                Number.isFinite(
-                  created
-                ) &&
-                created >=
-                  sevenDaysAgo
-              );
-            }
-          );
-
-      const paidOrders =
-        recentOrders.filter(
-          order =>
-            order.paymentStatus ===
-            "paid"
-        );
-
-      let revenuePence =
-        0;
-
-      let shippingPence =
-        0;
-
-      let discountsPence =
-        0;
-
-      let storeCreditPence =
-        0;
-
-      let unitsOrdered =
-        0;
-
-      let unitsPaid =
-        0;
-
-      const productStats =
-        new Map();
-
-      function statFor(
-        id,
-        name
-      ) {
-        const key =
-          Number(id);
-
-        if (
-          !productStats.has(
-            key
-          )
-        ) {
-          productStats.set(
-            key,
-            {
-              name:
-                name ||
-                `Product ${key}`,
-
-              ordered:
-                0,
-
-              paid:
-                0,
-
-              revenuePence:
-                0,
-
-              basketAdds:
-                0,
-
-              basketRemoves:
-                0
-            }
-          );
-        }
-
-        return productStats.get(
-          key
-        );
-      }
-
-      for (
-        const order
-        of recentOrders
-      ) {
-        discountsPence +=
-          Number(
-            order.discountPence ||
-            0
-          );
-
-        storeCreditPence +=
-          Number(
-            order.storeCreditPence ||
-            0
-          );
-
-        for (
-          const item
-          of order.items || []
-        ) {
-          const qty =
-            Number(
-              item.quantity ||
-              0
-            );
-
-          statFor(
-            item.id,
-            item.name
-          ).ordered +=
-            qty;
-
-          unitsOrdered +=
-            qty;
-        }
-
-        if (
-          order.paymentStatus ===
-          "paid"
-        ) {
-          revenuePence +=
-            Number(
-              order.totalPence ||
-              0
-            );
-
-          shippingPence +=
-            Number(
-              order.shippingPence ||
-              0
-            );
-
-          for (
-            const item
-            of order.items || []
-          ) {
-            const qty =
-              Number(
-                item.quantity ||
-                0
-              );
-
-            const stat =
-              statFor(
-                item.id,
-                item.name
-              );
-
-            stat.paid +=
-              qty;
-
-            stat.revenuePence +=
-              Number(
-                item.lineTotalPence ||
-                (
-                  Number(
-                    item.pricePence ||
-                    0
-                  ) *
-                  qty
-                )
-              );
-
-            unitsPaid +=
-              qty;
-          }
-        }
-      }
-
-      const cartRows =
-        db.prepare(`
-          SELECT
-            productId,
-            action,
-            COUNT(*) AS count
-          FROM cart_events
-          WHERE createdAt >= ?
-          GROUP BY
-            productId,
-            action
-        `).all(
-          sinceIso
-        );
-
-      let basketAdds =
-        0;
-
-      let basketRemoves =
-        0;
-
-      for (
-        const row
-        of cartRows
-      ) {
-        const product =
-          productsById.get(
-            Number(
-              row.productId
-            )
-          );
-
-        const stat =
-          statFor(
-            row.productId,
-            product?.name
-          );
-
-        const count =
-          Number(
-            row.count ||
-            0
-          );
-
-        if (
-          row.action ===
-          "add"
-        ) {
-          stat.basketAdds +=
-            count;
-
-          basketAdds +=
-            count;
-
-        } else if (
-          row.action ===
-          "remove"
-        ) {
-          stat.basketRemoves +=
-            count;
-
-          basketRemoves +=
-            count;
-        }
-      }
-
-      const pendingReviews =
-        Number(
-          db.prepare(`
-            SELECT COUNT(*) AS count
-            FROM reviews
-            WHERE approved = 0
-          `).get()?.count ||
-          0
-        );
-
-      const approvedReviews =
-        Number(
-          db.prepare(`
-            SELECT COUNT(*) AS count
-            FROM reviews
-            WHERE approved = 1
-          `).get()?.count ||
-          0
-        );
-
-      const productLines =
-        [...productStats.values()]
-          .filter(
-            p =>
-              p.ordered ||
-              p.paid ||
-              p.basketAdds ||
-              p.basketRemoves
-          )
-          .sort(
-            (
-              a,
-              b
-            ) =>
-              b.paid -
-                a.paid ||
-              b.ordered -
-                a.ordered
-          )
-          .map(
-            p =>
-`• ${p.name}
-Ordered: ${p.ordered}
-Paid: ${p.paid}
-Sales: ${money(
-  p.revenuePence
-)}
-Basket +: ${p.basketAdds}
-Basket -: ${p.basketRemoves}`
-          )
-          .join(
-            "\n\n"
-          );
 
       return safeSendMessage(
         msg.chat.id,
 
-`📊 7 DAY SUMMARY
+`Use:
 
-Orders created:
-${recentOrders.length}
+/tracking ORDER_NUMBER TRACKING_NUMBER
 
-Paid orders:
-${paidOrders.length}
-
-Paid revenue:
-${money(
-  revenuePence
-)}
-
-Shipping collected:
-${money(
-  shippingPence
-)}
-
-Discounts:
-${money(
-  discountsPence
-)}
-
-Store credit used:
-${money(
-  storeCreditPence
-)}
-
-Units ordered:
-${unitsOrdered}
-
-Units paid:
-${unitsPaid}
-
-Basket adds:
-${basketAdds}
-
-Basket removals:
-${basketRemoves}
-
-Reviews waiting:
-${pendingReviews}
-
-Reviews approved:
-${approvedReviews}
-
-PRODUCTS
-
-${
-  productLines ||
-  "No activity in the last 7 days."
-}`
+Example:
+/tracking 1030 MZ563767282GB`
       );
     }
   );
@@ -3878,16 +4963,483 @@ The review has been removed.`,
         return;
       }
 
-      try {
-        await bot
-          .answerCallbackQuery(
+      /* =====================================================
+         ADMIN CALLBACKS
+         ===================================================== */
+
+      if (
+        q.data?.startsWith(
+          "admin_"
+        )
+      ) {
+        if (
+          !isAdmin(
+            q.from?.id
+          )
+        ) {
+          try {
+            await bot.answerCallbackQuery(
+              q.id,
+              {
+                text:
+                  "Admin only."
+              }
+            );
+          } catch {}
+
+          return;
+        }
+
+        try {
+          await bot.answerCallbackQuery(
             q.id
           );
-      } catch {}
+        } catch {}
+
+        if (
+          q.data ===
+          "admin_dashboard"
+        ) {
+          return sendAdminDashboard(
+            chatId
+          );
+        }
+
+        if (
+          q.data ===
+          "admin_recent_orders"
+        ) {
+          return sendAdminOrderList(
+            chatId,
+
+            "📦 RECENT ORDERS",
+
+            getRecentOrders(
+              10
+            )
+          );
+        }
+
+        if (
+          q.data ===
+          "admin_payments"
+        ) {
+          const paymentOrders =
+            [...orders.values()]
+              .filter(
+                order =>
+                  order.paymentStatus ===
+                  "payment_submitted"
+              )
+              .sort(
+                (
+                  a,
+                  b
+                ) =>
+                  new Date(
+                    b.createdAt ||
+                    0
+                  ) -
+                  new Date(
+                    a.createdAt ||
+                    0
+                  )
+              )
+              .slice(
+                0,
+                20
+              );
+
+          return sendAdminOrderList(
+            chatId,
+
+            "⏳ PAYMENTS WAITING",
+
+            paymentOrders
+          );
+        }
+
+        if (
+          q.data ===
+          "admin_dispatch"
+        ) {
+          const dispatchOrders =
+            [...orders.values()]
+              .filter(
+                order =>
+                  order.paymentStatus ===
+                    "paid" &&
+                  order.fulfilmentStatus !==
+                    "shipped"
+              )
+              .sort(
+                (
+                  a,
+                  b
+                ) =>
+                  new Date(
+                    a.paidAt ||
+                    a.createdAt ||
+                    0
+                  ) -
+                  new Date(
+                    b.paidAt ||
+                    b.createdAt ||
+                    0
+                  )
+              )
+              .slice(
+                0,
+                20
+              );
+
+          return sendAdminOrderList(
+            chatId,
+
+            "🚚 READY TO DISPATCH",
+
+            dispatchOrders
+          );
+        }
+
+        if (
+          q.data ===
+          "admin_reviews"
+        ) {
+          return sendPendingReviews(
+            chatId
+          );
+        }
+
+        if (
+          q.data ===
+          "admin_summary"
+        ) {
+          await sendLongMessage(
+            chatId,
+            buildSummaryMessage()
+          );
+
+          return safeSendMessage(
+            chatId,
+
+            "Admin controls:",
+
+            {
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    {
+                      text:
+                        "⬅️ Admin Dashboard",
+
+                      callback_data:
+                        "admin_dashboard"
+                    }
+                  ]
+                ]
+              }
+            }
+          );
+        }
+
+        if (
+          q.data ===
+          "admin_low_stock"
+        ) {
+          return sendLowStock(
+            chatId
+          );
+        }
+
+        if (
+          q.data ===
+          "admin_earnings"
+        ) {
+          return sendY8Earnings(
+            chatId
+          );
+        }
+
+        if (
+          q.data ===
+          "admin_find_order"
+        ) {
+          pendingAdminOrderLookup.add(
+            chatId
+          );
+
+          return safeSendMessage(
+            chatId,
+
+`🔎 FIND ORDER
+
+Send the order number.
+
+Example:
+1030`
+          );
+        }
+
+        if (
+          q.data?.startsWith(
+            "admin_order_"
+          )
+        ) {
+          const orderId =
+            Number(
+              q.data.replace(
+                "admin_order_",
+                ""
+              )
+            );
+
+          const order =
+            orders.get(
+              orderId
+            );
+
+          return sendAdminOrder(
+            chatId,
+            order
+          );
+        }
+
+        if (
+          q.data?.startsWith(
+            "admin_paid_"
+          )
+        ) {
+          const orderId =
+            Number(
+              q.data.replace(
+                "admin_paid_",
+                ""
+              )
+            );
+
+          const order =
+            orders.get(
+              orderId
+            );
+
+          if (
+            !order
+          ) {
+            return safeSendMessage(
+              chatId,
+              "❌ Order not found."
+            );
+          }
+
+          const result =
+            await markOrderPaid(
+              order
+            );
+
+          if (
+            !result.ok
+          ) {
+            return safeSendMessage(
+              chatId,
+
+`❌ Could not mark order paid.
+
+${result.error}`
+            );
+          }
+
+          if (
+            result.alreadyPaid
+          ) {
+            await safeSendMessage(
+              chatId,
+
+              `ℹ️ Order #${orderId} is already paid.`
+            );
+
+          } else {
+            await safeSendMessage(
+              chatId,
+
+`✅ Order #${orderId} marked paid.
+
+Stock has been updated.`
+            );
+          }
+
+          return sendAdminOrder(
+            chatId,
+            order
+          );
+        }
+
+        if (
+          q.data?.startsWith(
+            "admin_tracking_"
+          )
+        ) {
+          const orderId =
+            Number(
+              q.data.replace(
+                "admin_tracking_",
+                ""
+              )
+            );
+
+          const order =
+            orders.get(
+              orderId
+            );
+
+          if (
+            !order
+          ) {
+            return safeSendMessage(
+              chatId,
+              "❌ Order not found."
+            );
+          }
+
+          if (
+            order.paymentStatus !==
+            "paid"
+          ) {
+            return safeSendMessage(
+              chatId,
+
+              "❌ This order has not been marked paid."
+            );
+          }
+
+          pendingAdminTracking.set(
+            chatId,
+            orderId
+          );
+
+          return safeSendMessage(
+            chatId,
+
+`🚚 ADD TRACKING
+
+Order:
+#${orderId}
+
+Send the tracking number below.`
+          );
+        }
+
+        if (
+          q.data?.startsWith(
+            "admin_review_"
+          )
+        ) {
+          const orderId =
+            Number(
+              q.data.replace(
+                "admin_review_",
+                ""
+              )
+            );
+
+          const order =
+            orders.get(
+              orderId
+            );
+
+          if (
+            !order
+          ) {
+            return safeSendMessage(
+              chatId,
+              "❌ Order not found."
+            );
+          }
+
+          if (
+            order.paymentStatus !==
+            "paid"
+          ) {
+            return safeSendMessage(
+              chatId,
+
+              "❌ Payment must be confirmed first."
+            );
+          }
+
+          if (
+            !order.telegramId
+          ) {
+            return safeSendMessage(
+              chatId,
+
+              "❌ No Telegram ID is saved for this customer."
+            );
+          }
+
+          const reviewUrl =
+            getReviewUrl(
+              order
+            );
+
+          if (
+            !reviewUrl
+          ) {
+            return safeSendMessage(
+              chatId,
+
+              "❌ Review link could not be generated."
+            );
+          }
+
+          await safeSendMessage(
+            order.telegramId,
+
+`⭐ Leave a Review
+
+Order:
+#${order.orderId}
+
+Thanks for ordering with us.
+
+Tap below to leave a review.`,
+
+            {
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    {
+                      text:
+                        "⭐ Leave a Review",
+
+                      url:
+                        reviewUrl
+                    }
+                  ]
+                ]
+              }
+            }
+          );
+
+          return safeSendMessage(
+            chatId,
+
+            `✅ Review link sent for order #${orderId}.`
+          );
+        }
+
+        return;
+      }
 
       /* =====================================================
-         MY ORDERS
+         NORMAL CALLBACKS
          ===================================================== */
+
+      try {
+        await bot.answerCallbackQuery(
+          q.id
+        );
+      } catch {}
 
       if (
         q.data ===
@@ -3935,7 +5487,7 @@ The review has been removed.`,
           return safeSendMessage(
             chatId,
 
-            `📦 My Orders
+`📦 My Orders
 
 No orders found yet.`
           );
@@ -3944,32 +5496,10 @@ No orders found yet.`
         const lines =
           matches.map(
             order => {
-              let status =
-                "Awaiting payment";
-
-              if (
-                order.fulfilmentStatus ===
-                "shipped"
-              ) {
-                status =
-                  "Shipped 📦";
-              }
-
-              else if (
-                order.paymentStatus ===
-                "paid"
-              ) {
-                status =
-                  "Paid ✅";
-              }
-
-              else if (
-                order.paymentStatus ===
-                "payment_submitted"
-              ) {
-                status =
-                  "Payment submitted ⏳";
-              }
+              const status =
+                getOrderStatusText(
+                  order
+                );
 
               const tracking =
                 order.trackingNumber
@@ -3990,17 +5520,13 @@ No orders found yet.`
         return safeSendMessage(
           chatId,
 
-          `📦 My Orders
+`📦 My Orders
 
 ${lines.join(
   "\n\n"
 )}`
         );
       }
-
-      /* =====================================================
-         SUPPORT
-         ===================================================== */
 
       if (
         q.data ===
@@ -4013,7 +5539,7 @@ ${lines.join(
           return safeSendMessage(
             chatId,
 
-            `💬 Support
+`💬 Support
 
 Support isn't configured yet.`
           );
@@ -4026,15 +5552,11 @@ Support isn't configured yet.`
         return safeSendMessage(
           chatId,
 
-          `💬 Support
+`💬 Support
 
 Send your message below.`
         );
       }
-
-      /* =====================================================
-         INFO
-         ===================================================== */
 
       if (
         q.data ===
@@ -4043,7 +5565,7 @@ Send your message below.`
         return safeSendMessage(
           chatId,
 
-          `ℹ️ Info
+`ℹ️ Info
 
 Minimum basket:
 £50 before discount
@@ -4058,7 +5580,7 @@ Tap Open Shop to launch the Mini App.`
   );
 
   /* =======================================================
-     SUPPORT FORWARDING
+     MESSAGE INPUTS
      ======================================================= */
 
   bot.on(
@@ -4069,10 +5591,7 @@ Tap Open Shop to launch the Mini App.`
         msg.chat?.id;
 
       if (
-        !chatId ||
-        !pendingSupport.has(
-          chatId
-        )
+        !chatId
       ) {
         return;
       }
@@ -4081,6 +5600,166 @@ Tap Open Shop to launch the Mini App.`
         !msg.text ||
         msg.text.startsWith(
           "/"
+        )
+      ) {
+        return;
+      }
+
+      if (
+        isAdmin(
+          msg.from?.id
+        ) &&
+        pendingAdminOrderLookup.has(
+          chatId
+        )
+      ) {
+        const clean =
+          String(
+            msg.text
+          )
+            .replace(
+              "#",
+              ""
+            )
+            .trim();
+
+        const orderId =
+          Number(
+            clean
+          );
+
+        if (
+          !Number.isInteger(
+            orderId
+          )
+        ) {
+          return safeSendMessage(
+            chatId,
+
+`Send a valid order number.
+
+Example:
+1030`
+          );
+        }
+
+        pendingAdminOrderLookup.delete(
+          chatId
+        );
+
+        const order =
+          orders.get(
+            orderId
+          );
+
+        return sendAdminOrder(
+          chatId,
+          order
+        );
+      }
+
+      if (
+        isAdmin(
+          msg.from?.id
+        ) &&
+        pendingAdminTracking.has(
+          chatId
+        )
+      ) {
+        const orderId =
+          pendingAdminTracking.get(
+            chatId
+          );
+
+        const trackingNumber =
+          String(
+            msg.text
+          ).trim();
+
+        const order =
+          orders.get(
+            orderId
+          );
+
+        if (
+          !order
+        ) {
+          pendingAdminTracking.delete(
+            chatId
+          );
+
+          return safeSendMessage(
+            chatId,
+
+            "❌ Order not found."
+          );
+        }
+
+        if (
+          !trackingNumber
+        ) {
+          return safeSendMessage(
+            chatId,
+
+            "Send a valid tracking number."
+          );
+        }
+
+        order.trackingNumber =
+          trackingNumber;
+
+        order.fulfilmentStatus =
+          "shipped";
+
+        order.shippedAt =
+          new Date()
+            .toISOString();
+
+        saveOrder(
+          order
+        );
+
+        pendingAdminTracking.delete(
+          chatId
+        );
+
+        await safeSendMessage(
+          chatId,
+
+`✅ Tracking saved
+
+Order:
+#${orderId}
+
+Tracking:
+${trackingNumber}`
+        );
+
+        if (
+          order.telegramId
+        ) {
+          await safeSendMessage(
+            order.telegramId,
+
+`📦 Your order has been dispatched
+
+Order:
+#${orderId}
+
+Tracking:
+${trackingNumber}`
+          );
+        }
+
+        return sendAdminOrder(
+          chatId,
+          order
+        );
+      }
+
+      if (
+        !pendingSupport.has(
+          chatId
         )
       ) {
         return;
@@ -4102,7 +5781,7 @@ Tap Open Shop to launch the Mini App.`
         await safeSendMessage(
           supportId,
 
-          `💬 New Support Message
+`💬 New Support Message
 
 From:
 ${from}
