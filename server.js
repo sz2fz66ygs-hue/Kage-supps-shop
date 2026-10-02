@@ -54,10 +54,8 @@ const supportTelegramIds =
    SHOP SETTINGS
    ========================================================= */
 
-// Basket must reach £50 BEFORE discounts.
 const MINIMUM_ORDER_PENCE = 5000;
 
-// £5 delivery charge added AFTER discounts.
 const SHIPPING_PENCE = 500;
 
 /* =========================================================
@@ -285,15 +283,6 @@ const productsById =
    INITIALISE LIVE INVENTORY
    ========================================================= */
 
-/*
-  products.json supplies the STARTING stock.
-
-  SQLite then becomes the live stock count.
-
-  INSERT OR IGNORE means restarting or redeploying
-  will NOT reset stock that has already been sold.
-*/
-
 for (
   const product
   of products
@@ -371,10 +360,7 @@ function getLiveProducts() {
 }
 
 /* =========================================================
-   IMPORTANT:
-   SERVE LIVE STOCK AT /products.json
-
-   Your existing app can keep fetching /products.json.
+   LIVE PRODUCTS
    ========================================================= */
 
 app.get(
@@ -396,8 +382,6 @@ app.get(
     );
   }
 );
-
-/* Static files come AFTER /products.json */
 
 app.use(
   express.static(
@@ -704,6 +688,16 @@ function orderBelongsToViewer(
   );
 }
 
+function isAdmin(
+  userId
+) {
+  return Boolean(
+    adminTelegramId &&
+    String(userId) ===
+      String(adminTelegramId)
+  );
+}
+
 /* =========================================================
    Y8 CODE
    ========================================================= */
@@ -878,10 +872,6 @@ function deductStockForOrder(
     };
   }
 
-  /*
-    Check everything BEFORE changing anything.
-  */
-
   for (
     const item
     of order.items
@@ -890,10 +880,6 @@ function deductStockForOrder(
       getLiveStock(
         item.id
       );
-
-    /*
-      null = product has no managed finite stock.
-    */
 
     if (
       liveStock === null
@@ -913,10 +899,6 @@ function deductStockForOrder(
       };
     }
   }
-
-  /*
-    Now deduct all quantities.
-  */
 
   db.exec(
     "BEGIN"
@@ -1112,11 +1094,11 @@ async function safeSendMessage(
     !bot ||
     !chatId
   ) {
-    return;
+    return null;
   }
 
   try {
-    await bot.sendMessage(
+    return await bot.sendMessage(
       chatId,
       message,
       options
@@ -1129,6 +1111,8 @@ async function safeSendMessage(
       err?.message ||
       err
     );
+
+    return null;
   }
 }
 
@@ -1177,10 +1161,6 @@ async function markOrderPaid(
     };
   }
 
-  /*
-    Deduct stock ONCE.
-  */
-
   const stockResult =
     deductStockForOrder(
       order
@@ -1203,11 +1183,6 @@ async function markOrderPaid(
     order
   );
 
-  /*
-    Referral commission only becomes real
-    once payment is confirmed.
-  */
-
   if (
     order.referralCommissionPence >
       0 &&
@@ -1225,10 +1200,6 @@ async function markOrderPaid(
           `${item.quantity} × ${item.name}`
       )
       .join("\n");
-
-  /* =======================================================
-     ADMIN PAID MESSAGE
-     ======================================================= */
 
   await safeSendMessage(
     adminTelegramId,
@@ -1290,10 +1261,6 @@ ${
 Stock updated:
 ✅`
   );
-
-  /* =======================================================
-     CUSTOMER PAID MESSAGE + REVIEW BUTTON
-     ======================================================= */
 
   if (
     order.telegramId
@@ -1594,10 +1561,6 @@ app.post(
       let subtotalPence =
         0;
 
-      /* =====================================================
-         PRODUCTS + LIVE STOCK CHECK
-         ===================================================== */
-
       for (
         const rawItem
         of items
@@ -1693,16 +1656,6 @@ app.post(
         });
       }
 
-      /* =====================================================
-         £50 MINIMUM
-
-         CHECKED BEFORE:
-         - Y8
-         - OTHER DISCOUNTS
-         - STORE CREDIT
-         - SHIPPING
-         ===================================================== */
-
       if (
         subtotalPence <
         MINIMUM_ORDER_PENCE
@@ -1714,10 +1667,6 @@ app.post(
               "Minimum basket is £50 before discount and shipping."
           });
       }
-
-      /* =====================================================
-         DISCOUNT
-         ===================================================== */
 
       let discountPence =
         0;
@@ -1782,10 +1731,6 @@ app.post(
         }
       }
 
-      /* =====================================================
-         STORE CREDIT
-         ===================================================== */
-
       let storeCreditPence =
         0;
 
@@ -1804,10 +1749,6 @@ app.post(
           referralEarnings.get(
             code
           );
-
-        /*
-          Y8 is cash-only.
-        */
 
         if (
           credit &&
@@ -1858,15 +1799,6 @@ app.post(
         }
       }
 
-      /* =====================================================
-         TOTAL
-
-         BASKET
-         - DISCOUNT
-         - STORE CREDIT
-         + £5 SHIPPING
-         ===================================================== */
-
       const productsAfterDiscount =
         Math.max(
           0,
@@ -1883,18 +1815,10 @@ app.post(
         productsAfterDiscount +
         shippingPence;
 
-      /* =====================================================
-         PAYMENT QUOTE
-         ===================================================== */
-
       const usdtQuote =
         await getUsdtQuote(
           totalPence
         );
-
-      /* =====================================================
-         ORDER ID
-         ===================================================== */
 
       const orderId =
         nextOrderId;
@@ -1903,10 +1827,6 @@ app.post(
         nextOrderId +
         1
       );
-
-      /* =====================================================
-         ORDER
-         ===================================================== */
 
       const order = {
         orderId,
@@ -1985,10 +1905,6 @@ app.post(
         order
       );
 
-      /* =====================================================
-         INITIAL ADMIN MESSAGE
-         ===================================================== */
-
       const itemLines =
         lineItems
           .map(
@@ -2066,10 +1982,6 @@ Commission once paid: ${money(
 Status:
 Awaiting payment`
       );
-
-      /* =====================================================
-         RESPONSE TO MINI APP
-         ===================================================== */
 
       return res.json({
         ok:
@@ -2517,10 +2429,25 @@ app.post(
         .toISOString()
     );
 
-    safeSendMessage(
-      adminTelegramId,
+    const savedReview =
+      db.prepare(`
+        SELECT *
+        FROM reviews
+        WHERE order_id = ?
+      `).get(
+        orderId
+      );
 
-      `⭐ NEW REVIEW
+    if (
+      savedReview
+    ) {
+      safeSendMessage(
+        adminTelegramId,
+
+`⭐ NEW REVIEW
+
+Review:
+#${savedReview.id}
 
 Order:
 #${orderId}
@@ -2534,8 +2461,33 @@ ${rating}/5
 Review:
 ${reviewText}
 
-The review is waiting for approval.`
-    );
+Waiting for approval.`,
+
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text:
+                    "✅ Approve",
+
+                  callback_data:
+                    `review_approve_${savedReview.id}`
+                },
+
+                {
+                  text:
+                    "❌ Reject",
+
+                  callback_data:
+                    `review_reject_${savedReview.id}`
+                }
+              ]
+            ]
+          }
+        }
+      );
+    }
 
     return res.json({
       ok:
@@ -2962,12 +2914,8 @@ if (
 
     async msg => {
       if (
-        !adminTelegramId ||
-        String(
+        !isAdmin(
           msg.from?.id
-        ) !==
-        String(
-          adminTelegramId
         )
       ) {
         return safeSendMessage(
@@ -3013,8 +2961,6 @@ ${money(
 
   /* =======================================================
      MARK ORDER PAID
-
-     THIS IS WHERE STOCK DROPS.
      ======================================================= */
 
   bot.onText(
@@ -3025,12 +2971,8 @@ ${money(
       match
     ) => {
       if (
-        !adminTelegramId ||
-        String(
+        !isAdmin(
           msg.from?.id
-        ) !==
-        String(
-          adminTelegramId
         )
       ) {
         return safeSendMessage(
@@ -3111,12 +3053,8 @@ Stock has been updated.`
       match
     ) => {
       if (
-        !adminTelegramId ||
-        String(
+        !isAdmin(
           msg.from?.id
-        ) !==
-        String(
-          adminTelegramId
         )
       ) {
         return safeSendMessage(
@@ -3207,6 +3145,487 @@ ${trackingNumber}`
   );
 
   /* =======================================================
+     PENDING REVIEWS
+     ======================================================= */
+
+  bot.onText(
+    /^\/reviews(?:@\w+)?$/i,
+
+    async msg => {
+      if (
+        !isAdmin(
+          msg.from?.id
+        )
+      ) {
+        return safeSendMessage(
+          msg.chat.id,
+          "This command is admin-only."
+        );
+      }
+
+      const pending =
+        db.prepare(`
+          SELECT *
+          FROM reviews
+          WHERE approved = 0
+          ORDER BY id ASC
+          LIMIT 20
+        `).all();
+
+      if (
+        !pending.length
+      ) {
+        return safeSendMessage(
+          msg.chat.id,
+
+          `⭐ Reviews
+
+No reviews are waiting for approval.`
+        );
+      }
+
+      for (
+        const review
+        of pending
+      ) {
+        await safeSendMessage(
+          msg.chat.id,
+
+`⭐ REVIEW #${review.id}
+
+Order:
+#${review.order_id}
+
+Customer:
+${review.display_name}
+
+Rating:
+${review.rating}/5
+
+Review:
+${review.review_text}`,
+
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  {
+                    text:
+                      "✅ Approve",
+
+                    callback_data:
+                      `review_approve_${review.id}`
+                  },
+
+                  {
+                    text:
+                      "❌ Reject",
+
+                    callback_data:
+                      `review_reject_${review.id}`
+                  }
+                ]
+              ]
+            }
+          }
+        );
+      }
+    }
+  );
+
+  /* =======================================================
+     7 DAY SUMMARY
+     ======================================================= */
+
+  bot.onText(
+    /^\/summary(?:@\w+)?$/i,
+
+    async msg => {
+      if (
+        !isAdmin(
+          msg.from?.id
+        )
+      ) {
+        return safeSendMessage(
+          msg.chat.id,
+          "This command is admin-only."
+        );
+      }
+
+      const sevenDaysAgo =
+        Date.now() -
+        (
+          7 *
+          24 *
+          60 *
+          60 *
+          1000
+        );
+
+      const sinceIso =
+        new Date(
+          sevenDaysAgo
+        ).toISOString();
+
+      const recentOrders =
+        [...orders.values()]
+          .filter(
+            order => {
+              const created =
+                new Date(
+                  order.createdAt ||
+                  0
+                ).getTime();
+
+              return (
+                Number.isFinite(
+                  created
+                ) &&
+                created >=
+                  sevenDaysAgo
+              );
+            }
+          );
+
+      const paidOrders =
+        recentOrders.filter(
+          order =>
+            order.paymentStatus ===
+            "paid"
+        );
+
+      let revenuePence =
+        0;
+
+      let shippingPence =
+        0;
+
+      let discountsPence =
+        0;
+
+      let storeCreditPence =
+        0;
+
+      let unitsOrdered =
+        0;
+
+      let unitsPaid =
+        0;
+
+      const productStats =
+        new Map();
+
+      function statFor(
+        id,
+        name
+      ) {
+        const key =
+          Number(id);
+
+        if (
+          !productStats.has(
+            key
+          )
+        ) {
+          productStats.set(
+            key,
+            {
+              name:
+                name ||
+                `Product ${key}`,
+
+              ordered:
+                0,
+
+              paid:
+                0,
+
+              revenuePence:
+                0,
+
+              basketAdds:
+                0,
+
+              basketRemoves:
+                0
+            }
+          );
+        }
+
+        return productStats.get(
+          key
+        );
+      }
+
+      for (
+        const order
+        of recentOrders
+      ) {
+        discountsPence +=
+          Number(
+            order.discountPence ||
+            0
+          );
+
+        storeCreditPence +=
+          Number(
+            order.storeCreditPence ||
+            0
+          );
+
+        for (
+          const item
+          of order.items || []
+        ) {
+          const qty =
+            Number(
+              item.quantity ||
+              0
+            );
+
+          statFor(
+            item.id,
+            item.name
+          ).ordered +=
+            qty;
+
+          unitsOrdered +=
+            qty;
+        }
+
+        if (
+          order.paymentStatus ===
+          "paid"
+        ) {
+          revenuePence +=
+            Number(
+              order.totalPence ||
+              0
+            );
+
+          shippingPence +=
+            Number(
+              order.shippingPence ||
+              0
+            );
+
+          for (
+            const item
+            of order.items || []
+          ) {
+            const qty =
+              Number(
+                item.quantity ||
+                0
+              );
+
+            const stat =
+              statFor(
+                item.id,
+                item.name
+              );
+
+            stat.paid +=
+              qty;
+
+            stat.revenuePence +=
+              Number(
+                item.lineTotalPence ||
+                (
+                  Number(
+                    item.pricePence ||
+                    0
+                  ) *
+                  qty
+                )
+              );
+
+            unitsPaid +=
+              qty;
+          }
+        }
+      }
+
+      const cartRows =
+        db.prepare(`
+          SELECT
+            productId,
+            action,
+            COUNT(*) AS count
+          FROM cart_events
+          WHERE createdAt >= ?
+          GROUP BY
+            productId,
+            action
+        `).all(
+          sinceIso
+        );
+
+      let basketAdds =
+        0;
+
+      let basketRemoves =
+        0;
+
+      for (
+        const row
+        of cartRows
+      ) {
+        const product =
+          productsById.get(
+            Number(
+              row.productId
+            )
+          );
+
+        const stat =
+          statFor(
+            row.productId,
+            product?.name
+          );
+
+        const count =
+          Number(
+            row.count ||
+            0
+          );
+
+        if (
+          row.action ===
+          "add"
+        ) {
+          stat.basketAdds +=
+            count;
+
+          basketAdds +=
+            count;
+
+        } else if (
+          row.action ===
+          "remove"
+        ) {
+          stat.basketRemoves +=
+            count;
+
+          basketRemoves +=
+            count;
+        }
+      }
+
+      const pendingReviews =
+        Number(
+          db.prepare(`
+            SELECT COUNT(*) AS count
+            FROM reviews
+            WHERE approved = 0
+          `).get()?.count ||
+          0
+        );
+
+      const approvedReviews =
+        Number(
+          db.prepare(`
+            SELECT COUNT(*) AS count
+            FROM reviews
+            WHERE approved = 1
+          `).get()?.count ||
+          0
+        );
+
+      const productLines =
+        [...productStats.values()]
+          .filter(
+            p =>
+              p.ordered ||
+              p.paid ||
+              p.basketAdds ||
+              p.basketRemoves
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              b.paid -
+                a.paid ||
+              b.ordered -
+                a.ordered
+          )
+          .map(
+            p =>
+`• ${p.name}
+Ordered: ${p.ordered}
+Paid: ${p.paid}
+Sales: ${money(
+  p.revenuePence
+)}
+Basket +: ${p.basketAdds}
+Basket -: ${p.basketRemoves}`
+          )
+          .join(
+            "\n\n"
+          );
+
+      return safeSendMessage(
+        msg.chat.id,
+
+`📊 7 DAY SUMMARY
+
+Orders created:
+${recentOrders.length}
+
+Paid orders:
+${paidOrders.length}
+
+Paid revenue:
+${money(
+  revenuePence
+)}
+
+Shipping collected:
+${money(
+  shippingPence
+)}
+
+Discounts:
+${money(
+  discountsPence
+)}
+
+Store credit used:
+${money(
+  storeCreditPence
+)}
+
+Units ordered:
+${unitsOrdered}
+
+Units paid:
+${unitsPaid}
+
+Basket adds:
+${basketAdds}
+
+Basket removals:
+${basketRemoves}
+
+Reviews waiting:
+${pendingReviews}
+
+Reviews approved:
+${approvedReviews}
+
+PRODUCTS
+
+${
+  productLines ||
+  "No activity in the last 7 days."
+}`
+      );
+    }
+  );
+
+  /* =======================================================
      CALLBACKS
      ======================================================= */
 
@@ -3225,6 +3644,240 @@ ${trackingNumber}`
         return;
       }
 
+      /* =====================================================
+         APPROVE REVIEW
+         ===================================================== */
+
+      if (
+        q.data?.startsWith(
+          "review_approve_"
+        )
+      ) {
+        if (
+          !isAdmin(
+            q.from?.id
+          )
+        ) {
+          try {
+            await bot.answerCallbackQuery(
+              q.id,
+              {
+                text:
+                  "Admin only."
+              }
+            );
+          } catch {}
+
+          return;
+        }
+
+        const reviewId =
+          Number(
+            q.data.replace(
+              "review_approve_",
+              ""
+            )
+          );
+
+        const review =
+          db.prepare(`
+            SELECT *
+            FROM reviews
+            WHERE id = ?
+          `).get(
+            reviewId
+          );
+
+        if (
+          !review
+        ) {
+          try {
+            await bot.answerCallbackQuery(
+              q.id,
+              {
+                text:
+                  "Review not found."
+              }
+            );
+          } catch {}
+
+          return;
+        }
+
+        db.prepare(`
+          UPDATE reviews
+          SET approved = 1
+          WHERE id = ?
+        `).run(
+          reviewId
+        );
+
+        try {
+          await bot.answerCallbackQuery(
+            q.id,
+            {
+              text:
+                "Review approved ✅"
+            }
+          );
+        } catch {}
+
+        try {
+          await bot.editMessageText(
+
+`✅ REVIEW APPROVED
+
+Review:
+#${review.id}
+
+Order:
+#${review.order_id}
+
+Customer:
+${review.display_name}
+
+Rating:
+${review.rating}/5
+
+${review.review_text}`,
+
+            {
+              chat_id:
+                chatId,
+
+              message_id:
+                q.message.message_id
+            }
+          );
+
+        } catch (
+          err
+        ) {
+          console.error(
+            "REVIEW EDIT ERROR:",
+            err?.message ||
+            err
+          );
+        }
+
+        return;
+      }
+
+      /* =====================================================
+         REJECT REVIEW
+         ===================================================== */
+
+      if (
+        q.data?.startsWith(
+          "review_reject_"
+        )
+      ) {
+        if (
+          !isAdmin(
+            q.from?.id
+          )
+        ) {
+          try {
+            await bot.answerCallbackQuery(
+              q.id,
+              {
+                text:
+                  "Admin only."
+              }
+            );
+          } catch {}
+
+          return;
+        }
+
+        const reviewId =
+          Number(
+            q.data.replace(
+              "review_reject_",
+              ""
+            )
+          );
+
+        const review =
+          db.prepare(`
+            SELECT *
+            FROM reviews
+            WHERE id = ?
+          `).get(
+            reviewId
+          );
+
+        if (
+          !review
+        ) {
+          try {
+            await bot.answerCallbackQuery(
+              q.id,
+              {
+                text:
+                  "Review not found."
+              }
+            );
+          } catch {}
+
+          return;
+        }
+
+        db.prepare(`
+          DELETE FROM reviews
+          WHERE id = ?
+        `).run(
+          reviewId
+        );
+
+        try {
+          await bot.answerCallbackQuery(
+            q.id,
+            {
+              text:
+                "Review rejected ❌"
+            }
+          );
+        } catch {}
+
+        try {
+          await bot.editMessageText(
+
+`❌ REVIEW REJECTED
+
+Review:
+#${review.id}
+
+Order:
+#${review.order_id}
+
+Customer:
+${review.display_name}
+
+The review has been removed.`,
+
+            {
+              chat_id:
+                chatId,
+
+              message_id:
+                q.message.message_id
+            }
+          );
+
+        } catch (
+          err
+        ) {
+          console.error(
+            "REVIEW EDIT ERROR:",
+            err?.message ||
+            err
+          );
+        }
+
+        return;
+      }
+
       try {
         await bot
           .answerCallbackQuery(
@@ -3232,7 +3885,9 @@ ${trackingNumber}`
           );
       } catch {}
 
-      /* MY ORDERS */
+      /* =====================================================
+         MY ORDERS
+         ===================================================== */
 
       if (
         q.data ===
@@ -3343,7 +3998,9 @@ ${lines.join(
         );
       }
 
-      /* SUPPORT */
+      /* =====================================================
+         SUPPORT
+         ===================================================== */
 
       if (
         q.data ===
@@ -3375,7 +4032,9 @@ Send your message below.`
         );
       }
 
-      /* INFO */
+      /* =====================================================
+         INFO
+         ===================================================== */
 
       if (
         q.data ===
