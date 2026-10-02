@@ -1,76 +1,323 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1,viewport-fit=cover"
+  >
+
   <title>Kage Supps ⚡️</title>
+
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="/style.css">
+
+  <link
+    rel="stylesheet"
+    href="/style.css"
+  >
 </head>
+
 <body>
+
+  <!-- =====================================================
+       HEADER
+       ===================================================== -->
+
   <header class="topbar">
+
     <div class="brand">
       <span>KAGE SUPPS</span>
-      <img src="/logo.png" alt="Kage Supps logo" class="brand-logo">
+
+      <img
+        src="/logo.png"
+        alt="Kage Supps logo"
+        class="brand-logo"
+      >
     </div>
-    <button id="cartJump" class="cart-pill">🛒 <span id="cartCount">0</span></button>
+
+
+    <div class="top-actions">
+
+      <button
+        id="reviewsBtn"
+        class="reviews-pill"
+        type="button"
+      >
+        ⭐ Reviews
+      </button>
+
+      <button
+        id="cartJump"
+        class="cart-pill"
+        type="button"
+      >
+        🛒
+        <span id="cartCount">0</span>
+      </button>
+
+    </div>
+
   </header>
 
-  <nav id="tabs" class="tabs"></nav>
+
+  <!-- =====================================================
+       CATEGORY TABS
+       ===================================================== -->
+
+  <nav
+    id="tabs"
+    class="tabs"
+  ></nav>
+
 
   <main>
-    <section id="products" class="products"></section>
 
-    <section id="checkout" class="checkout-card">
+    <!-- ===================================================
+         PRODUCTS
+         =================================================== -->
+
+    <section
+      id="products"
+      class="products"
+    ></section>
+
+
+    <!-- ===================================================
+         REVIEWS
+         =================================================== -->
+
+    <section
+      id="reviewsSection"
+      class="reviews-section"
+      hidden
+    >
+
       <div class="section-head">
+
         <div>
-          <div class="eyebrow">CHECKOUT</div>
-          <h2>Your basket</h2>
+
+          <div class="eyebrow">
+            CUSTOMER FEEDBACK
+          </div>
+
+          <h2>
+            Reviews
+          </h2>
+
         </div>
-        <div id="basketTotal" class="basket-total">£0.00</div>
+
+
+        <button
+          id="closeReviews"
+          class="close-reviews"
+          type="button"
+          aria-label="Close reviews"
+        >
+          ✕
+        </button>
+
       </div>
 
-      <div id="basketLines" class="basket-lines">Your basket is empty.</div>
+
+      <div
+        id="reviewsSummary"
+        class="reviews-summary"
+      ></div>
+
+
+      <div
+        id="reviewsList"
+        class="reviews-list"
+      >
+        <div class="empty">
+          Loading reviews...
+        </div>
+      </div>
+
+    </section>
+
+
+    <!-- ===================================================
+         CHECKOUT
+         =================================================== -->
+
+    <section
+      id="checkout"
+      class="checkout-card"
+    >
+
+      <div class="section-head">
+
+        <div>
+
+          <div class="eyebrow">
+            CHECKOUT
+          </div>
+
+          <h2>
+            Your basket
+          </h2>
+
+        </div>
+
+
+        <div
+          id="basketTotal"
+          class="basket-total"
+        >
+          £0.00
+        </div>
+
+      </div>
+
+
+      <div
+        id="basketLines"
+        class="basket-lines"
+      >
+        Your basket is empty.
+      </div>
+
+
       <div id="discountRow"></div>
 
-      <label>Discount / referral code</label>
+
+      <!-- DISCOUNT / REFERRAL -->
+
+      <label>
+        Discount / referral code
+      </label>
+
       <div class="discount-row">
-        <input id="discountCode" placeholder="e.g. a friend's Telegram name">
-        <button id="applyDiscount" class="apply-btn" type="button">Apply</button>
+
+        <input
+          id="discountCode"
+          placeholder="e.g. a friend's Telegram name"
+        >
+
+        <button
+          id="applyDiscount"
+          class="apply-btn"
+          type="button"
+        >
+          Apply
+        </button>
+
       </div>
 
-      <label>Store credit code</label>
+
+      <!-- STORE CREDIT -->
+
+      <label>
+        Store credit code
+      </label>
+
       <div class="discount-row">
-        <input id="storeCreditCode" placeholder="Your own referral code">
-        <button id="applyStoreCredit" class="apply-btn" type="button">Apply</button>
+
+        <input
+          id="storeCreditCode"
+          placeholder="Your own referral code"
+        >
+
+        <button
+          id="applyStoreCredit"
+          class="apply-btn"
+          type="button"
+        >
+          Apply
+        </button>
+
       </div>
+
+
       <div id="creditRow"></div>
+
 
       <div class="divider"></div>
 
-      <label>Full name</label>
-      <input id="name" placeholder="Your name">
 
-      <label>Telegram username</label>
-      <input id="handle" placeholder="@username">
+      <!-- CUSTOMER DETAILS -->
 
-      <label>Delivery address</label>
-      <textarea id="address" placeholder="Delivery address"></textarea>
+      <label>
+        Full name
+      </label>
+
+      <input
+        id="name"
+        placeholder="Your name"
+      >
+
+
+      <label>
+        Telegram username
+      </label>
+
+      <input
+        id="handle"
+        placeholder="@username"
+      >
+
+
+      <label>
+        Delivery address
+      </label>
+
+      <textarea
+        id="address"
+        placeholder="Delivery address"
+      ></textarea>
+
+
+      <!-- PAYMENT -->
 
       <div class="payment-box">
+
         <div>
-          <div class="payment-title">Crypto payment</div>
-          <div class="payment-sub">Payment confirmation is handled by the server.</div>
+
+          <div class="payment-title">
+            Crypto payment
+          </div>
+
+          <div class="payment-sub">
+            Payment confirmation is handled by the server.
+          </div>
+
         </div>
-        <div class="radio-on">●</div>
+
+        <div class="radio-on">
+          ●
+        </div>
+
       </div>
 
-      <button id="checkoutBtn" class="gold-btn">Continue to payment</button>
-      <div id="status" class="status"></div>
-      <div id="paymentPanel"></div>
+
+      <button
+        id="checkoutBtn"
+        class="gold-btn"
+        type="button"
+      >
+        Continue to payment
+      </button>
+
+
+      <div
+        id="status"
+        class="status"
+      ></div>
+
+
+      <div
+        id="paymentPanel"
+      ></div>
+
     </section>
+
   </main>
 
+
   <script src="/app.js"></script>
+
 </body>
 </html>
