@@ -14,23 +14,19 @@ const app = express();
 const port = Number(process.env.PORT || 3000);
 
 /* =========================================================
-   ENVIRONMENT VARIABLES
+   ENVIRONMENT
    ========================================================= */
 
 const token =
   process.env.TELEGRAM ||
   process.env.TELEGRAM_BOT_TOKEN;
 
-const etherscanApiKey =
-  process.env.ETHERSCAN ||
-  process.env.ETHERSCAN_API_KEY;
-
 const receivingAddress =
   process.env.ETH_RECEIVING_ADDRESS;
 
-const usdtContractAddress =
-  process.env.USDT_CONTRACT_ADDRESS ||
-  "0xdAC17F958D2ee523a2206206994597C13D831ec7";
+const etherscanApiKey =
+  process.env.ETHERSCAN ||
+  process.env.ETHERSCAN_API_KEY;
 
 const webAppUrl =
   process.env.WEBAPP_URL;
@@ -42,25 +38,27 @@ const DATA_DIR =
   process.env.DATA_DIR || ".";
 
 const supportTelegramIds =
-  (
-    process.env.SUPPORT_TELEGRAM_IDS ||
-    ""
-  )
+  (process.env.SUPPORT_TELEGRAM_IDS || "")
     .split(",")
     .map(x => x.trim())
     .filter(Boolean);
 
 /* =========================================================
-   SETTINGS
+   SHOP SETTINGS
    ========================================================= */
 
-const MINIMUM_ORDER_PENCE = 5000; // £50
+const MINIMUM_ORDER_PENCE = 5000; // £50 BEFORE discount
+const SHIPPING_PENCE = 500;       // £5 shipping
 
-const REFERRAL_DISCOUNT_PERCENT = 10;
-const REFERRAL_COMMISSION_PERCENT = 5;
+/* =========================================================
+   Y8 REFERRAL
+   ========================================================= */
 
-const WEEKLY_SUMMARY_MS =
-  7 * 24 * 60 * 60 * 1000;
+const Y8_CODE = "Y8";
+const Y8_OWNER = "@Y8_JKO";
+
+const Y8_DISCOUNT_PERCENT = 10;
+const Y8_COMMISSION_PERCENT = 5;
 
 /* =========================================================
    EXPRESS
@@ -119,7 +117,7 @@ CREATE TABLE IF NOT EXISTS cart_events (
 `);
 
 /* =========================================================
-   PREPARED STATEMENTS
+   DATABASE STATEMENTS
    ========================================================= */
 
 const upsertOrderStmt =
@@ -164,8 +162,7 @@ const upsertMetaStmt =
 
 const insertCartEventStmt =
   db.prepare(`
-    INSERT INTO cart_events
-    (
+    INSERT INTO cart_events (
       productId,
       action,
       createdAt
@@ -180,17 +177,16 @@ const insertCartEventStmt =
 let products = [];
 
 try {
-  products =
-    JSON.parse(
-      readFileSync(
-        path.join(
-          __dirname,
-          "public",
-          "products.json"
-        ),
-        "utf8"
-      )
-    );
+  products = JSON.parse(
+    readFileSync(
+      path.join(
+        __dirname,
+        "public",
+        "products.json"
+      ),
+      "utf8"
+    )
+  );
 } catch (err) {
   console.error(
     "PRODUCT LOAD ERROR:",
@@ -211,22 +207,17 @@ const productsById =
   );
 
 /* =========================================================
-   IN-MEMORY DATA
+   MEMORY
    ========================================================= */
 
-const orders =
-  new Map();
-
-const discountCodes =
-  new Map();
-
-const referralEarnings =
-  new Map();
+const orders = new Map();
+const discountCodes = new Map();
+const referralEarnings = new Map();
 
 let nextOrderId = 1001;
 
 /* =========================================================
-   LOAD DATABASE
+   LOAD SAVED DATA
    ========================================================= */
 
 for (
@@ -253,7 +244,7 @@ for (
 ) {
   try {
     discountCodes.set(
-      row.code,
+      String(row.code).toUpperCase(),
       JSON.parse(row.json)
     );
   } catch {}
@@ -268,7 +259,7 @@ for (
 ) {
   try {
     referralEarnings.set(
-      row.code,
+      String(row.code).toUpperCase(),
       JSON.parse(row.json)
     );
   } catch {}
@@ -279,43 +270,17 @@ const savedNextOrderId =
     .prepare(
       "SELECT value FROM meta WHERE key = ?"
     )
-    .get(
-      "nextOrderId"
-    );
+    .get("nextOrderId");
 
 if (savedNextOrderId) {
   nextOrderId =
-    Number(
-      savedNextOrderId.value
-    ) ||
+    Number(savedNextOrderId.value) ||
     1001;
 }
 
 /* =========================================================
    HELPERS
    ========================================================= */
-
-function saveOrder(order) {
-  orders.set(
-    Number(order.orderId),
-    order
-  );
-
-  upsertOrderStmt.run(
-    Number(order.orderId),
-    JSON.stringify(order)
-  );
-}
-
-function saveNextOrderId(value) {
-  nextOrderId =
-    value;
-
-  upsertMetaStmt.run(
-    "nextOrderId",
-    String(value)
-  );
-}
 
 function money(pence) {
   return `£${(
@@ -337,39 +302,24 @@ function normaliseUsername(value) {
     .toLowerCase();
 }
 
-function normaliseAddress(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase();
+function saveOrder(order) {
+  orders.set(
+    Number(order.orderId),
+    order
+  );
+
+  upsertOrderStmt.run(
+    Number(order.orderId),
+    JSON.stringify(order)
+  );
 }
 
-function orderBelongsToViewer(
-  order,
-  viewer
-) {
-  if (
-    viewer.telegramId &&
-    order.telegramId &&
-    String(viewer.telegramId) ===
-      String(order.telegramId)
-  ) {
-    return true;
-  }
+function saveNextOrderId(value) {
+  nextOrderId = value;
 
-  const a =
-    normaliseUsername(
-      order.telegramUsername
-    );
-
-  const b =
-    normaliseUsername(
-      viewer.telegramUsername
-    );
-
-  return Boolean(
-    a &&
-    b &&
-    a === b
+  upsertMetaStmt.run(
+    "nextOrderId",
+    String(value)
   );
 }
 
@@ -426,12 +376,12 @@ function calculateDiscount(
 
       Math.round(
         subtotalPence *
-          (
-            Number(
-              record.discountValue
-            ) /
-            100
-          )
+        (
+          Number(
+            record.discountValue
+          ) /
+          100
+        )
       )
     );
   }
@@ -444,6 +394,192 @@ function calculateDiscount(
       0
     )
   );
+}
+
+function orderBelongsToViewer(
+  order,
+  viewer
+) {
+  if (
+    viewer.telegramId &&
+    order.telegramId &&
+    String(viewer.telegramId) ===
+      String(order.telegramId)
+  ) {
+    return true;
+  }
+
+  const orderUsername =
+    normaliseUsername(
+      order.telegramUsername
+    );
+
+  const viewerUsername =
+    normaliseUsername(
+      viewer.telegramUsername
+    );
+
+  return Boolean(
+    orderUsername &&
+    viewerUsername &&
+    orderUsername ===
+      viewerUsername
+  );
+}
+
+/* =========================================================
+   SEED Y8
+   ========================================================= */
+
+saveDiscountCode(
+  Y8_CODE,
+  {
+    code:
+      Y8_CODE,
+
+    discountType:
+      "percent",
+
+    discountValue:
+      Y8_DISCOUNT_PERCENT,
+
+    referralOwner:
+      Y8_OWNER,
+
+    commissionPercent:
+      Y8_COMMISSION_PERCENT,
+
+    cashOnly:
+      true,
+
+    active:
+      true
+  }
+);
+
+if (
+  !referralEarnings.has(
+    Y8_CODE
+  )
+) {
+  saveReferralEarnings(
+    Y8_CODE,
+    {
+      code:
+        Y8_CODE,
+
+      owner:
+        Y8_OWNER,
+
+      balancePence:
+        0,
+
+      totalEarnedPence:
+        0,
+
+      paidOutPence:
+        0,
+
+      cashOnly:
+        true
+    }
+  );
+} else {
+  const existing =
+    referralEarnings.get(
+      Y8_CODE
+    );
+
+  existing.owner =
+    Y8_OWNER;
+
+  existing.cashOnly =
+    true;
+
+  saveReferralEarnings(
+    Y8_CODE,
+    existing
+  );
+}
+
+/* =========================================================
+   REFERRAL COMMISSION
+   ========================================================= */
+
+function creditReferralForOrder(
+  order
+) {
+  if (
+    !order ||
+    order.referralCredited ||
+    !order.discountCode ||
+    !order.referralCommissionPence
+  ) {
+    return;
+  }
+
+  const code =
+    normaliseCode(
+      order.discountCode
+    );
+
+  const existing =
+    referralEarnings.get(
+      code
+    ) || {
+      code,
+
+      owner:
+        order.referralOwner ||
+        null,
+
+      balancePence:
+        0,
+
+      totalEarnedPence:
+        0,
+
+      paidOutPence:
+        0,
+
+      cashOnly:
+        false
+    };
+
+  existing.owner =
+    existing.owner ||
+    order.referralOwner ||
+    null;
+
+  existing.balancePence =
+    Number(
+      existing.balancePence ||
+      0
+    ) +
+    Number(
+      order.referralCommissionPence ||
+      0
+    );
+
+  existing.totalEarnedPence =
+    Number(
+      existing.totalEarnedPence ||
+      0
+    ) +
+    Number(
+      order.referralCommissionPence ||
+      0
+    );
+
+  saveReferralEarnings(
+    code,
+    existing
+  );
+
+  order.referralCredited =
+    true;
+
+  saveOrder(order);
 }
 
 /* =========================================================
@@ -488,16 +624,16 @@ async function getUsdtQuote(
       Number(totalPence) /
       100;
 
-    const usdt =
+    return (
       pounds /
-      gbpPerUsdt;
-
-    return usdt.toFixed(2);
+      gbpPerUsdt
+    ).toFixed(2);
 
   } catch (err) {
     console.error(
       "USDT QUOTE ERROR:",
-      err?.message || err
+      err?.message ||
+      err
     );
 
     return null;
@@ -526,17 +662,6 @@ if (token) {
         console.error(
           "TELEGRAM POLLING ERROR:",
           err?.response?.body ||
-          err?.message ||
-          err
-        );
-      }
-    );
-
-    bot.on(
-      "error",
-      err => {
-        console.error(
-          "TELEGRAM BOT ERROR:",
           err?.message ||
           err
         );
@@ -581,7 +706,7 @@ async function safeSendMessage(
 
   } catch (err) {
     console.error(
-      "Telegram message failed:",
+      "Telegram send failed:",
       err?.response?.body ||
       err?.message ||
       err
@@ -603,11 +728,22 @@ app.get(
       products:
         products.length,
 
+      minimumOrderPence:
+        MINIMUM_ORDER_PENCE,
+
+      shippingPence:
+        SHIPPING_PENCE,
+
+      y8Loaded:
+        discountCodes.has(
+          Y8_CODE
+        ),
+
+      y8Owner:
+        Y8_OWNER,
+
       telegramConfigured:
         Boolean(token),
-
-      webAppConfigured:
-        Boolean(webAppUrl),
 
       receivingAddressConfigured:
         Boolean(
@@ -662,14 +798,14 @@ app.post(
         .toISOString()
     );
 
-    return res.json({
+    res.json({
       ok: true
     });
   }
 );
 
 /* =========================================================
-   DISCOUNT CODE
+   DISCOUNT LOOKUP
    ========================================================= */
 
 app.get(
@@ -699,7 +835,7 @@ app.get(
         });
     }
 
-    return res.json({
+    res.json({
       valid: true,
 
       code,
@@ -714,7 +850,7 @@ app.get(
 );
 
 /* =========================================================
-   REFERRAL BALANCE
+   REFERRAL EARNINGS
    ========================================================= */
 
 app.get(
@@ -740,8 +876,12 @@ app.get(
         });
     }
 
-    return res.json({
+    res.json({
       code,
+
+      owner:
+        record.owner ||
+        null,
 
       balancePence:
         Number(
@@ -752,6 +892,12 @@ app.get(
       totalEarnedPence:
         Number(
           record.totalEarnedPence ||
+          0
+        ),
+
+      paidOutPence:
+        Number(
+          record.paidOutPence ||
           0
         )
     });
@@ -766,7 +912,6 @@ app.post(
   "/api/orders",
 
   async (req, res) => {
-
     try {
       const {
         customerName,
@@ -793,20 +938,17 @@ app.post(
           });
       }
 
-      const lineItems = [];
+      const lineItems =
+        [];
 
-      let subtotalPence = 0;
+      let subtotalPence =
+        0;
 
-      /* =====================================================
-         EVERY PRODUCT IS AVAILABLE FOR CHECKOUT
-         AS LONG AS:
-         - product exists
-         - stock is available
-         - pricePence is valid
-         ===================================================== */
+      /* PRODUCTS */
 
       for (
-        const rawItem of items
+        const rawItem
+        of items
       ) {
         const id =
           Number(
@@ -838,8 +980,6 @@ app.post(
             });
         }
 
-        /* STOCK */
-
         const stock =
           Number(
             product.stock
@@ -849,8 +989,7 @@ app.post(
           Number.isFinite(
             stock
           ) &&
-          quantity >
-            stock
+          quantity > stock
         ) {
           return res
             .status(400)
@@ -859,8 +998,6 @@ app.post(
                 `Not enough stock for ${product.name}`
             });
         }
-
-        /* PRICE */
 
         const pricePence =
           Number(
@@ -906,7 +1043,13 @@ app.post(
       }
 
       /* =====================================================
-         £50 MINIMUM
+         £50 MINIMUM CHECK
+
+         IMPORTANT:
+         THIS HAPPENS BEFORE:
+         - Y8 DISCOUNT
+         - STORE CREDIT
+         - SHIPPING
          ===================================================== */
 
       if (
@@ -917,9 +1060,7 @@ app.post(
           .status(400)
           .json({
             error:
-              `Minimum order is ${money(
-                MINIMUM_ORDER_PENCE
-              )}.`
+              "Minimum basket is £50 before discount and shipping."
           });
       }
 
@@ -927,10 +1068,17 @@ app.post(
          DISCOUNT
          ===================================================== */
 
-      let discountPence = 0;
+      let discountPence =
+        0;
 
       let appliedDiscountCode =
         null;
+
+      let referralOwner =
+        null;
+
+      let referralCommissionPence =
+        0;
 
       if (discountCode) {
         const code =
@@ -955,6 +1103,27 @@ app.post(
 
           appliedDiscountCode =
             code;
+
+          if (
+            record.referralOwner &&
+            Number(
+              record.commissionPercent
+            ) > 0
+          ) {
+            referralOwner =
+              record.referralOwner;
+
+            referralCommissionPence =
+              Math.round(
+                subtotalPence *
+                (
+                  Number(
+                    record.commissionPercent
+                  ) /
+                  100
+                )
+              );
+          }
         }
       }
 
@@ -962,7 +1131,8 @@ app.post(
          STORE CREDIT
          ===================================================== */
 
-      let storeCreditPence = 0;
+      let storeCreditPence =
+        0;
 
       let appliedCreditCode =
         null;
@@ -978,7 +1148,10 @@ app.post(
             code
           );
 
-        if (credit) {
+        if (
+          credit &&
+          credit.cashOnly !== true
+        ) {
           const remaining =
             Math.max(
               0,
@@ -1003,11 +1176,36 @@ app.post(
           ) {
             appliedCreditCode =
               code;
+
+            credit.balancePence =
+              Math.max(
+                0,
+
+                Number(
+                  credit.balancePence ||
+                  0
+                ) -
+                storeCreditPence
+              );
+
+            saveReferralEarnings(
+              code,
+              credit
+            );
           }
         }
       }
 
-      const totalPence =
+      /* =====================================================
+         FINAL TOTAL
+
+         subtotal
+         - discount
+         - store credit
+         + £5 shipping
+         ===================================================== */
+
+      const productsAfterDiscounts =
         Math.max(
           0,
 
@@ -1016,24 +1214,24 @@ app.post(
           storeCreditPence
         );
 
+      const shippingPence =
+        SHIPPING_PENCE;
+
+      const totalPence =
+        productsAfterDiscounts +
+        shippingPence;
+
       /* =====================================================
-         PAYMENT QUOTE
+         USDT QUOTE
          ===================================================== */
 
-      let usdtQuote =
-        null;
-
-      if (
-        totalPence > 0
-      ) {
-        usdtQuote =
-          await getUsdtQuote(
-            totalPence
-          );
-      }
+      const usdtQuote =
+        await getUsdtQuote(
+          totalPence
+        );
 
       /* =====================================================
-         ORDER ID
+         ORDER
          ===================================================== */
 
       const orderId =
@@ -1042,10 +1240,6 @@ app.post(
       saveNextOrderId(
         nextOrderId + 1
       );
-
-      /* =====================================================
-         SAVE ORDER
-         ===================================================== */
 
       const order = {
         orderId,
@@ -1064,9 +1258,8 @@ app.post(
           null,
 
         address:
-          String(
-            address
-          ).trim(),
+          String(address)
+            .trim(),
 
         items:
           lineItems,
@@ -1077,6 +1270,8 @@ app.post(
 
         storeCreditPence,
 
+        shippingPence,
+
         totalPence,
 
         discountCode:
@@ -1085,10 +1280,15 @@ app.post(
         storeCreditCode:
           appliedCreditCode,
 
+        referralOwner,
+
+        referralCommissionPence,
+
+        referralCredited:
+          false,
+
         paymentStatus:
-          totalPence === 0
-            ? "paid"
-            : "awaiting_payment",
+          "awaiting_payment",
 
         fulfilmentStatus:
           "not_shipped",
@@ -1113,7 +1313,7 @@ app.post(
       saveOrder(order);
 
       /* =====================================================
-         ADMIN MESSAGE
+         ADMIN NOTIFICATION
          ===================================================== */
 
       const itemLines =
@@ -1129,7 +1329,8 @@ app.post(
 
         `🧾 New Order
 
-Order: #${orderId}
+Order:
+#${orderId}
 
 Customer:
 ${order.customerName}
@@ -1146,28 +1347,52 @@ ${
 Items:
 ${itemLines}
 
-Subtotal:
-${money(subtotalPence)}
+Basket:
+${money(
+  subtotalPence
+)}
 
 Discount:
-${money(discountPence)}
+-${money(
+  discountPence
+)}
 
-Credit:
-${money(storeCreditPence)}
+Store credit:
+-${money(
+  storeCreditPence
+)}
+
+Shipping:
+${money(
+  shippingPence
+)}
 
 Total:
-${money(totalPence)}
+${money(
+  totalPence
+)}
+
+${
+  appliedDiscountCode
+    ? `Code: ${appliedDiscountCode}`
+    : ""
+}
+
+${
+  referralCommissionPence
+    ? `Referral owner: ${referralOwner}
+Commission when paid: ${money(
+        referralCommissionPence
+      )}`
+    : ""
+}
 
 Status:
-${
-  totalPence === 0
-    ? "Paid ✅"
-    : "Awaiting payment"
-}`
+Awaiting payment`
       );
 
       /* =====================================================
-         FRONT END RESPONSE
+         FRONT-END RESPONSE
          ===================================================== */
 
       const response = {
@@ -1181,22 +1406,15 @@ ${
 
         storeCreditPence,
 
+        shippingPence,
+
         totalPence,
 
         status:
           order.paymentStatus
       };
 
-      /*
-        This is deliberately in the shape
-        your app.js was expecting:
-
-        order.payment.address
-        order.payment.quote.USDT
-      */
-
       if (
-        totalPence > 0 &&
         receivingAddress
       ) {
         response.payment = {
@@ -1217,7 +1435,7 @@ ${
           instructions:
             usdtQuote
               ? `Send ${usdtQuote} USDT using Ethereum ERC-20 only, then enter the transaction hash.`
-              : "Payment quote is temporarily unavailable. Please try checkout again shortly."
+              : "Payment quote unavailable. Please try again."
         };
       }
 
@@ -1242,7 +1460,7 @@ ${
 );
 
 /* =========================================================
-   GET ORDER
+   ORDER STATUS
    ========================================================= */
 
 app.get(
@@ -1273,39 +1491,41 @@ app.get(
         order.paymentStatus,
 
       fulfilmentStatus:
-        order.fulfilmentStatus ||
-        "not_shipped",
-
-      trackingNumber:
-        order.trackingNumber ||
-        null,
-
-      shippedAt:
-        order.shippedAt ||
-        null,
+        order.fulfilmentStatus,
 
       subtotalPence:
         order.subtotalPence,
+
+      discountPence:
+        order.discountPence,
+
+      storeCreditPence:
+        order.storeCreditPence,
+
+      shippingPence:
+        order.shippingPence,
 
       totalPence:
         order.totalPence,
 
       quotedUsdt:
-        order.quotedUsdt ||
+        order.quotedUsdt,
+
+      trackingNumber:
+        order.trackingNumber ||
         null
     });
   }
 );
 
 /* =========================================================
-   SUBMIT TRANSACTION HASH
+   PAYMENT HASH SUBMISSION
    ========================================================= */
 
 app.post(
   "/api/orders/:id/confirm-payment",
 
   async (req, res) => {
-
     const order =
       orders.get(
         Number(
@@ -1320,16 +1540,6 @@ app.post(
           error:
             "Order not found"
         });
-    }
-
-    if (
-      order.paymentStatus ===
-      "paid"
-    ) {
-      return res.json({
-        ok: true,
-        alreadyPaid: true
-      });
     }
 
     const transactionId =
@@ -1352,8 +1562,6 @@ app.post(
         });
     }
 
-    /* Prevent one TX being used twice */
-
     const alreadyUsed =
       [...orders.values()]
         .some(
@@ -1362,8 +1570,8 @@ app.post(
               order.orderId &&
             existing.transactionId
               ?.toLowerCase() ===
-              transactionId
-                .toLowerCase()
+            transactionId
+              .toLowerCase()
         );
 
     if (alreadyUsed) {
@@ -1374,13 +1582,6 @@ app.post(
             "That transaction has already been used."
         });
     }
-
-    /*
-      Save the submitted hash.
-
-      It is NOT marked paid merely because
-      a hash was supplied.
-    */
 
     order.transactionId =
       transactionId;
@@ -1398,9 +1599,6 @@ app.post(
 Order:
 #${order.orderId}
 
-Transaction:
-${transactionId}
-
 Expected:
 ${
   order.quotedUsdt
@@ -1408,7 +1606,10 @@ ${
     : money(
         order.totalPence
       )
-}`
+}
+
+Transaction:
+${transactionId}`
     );
 
     return res.json({
@@ -1418,10 +1619,7 @@ ${
         order.orderId,
 
       status:
-        "payment_submitted",
-
-      message:
-        "Transaction submitted for confirmation."
+        "payment_submitted"
     });
   }
 );
@@ -1435,13 +1633,10 @@ const pendingSupport =
 
 if (bot) {
 
-  /* START */
-
   bot.onText(
     /^\/start(?:@\w+)?(?:\s.*)?$/i,
 
     async msg => {
-
       const buttons =
         [];
 
@@ -1521,16 +1716,12 @@ if (bot) {
     }
   );
 
-  /* MARK ORDER PAID */
+  /* EARNINGS */
 
   bot.onText(
-    /^\/paid\s+(\d+)$/i,
+    /^\/earnings(?:@\w+)?$/i,
 
-    async (
-      msg,
-      match
-    ) => {
-
+    async msg => {
       if (
         !adminTelegramId ||
         String(
@@ -1546,21 +1737,75 @@ if (bot) {
         );
       }
 
-      const orderId =
-        Number(
-          match[1]
+      const earnings =
+        referralEarnings.get(
+          Y8_CODE
         );
+
+      return safeSendMessage(
+        msg.chat.id,
+
+        `💰 Y8 Earnings
+
+Owner:
+${Y8_OWNER}
+
+Current balance:
+${money(
+  earnings?.balancePence ||
+  0
+)}
+
+Lifetime earned:
+${money(
+  earnings?.totalEarnedPence ||
+  0
+)}
+
+Paid out:
+${money(
+  earnings?.paidOutPence ||
+  0
+)}`
+      );
+    }
+  );
+
+  /* MARK PAID */
+
+  bot.onText(
+    /^\/paid\s+(\d+)$/i,
+
+    async (
+      msg,
+      match
+    ) => {
+      if (
+        !adminTelegramId ||
+        String(
+          msg.from?.id
+        ) !==
+        String(
+          adminTelegramId
+        )
+      ) {
+        return safeSendMessage(
+          msg.chat.id,
+          "This command is admin-only."
+        );
+      }
 
       const order =
         orders.get(
-          orderId
+          Number(
+            match[1]
+          )
         );
 
       if (!order) {
         return safeSendMessage(
           msg.chat.id,
-
-          `❌ Order #${orderId} not found.`
+          "Order not found."
         );
       }
 
@@ -1573,10 +1818,20 @@ if (bot) {
 
       saveOrder(order);
 
+      if (
+        order.referralCommissionPence >
+          0 &&
+        !order.referralCredited
+      ) {
+        creditReferralForOrder(
+          order
+        );
+      }
+
       await safeSendMessage(
         msg.chat.id,
 
-        `✅ Order #${orderId} marked paid.`
+        `✅ Order #${order.orderId} marked paid.`
       );
 
       if (
@@ -1588,7 +1843,7 @@ if (bot) {
           `✅ Payment confirmed
 
 Order:
-#${orderId}
+#${order.orderId}
 
 Your order is now awaiting dispatch.`
         );
@@ -1605,7 +1860,6 @@ Your order is now awaiting dispatch.`
       msg,
       match
     ) => {
-
       if (
         !adminTelegramId ||
         String(
@@ -1617,29 +1871,21 @@ Your order is now awaiting dispatch.`
       ) {
         return safeSendMessage(
           msg.chat.id,
-
           "This command is admin-only."
         );
       }
 
-      const orderId =
-        Number(
-          match[1]
-        );
-
-      const trackingNumber =
-        match[2].trim();
-
       const order =
         orders.get(
-          orderId
+          Number(
+            match[1]
+          )
         );
 
       if (!order) {
         return safeSendMessage(
           msg.chat.id,
-
-          `❌ Order #${orderId} not found.`
+          "Order not found."
         );
       }
 
@@ -1649,13 +1895,12 @@ Your order is now awaiting dispatch.`
       ) {
         return safeSendMessage(
           msg.chat.id,
-
-          `❌ Order #${orderId} has not been marked paid.`
+          "Order is not marked paid."
         );
       }
 
       order.trackingNumber =
-        trackingNumber;
+        match[2].trim();
 
       order.fulfilmentStatus =
         "shipped";
@@ -1672,10 +1917,10 @@ Your order is now awaiting dispatch.`
         `✅ Tracking saved
 
 Order:
-#${orderId}
+#${order.orderId}
 
 Tracking:
-${trackingNumber}`
+${order.trackingNumber}`
       );
 
       if (
@@ -1687,10 +1932,10 @@ ${trackingNumber}`
           `📦 Your order has been dispatched
 
 Order:
-#${orderId}
+#${order.orderId}
 
 Tracking:
-${trackingNumber}`
+${order.trackingNumber}`
         );
       }
     }
@@ -1702,7 +1947,6 @@ ${trackingNumber}`
     "callback_query",
 
     async q => {
-
       const chatId =
         q.message?.chat?.id;
 
@@ -1716,8 +1960,6 @@ ${trackingNumber}`
             q.id
           );
       } catch {}
-
-      /* MY ORDERS */
 
       if (
         q.data ===
@@ -1771,7 +2013,6 @@ No orders found yet.`
         const lines =
           matches.map(
             order => {
-
               let status =
                 "Awaiting payment";
 
@@ -1788,7 +2029,7 @@ No orders found yet.`
                 "paid"
               ) {
                 status =
-                  "Paid ✅ — awaiting dispatch";
+                  "Paid ✅";
               }
 
               else if (
@@ -1799,28 +2040,12 @@ No orders found yet.`
                   "Payment submitted ⏳";
               }
 
-              const date =
-                order.createdAt
-                  ? new Date(
-                      order.createdAt
-                    )
-                      .toLocaleDateString(
-                        "en-GB"
-                      )
-                  : "Unknown";
-
-              const tracking =
-                order.trackingNumber
-                  ? `\nTracking: ${order.trackingNumber}`
-                  : "";
-
               return (
                 `#${order.orderId} — ` +
                 `${money(
                   order.totalPence
                 )} — ` +
-                `${status} (${date})` +
-                tracking
+                status
               );
             }
           );
@@ -1836,13 +2061,10 @@ ${lines.join(
         );
       }
 
-      /* SUPPORT */
-
       if (
         q.data ===
         "support"
       ) {
-
         if (
           !supportTelegramIds.length
         ) {
@@ -1864,11 +2086,9 @@ Support isn't configured yet.`
 
           `💬 Support
 
-Send your message below and our team will get it.`
+Send your message below.`
         );
       }
-
-      /* INFO */
 
       if (
         q.data ===
@@ -1879,19 +2099,21 @@ Send your message below and our team will get it.`
 
           `ℹ️ Info
 
+Minimum basket: £50 before discount
+Shipping: £5
+
 Tap Open Shop to launch the Mini App.`
         );
       }
     }
   );
 
-  /* SUPPORT FORWARDING */
+  /* SUPPORT */
 
   bot.on(
     "message",
 
     async msg => {
-
       const chatId =
         msg.chat?.id;
 
@@ -1922,29 +2144,27 @@ Tap Open Shop to launch the Mini App.`
           ? `@${msg.from.username}`
           : `Telegram ID ${msg.from?.id}`;
 
-      const message =
-        `💬 New Support Message
-
-From:
-${from}
-
-Message:
-${msg.text}`;
-
       for (
         const supportId of
         supportTelegramIds
       ) {
         await safeSendMessage(
           supportId,
-          message
+
+          `💬 New Support Message
+
+From:
+${from}
+
+Message:
+${msg.text}`
         );
       }
 
       await safeSendMessage(
         chatId,
 
-        "Thanks — your message has been sent to our support team."
+        "Thanks — your message has been sent."
       );
     }
   );
@@ -1961,9 +2181,8 @@ app.use(
     res,
     next
   ) => {
-
     console.error(
-      "UNHANDLED SERVER ERROR:",
+      "SERVER ERROR:",
       err
     );
 
@@ -1973,7 +2192,7 @@ app.use(
       return next(err);
     }
 
-    return res
+    res
       .status(500)
       .json({
         error:
@@ -1983,48 +2202,43 @@ app.use(
 );
 
 /* =========================================================
-   START SERVER
+   START
    ========================================================= */
 
 app.listen(
   port,
 
   () => {
-
     console.log(
       `Storefront running on port ${port}`
     );
 
     console.log(
-      `Products loaded: ${products.length}`
+      `Products: ${products.length}`
     );
 
     console.log(
-      `Telegram: ${
-        token
-          ? "configured"
-          : "missing"
-      }`
+      `Minimum basket: ${money(
+        MINIMUM_ORDER_PENCE
+      )} before discount`
     );
 
     console.log(
-      `WEBAPP_URL: ${
-        webAppUrl
-          ? "configured"
-          : "missing"
-      }`
+      `Shipping: ${money(
+        SHIPPING_PENCE
+      )}`
     );
 
     console.log(
-      `Receiving address: ${
-        receivingAddress
-          ? "configured"
-          : "missing"
-      }`
+      `Y8: ${Y8_DISCOUNT_PERCENT}% discount`
     );
 
     console.log(
-      "Checkout: enabled for every valid product"
+      `Y8 commission: ${Y8_COMMISSION_PERCENT}%`
+    );
+
+    console.log(
+      `Y8 owner: ${Y8_OWNER}`
     );
   }
 );
