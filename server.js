@@ -82,9 +82,12 @@ const PROTECTED_AFFILIATES = [
   {
     code: "KITTYSJ10",
     owner: "@Sjobje"
+  },
+  {
+    code: "DABBLE",
+    owner: "@Peachy001"
   }
 ];
-
 const STOREWIDE_PROMO_DEFAULTS = {
   code: "WEEKEND10",
   discountPercent: 10,
