@@ -1,70 +1,39 @@
 <!doctype html>
 <html lang="en">
-
 <head>
   <meta charset="utf-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width,initial-scale=1,viewport-fit=cover"
-  >
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 
   <title>Kage Supps ⚡️</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-  <link
-    rel="stylesheet"
-    href="/style.css"
-  >
+  <link rel="stylesheet" href="/style.css">
 </head>
 
 <body>
 
-  <!-- =====================================================
-       HEADER
-       ===================================================== -->
-
   <header class="topbar">
 
-    <div class="brand">
-      <span>KAGE SUPPS</span>
-
-      <img
-        src="/logo.png"
-        alt="Kage Supps logo"
-        class="brand-logo"
-      >
+    <div>
+      <div class="brand">
+        KAGE SUPPS ⚡️
+      </div>
     </div>
 
-
-    <div class="top-actions">
-
-      <button
-        id="reviewsBtn"
-        class="reviews-pill"
-        type="button"
-      >
-        ⭐ Reviews
-      </button>
-
-      <button
-        id="cartJump"
-        class="cart-pill"
-        type="button"
-      >
-        🛒
-        <span id="cartCount">0</span>
-      </button>
-
-    </div>
+    <button
+      id="cartJump"
+      class="cart-pill"
+      type="button"
+    >
+      🛒
+      <span id="cartCount">
+        0
+      </span>
+    </button>
 
   </header>
 
-
-  <!-- =====================================================
-       CATEGORY TABS
-       ===================================================== -->
 
   <nav
     id="tabs"
@@ -74,9 +43,9 @@
 
   <main>
 
-    <!-- ===================================================
+    <!-- =====================================================
          PRODUCTS
-         =================================================== -->
+         ===================================================== -->
 
     <section
       id="products"
@@ -84,64 +53,9 @@
     ></section>
 
 
-    <!-- ===================================================
-         REVIEWS
-         =================================================== -->
-
-    <section
-      id="reviewsSection"
-      class="reviews-section"
-      hidden
-    >
-
-      <div class="section-head">
-
-        <div>
-
-          <div class="eyebrow">
-            CUSTOMER FEEDBACK
-          </div>
-
-          <h2>
-            Reviews
-          </h2>
-
-        </div>
-
-
-        <button
-          id="closeReviews"
-          class="close-reviews"
-          type="button"
-          aria-label="Close reviews"
-        >
-          ✕
-        </button>
-
-      </div>
-
-
-      <div
-        id="reviewsSummary"
-        class="reviews-summary"
-      ></div>
-
-
-      <div
-        id="reviewsList"
-        class="reviews-list"
-      >
-        <div class="empty">
-          Loading reviews...
-        </div>
-      </div>
-
-    </section>
-
-
-    <!-- ===================================================
+    <!-- =====================================================
          CHECKOUT
-         =================================================== -->
+         ===================================================== -->
 
     <section
       id="checkout"
@@ -173,6 +87,8 @@
       </div>
 
 
+      <!-- Basket products -->
+
       <div
         id="basketLines"
         class="basket-lines"
@@ -181,26 +97,89 @@
       </div>
 
 
-      <div id="discountRow"></div>
+      <div class="divider"></div>
 
 
-      <!-- DISCOUNT / REFERRAL -->
+      <!-- ===================================================
+           CUSTOMER DETAILS
+           =================================================== -->
 
-      <label>
-        Discount / referral code
+      <label for="name">
+        Full name
       </label>
 
-      <div class="discount-row">
+      <input
+        id="name"
+        type="text"
+        placeholder="Your name"
+        autocomplete="name"
+      >
+
+
+      <label for="handle">
+        Telegram username
+      </label>
+
+      <input
+        id="handle"
+        type="text"
+        placeholder="@username"
+        autocomplete="off"
+      >
+
+
+      <label for="address">
+        Delivery address
+      </label>
+
+      <textarea
+        id="address"
+        placeholder="Delivery address"
+        autocomplete="street-address"
+      ></textarea>
+
+
+      <div class="divider"></div>
+
+
+      <!-- ===================================================
+           MINIMUM ORDER
+           =================================================== -->
+
+      <div class="shop-notice">
+
+        <strong>
+          Minimum order value: £50
+        </strong>
+
+        <br>
+
+        Discounts are applied after the basket reaches the minimum.
+
+      </div>
+
+
+      <!-- ===================================================
+           AFFILIATE CODE
+           =================================================== -->
+
+      <label for="discountCode">
+        Affiliate code
+      </label>
+
+      <div class="code-row">
 
         <input
           id="discountCode"
-          placeholder="e.g. a friend's Telegram name"
+          type="text"
+          placeholder="e.g. Y8"
+          autocomplete="off"
         >
 
         <button
           id="applyDiscount"
-          class="apply-btn"
           type="button"
+          class="code-btn"
         >
           Apply
         </button>
@@ -208,23 +187,68 @@
       </div>
 
 
-      <!-- STORE CREDIT -->
+      <div id="discountRow"></div>
 
-      <label>
+
+      <!-- ===================================================
+           STORE-WIDE PROMO
+           =================================================== -->
+
+      <label for="storewideCode">
+        Store-wide promo
+      </label>
+
+      <div class="code-row">
+
+        <input
+          id="storewideCode"
+          type="text"
+          placeholder="e.g. WEEKEND10"
+          autocomplete="off"
+        >
+
+        <button
+          id="applyStorewide"
+          type="button"
+          class="code-btn"
+        >
+          Apply
+        </button>
+
+      </div>
+
+
+      <div id="promoRow"></div>
+
+
+      <!-- ===================================================
+           TOTAL SAVINGS
+           =================================================== -->
+
+      <div id="totalSavingsRow"></div>
+
+
+      <!-- ===================================================
+           STORE CREDIT
+           =================================================== -->
+
+      <label for="storeCreditCode">
         Store credit code
       </label>
 
-      <div class="discount-row">
+      <div class="code-row">
 
         <input
           id="storeCreditCode"
-          placeholder="Your own referral code"
+          type="text"
+          placeholder="Store credit code"
+          autocomplete="off"
         >
 
         <button
           id="applyStoreCredit"
-          class="apply-btn"
           type="button"
+          class="code-btn"
         >
           Apply
         </button>
@@ -238,39 +262,9 @@
       <div class="divider"></div>
 
 
-      <!-- CUSTOMER DETAILS -->
-
-      <label>
-        Full name
-      </label>
-
-      <input
-        id="name"
-        placeholder="Your name"
-      >
-
-
-      <label>
-        Telegram username
-      </label>
-
-      <input
-        id="handle"
-        placeholder="@username"
-      >
-
-
-      <label>
-        Delivery address
-      </label>
-
-      <textarea
-        id="address"
-        placeholder="Delivery address"
-      ></textarea>
-
-
-      <!-- PAYMENT -->
+      <!-- ===================================================
+           PAYMENT
+           =================================================== -->
 
       <div class="payment-box">
 
@@ -286,6 +280,7 @@
 
         </div>
 
+
         <div class="radio-on">
           ●
         </div>
@@ -293,10 +288,14 @@
       </div>
 
 
+      <!-- ===================================================
+           CHECKOUT BUTTON
+           =================================================== -->
+
       <button
         id="checkoutBtn"
-        class="gold-btn"
         type="button"
+        class="gold-btn"
       >
         Continue to payment
       </button>
@@ -305,11 +304,6 @@
       <div
         id="status"
         class="status"
-      ></div>
-
-
-      <div
-        id="paymentPanel"
       ></div>
 
     </section>
