@@ -3,315 +3,90 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-
   <title>Kage Supps ⚡️</title>
-
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
   <link rel="stylesheet" href="/style.css">
 </head>
-
 <body>
-
   <header class="topbar">
-
-    <div>
-      <div class="brand">
-        KAGE SUPPS ⚡️
-      </div>
-    </div>
-
-    <button
-      id="cartJump"
-      class="cart-pill"
-      type="button"
-    >
-      🛒
-      <span id="cartCount">
-        0
-      </span>
-    </button>
-
+    <div class="brand">KAGE SUPPS ⚡️</div>
+    <button id="cartJump" class="cart-pill" type="button">🛒 <span id="cartCount">0</span></button>
   </header>
 
-
-  <nav
-    id="tabs"
-    class="tabs"
-  ></nav>
-
+  <nav id="tabs" class="tabs"></nav>
 
   <main>
-
-    <!-- =====================================================
-         PRODUCTS
-         ===================================================== -->
-
-    <section
-      id="products"
-      class="products"
-    ></section>
-
-
-    <!-- =====================================================
-         CHECKOUT
-         ===================================================== -->
-
-    <section
-      id="checkout"
-      class="checkout-card"
-    >
-
-      <div class="section-head">
-
-        <div>
-
-          <div class="eyebrow">
-            CHECKOUT
-          </div>
-
-          <h2>
-            Your basket
-          </h2>
-
-        </div>
-
-
-        <div
-          id="basketTotal"
-          class="basket-total"
-        >
-          £0.00
-        </div>
-
-      </div>
-
-
-      <!-- Basket products -->
-
-      <div
-        id="basketLines"
-        class="basket-lines"
-      >
-        Your basket is empty.
-      </div>
-
-
-      <div class="divider"></div>
-
-
-      <!-- ===================================================
-           CUSTOMER DETAILS
-           =================================================== -->
-
-      <label for="name">
-        Full name
-      </label>
-
-      <input
-        id="name"
-        type="text"
-        placeholder="Your name"
-        autocomplete="name"
-      >
-
-
-      <label for="handle">
-        Telegram username
-      </label>
-
-      <input
-        id="handle"
-        type="text"
-        placeholder="@username"
-        autocomplete="off"
-      >
-
-
-      <label for="address">
-        Delivery address
-      </label>
-
-      <textarea
-        id="address"
-        placeholder="Delivery address"
-        autocomplete="street-address"
-      ></textarea>
-
-
-      <div class="divider"></div>
-
-
-      <!-- ===================================================
-           MINIMUM ORDER
-           =================================================== -->
-
-      <div class="shop-notice">
-
-        <strong>
-          Minimum order value: £50
-        </strong>
-
-        <br>
-
-        Discounts are applied after the basket reaches the minimum.
-
-      </div>
-
-
-      <!-- ===================================================
-           AFFILIATE CODE
-           =================================================== -->
-
-      <label for="discountCode">
-        Affiliate code
-      </label>
-
-      <div class="code-row">
-
-        <input
-          id="discountCode"
-          type="text"
-          placeholder="e.g. Y8"
-          autocomplete="off"
-        >
-
-        <button
-          id="applyDiscount"
-          type="button"
-          class="code-btn"
-        >
-          Apply
-        </button>
-
-      </div>
-
-
-      <div id="discountRow"></div>
-
-
-      <!-- ===================================================
-           STORE-WIDE PROMO
-           =================================================== -->
-
-      <label for="storewideCode">
-        Store-wide promo
-      </label>
-
-      <div class="code-row">
-
-        <input
-          id="storewideCode"
-          type="text"
-          placeholder="e.g. WEEKEND10"
-          autocomplete="off"
-        >
-
-        <button
-          id="applyStorewide"
-          type="button"
-          class="code-btn"
-        >
-          Apply
-        </button>
-
-      </div>
-
-
-      <div id="promoRow"></div>
-
-
-      <!-- ===================================================
-           TOTAL SAVINGS
-           =================================================== -->
-
-      <div id="totalSavingsRow"></div>
-
-
-      <!-- ===================================================
-           STORE CREDIT
-           =================================================== -->
-
-      <label for="storeCreditCode">
-        Store credit code
-      </label>
-
-      <div class="code-row">
-
-        <input
-          id="storeCreditCode"
-          type="text"
-          placeholder="Store credit code"
-          autocomplete="off"
-        >
-
-        <button
-          id="applyStoreCredit"
-          type="button"
-          class="code-btn"
-        >
-          Apply
-        </button>
-
-      </div>
-
-
-      <div id="creditRow"></div>
-
-
-      <div class="divider"></div>
-
-
-      <!-- ===================================================
-           PAYMENT
-           =================================================== -->
-
-      <div class="payment-box">
-
-        <div>
-
-          <div class="payment-title">
-            Crypto payment
-          </div>
-
-          <div class="payment-sub">
-            Payment confirmation is handled by the server.
-          </div>
-
-        </div>
-
-
-        <div class="radio-on">
-          ●
-        </div>
-
-      </div>
-
-
-      <!-- ===================================================
-           CHECKOUT BUTTON
-           =================================================== -->
-
-      <button
-        id="checkoutBtn"
-        type="button"
-        class="gold-btn"
-      >
-        Continue to payment
-      </button>
-
-
-      <div
-        id="status"
-        class="status"
-      ></div>
-
+    <section id="products" class="products">
+      <div class="loading">Loading products…</div>
     </section>
 
+    <section id="checkout" class="checkout-card">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">CHECKOUT</div>
+          <h2>Your basket</h2>
+        </div>
+        <div id="basketTotal" class="basket-total">£0.00</div>
+      </div>
+
+      <div id="basketLines" class="basket-lines">Your basket is empty.</div>
+
+      <div class="divider"></div>
+
+      <label for="name">Full name</label>
+      <input id="name" type="text" placeholder="Your name" autocomplete="name">
+
+      <label for="handle">Telegram username</label>
+      <input id="handle" type="text" placeholder="@username" autocomplete="off">
+
+      <label for="address">Delivery address</label>
+      <textarea id="address" placeholder="Delivery address" autocomplete="street-address"></textarea>
+
+      <div class="divider"></div>
+
+      <div class="shop-notice">
+        <strong>Minimum order value: £50</strong><br>
+        Discounts are applied after the basket reaches the minimum. Delivery is added by the server at checkout.
+      </div>
+
+      <label for="discountCode">Affiliate code</label>
+      <div class="code-row">
+        <input id="discountCode" type="text" placeholder="e.g. Y8" autocomplete="off">
+        <button id="applyDiscount" type="button" class="code-btn">Apply</button>
+      </div>
+      <div id="discountRow"></div>
+
+      <label for="storewideCode">Store-wide promo</label>
+      <div class="code-row">
+        <input id="storewideCode" type="text" placeholder="e.g. WEEKEND10" autocomplete="off">
+        <button id="applyStorewide" type="button" class="code-btn">Apply</button>
+      </div>
+      <div id="promoRow"></div>
+      <div id="totalSavingsRow"></div>
+
+      <label for="storeCreditCode">Store credit code</label>
+      <div class="code-row">
+        <input id="storeCreditCode" type="text" placeholder="Store credit code" autocomplete="off">
+        <button id="applyStoreCredit" type="button" class="code-btn">Apply</button>
+      </div>
+      <div id="creditRow"></div>
+
+      <div class="divider"></div>
+
+      <div class="payment-box">
+        <div>
+          <div class="payment-title">Crypto payment</div>
+          <div class="payment-sub">Payment is independently confirmed after you submit the transaction hash.</div>
+        </div>
+        <div class="radio-on">●</div>
+      </div>
+
+      <button id="checkoutBtn" type="button" class="gold-btn">Continue to payment</button>
+      <div id="status" class="status"></div>
+      <div id="paymentPanel"></div>
+    </section>
   </main>
 
-
   <script src="/app.js"></script>
-
 </body>
 </html>
