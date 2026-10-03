@@ -352,3 +352,79 @@ textarea{
   font-weight:900;
   text-align:center;
 }
+
+
+/* =========================================================
+   BASKET / PAYMENT / ERROR STATES
+   ========================================================= */
+
+.basket-line{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px 0;
+  border-bottom:1px solid var(--border);
+}
+
+.basket-right{
+  text-align:right;
+}
+
+.basket-right button{
+  display:block;
+  margin:5px 0 0 auto;
+  border:0;
+  background:transparent;
+  color:var(--gold-dark);
+  font-weight:800;
+  padding:0;
+}
+
+.payment-panel{
+  margin-top:16px;
+  padding:16px;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:var(--off);
+}
+
+.payment-address{
+  margin-top:9px;
+  padding:10px;
+  border-radius:10px;
+  background:var(--white);
+  border:1px solid var(--border);
+  word-break:break-all;
+  font-size:13px;
+}
+
+.payment-quote{
+  margin-top:9px;
+  font-size:20px;
+  font-weight:900;
+  color:var(--gold-dark);
+}
+
+.status.success{
+  color:#0b7a4d;
+}
+
+.status.error{
+  color:#a5362f;
+}
+
+.catalogue-error{
+  margin:16px 0;
+  padding:16px;
+  border:1px solid #e7c4c1;
+  border-radius:14px;
+  background:#fff3f2;
+  color:#8f302b;
+  font-weight:700;
+}
+
+.loading{
+  padding:20px 4px;
+  color:var(--muted);
+  font-weight:700;
+}
