@@ -35,11 +35,27 @@ const etherscanApiKey =
 const webAppUrl =
   process.env.WEBAPP_URL || "";
 
-const adminTelegramId =
-  process.env.ADMIN_TELEGRAM_ID || "";
+/* =========================================================
+   MULTIPLE ADMIN TELEGRAM IDS
 
-const DATA_DIR =
-  process.env.DATA_DIR || ".";
+   Render example:
+   ADMIN_TELEGRAM_IDS=YOUR_ID,8729008732
+
+   ADMIN_TELEGRAM_ID remains supported as a fallback.
+   ========================================================= */
+
+const adminTelegramIds =
+  (
+    process.env.ADMIN_TELEGRAM_IDS ||
+    process.env.ADMIN_TELEGRAM_ID ||
+    ""
+  )
+    .split(",")
+    .map(id => id.trim())
+    .filter(Boolean);
+
+const primaryAdminTelegramId =
+  adminTelegramIds[0] || "";
 
 const supportTelegramIds =
   (
@@ -47,8 +63,15 @@ const supportTelegramIds =
     ""
   )
     .split(",")
-    .map(x => x.trim())
+    .map(id => id.trim())
     .filter(Boolean);
+
+/* =========================================================
+   DATA DIRECTORY
+   ========================================================= */
+
+const DATA_DIR =
+  process.env.DATA_DIR || ".";
 
 /* =========================================================
    SHOP SETTINGS
@@ -685,13 +708,22 @@ function orderBelongsToViewer(
   );
 }
 
+/* =========================================================
+   MULTI-ADMIN HELPERS
+   ========================================================= */
+
 function isAdmin(
   userId
 ) {
-  return Boolean(
-    adminTelegramId &&
-    String(userId) ===
-      String(adminTelegramId)
+  if (
+    userId === undefined ||
+    userId === null
+  ) {
+    return false;
+  }
+
+  return adminTelegramIds.includes(
+    String(userId)
   );
 }
 
@@ -851,6 +883,71 @@ function creditReferralForOrder(
   saveOrder(
     order
   );
+}
+
+/* =========================================================
+   RESTORE STORE CREDIT AFTER CANCELLATION
+   ========================================================= */
+
+function restoreStoreCreditForOrder(
+  order
+) {
+  if (
+    !order ||
+    order.storeCreditRestored ||
+    !order.storeCreditCode ||
+    Number(
+      order.storeCreditPence ||
+      0
+    ) <= 0
+  ) {
+    return false;
+  }
+
+  const code =
+    normaliseCode(
+      order.storeCreditCode
+    );
+
+  const record =
+    referralEarnings.get(
+      code
+    );
+
+  if (
+    !record ||
+    record.cashOnly === true
+  ) {
+    return false;
+  }
+
+  record.balancePence =
+    Number(
+      record.balancePence ||
+      0
+    ) +
+    Number(
+      order.storeCreditPence ||
+      0
+    );
+
+  saveReferralEarnings(
+    code,
+    record
+  );
+
+  order.storeCreditRestored =
+    true;
+
+  order.storeCreditRestoredAt =
+    new Date()
+      .toISOString();
+
+  saveOrder(
+    order
+  );
+
+  return true;
 }
 
 /* =========================================================
@@ -1116,6 +1213,26 @@ async function safeSendMessage(
 }
 
 /* =========================================================
+   SEND NOTIFICATION TO EVERY ADMIN
+   ========================================================= */
+
+async function sendToAdmins(
+  message,
+  options
+) {
+  for (
+    const adminId
+    of adminTelegramIds
+  ) {
+    await safeSendMessage(
+      adminId,
+      message,
+      options
+    );
+  }
+}
+
+/* =========================================================
    REVIEW URL
    ========================================================= */
 
@@ -1142,6 +1259,7 @@ function getReviewUrl(
     )}`
   );
 }
+
 /* =========================================================
    MARK ORDER PAID
    ========================================================= */
@@ -1210,8 +1328,7 @@ async function markOrderPaid(
       )
       .join("\n");
 
-  await safeSendMessage(
-    adminTelegramId,
+  await sendToAdmins(
 
 `✅ PAYMENT CONFIRMED
 
@@ -1359,6 +1476,9 @@ app.get(
         Boolean(
           token
         ),
+
+      adminCount:
+        adminTelegramIds.length,
 
       receivingAddressConfigured:
         Boolean(
@@ -1887,6 +2007,9 @@ app.post(
         storeCreditCode:
           appliedCreditCode,
 
+        storeCreditRestored:
+          false,
+
         referralOwner,
 
         referralCommissionPence,
@@ -1935,8 +2058,7 @@ app.post(
           )
           .join("\n");
 
-      await safeSendMessage(
-        adminTelegramId,
+      await sendToAdmins(
 
 `🧾 NEW ORDER
 
@@ -2228,9 +2350,11 @@ app.post(
       transactionId;
 
     /*
-      IMPORTANT:
       A submitted transaction hash is NOT
       treated as confirmed payment.
+
+      An admin must independently verify it
+      and then mark the order paid.
     */
 
     order.paymentStatus =
@@ -2240,8 +2364,7 @@ app.post(
       order
     );
 
-    await safeSendMessage(
-      adminTelegramId,
+    await sendToAdmins(
 
 `💳 PAYMENT SUBMITTED
 
@@ -2479,8 +2602,7 @@ app.post(
     if (
       savedReview
     ) {
-      safeSendMessage(
-        adminTelegramId,
+      sendToAdmins(
 
 `⭐ NEW REVIEW
 
@@ -3241,6 +3363,9 @@ ${lowStockCount}
 ❌ Out of stock:
 ${outOfStockCount}
 
+Admins configured:
+${adminTelegramIds.length}
+
 Choose an option below.`,
 
       getAdminDashboardOptions()
@@ -3991,7 +4116,7 @@ ${
   }
 
   /* =======================================================
-     SET TELEGRAM COMMANDS
+     SET TELEGRAM COMMANDS FOR ALL ADMINS
      ======================================================= */
 
   try {
@@ -4013,8 +4138,9 @@ ${
       }
     ]);
 
-    if (
-      adminTelegramId
+    for (
+      const adminId
+      of adminTelegramIds
     ) {
       await bot.setMyCommands(
         [
@@ -4090,7 +4216,7 @@ ${
 
             chat_id:
               Number(
-                adminTelegramId
+                adminId
               )
           }
         }
@@ -4911,7 +5037,7 @@ ${
   );
 
   /* =========================================================
-     CALLBACK QUERY HANDLER STARTS HERE
+     CALLBACK QUERY HANDLER
      ========================================================= */
 
   bot.on(
@@ -6006,94 +6132,10 @@ Tap below to leave your review.`,
       }
 
       /* =====================================================
-         CANCEL ORDER
-         ===================================================== */
-
-      if (
-        data.startsWith(
-          "admin_cancel_"
-        ) &&
-        !data.startsWith(
-          "admin_cancel_confirm_"
-        )
-      ) {
-        if (
-          !isAdmin(
-            q.from?.id
-          )
-        ) {
-          return;
-        }
-
-        const orderId =
-          Number(
-            data.replace(
-              "admin_cancel_",
-              ""
-            )
-          );
-
-        const order =
-          orders.get(
-            orderId
-          );
-
-        if (
-          !order
-        ) {
-          return safeSendMessage(
-            chatId,
-
-            "Order not found."
-          );
-        }
-
-        if (
-          order.paymentStatus !==
-          "awaiting_payment"
-        ) {
-          return safeSendMessage(
-            chatId,
-
-            "Only unpaid orders with no submitted payment can be cancelled here."
-          );
-        }
-
-        return safeSendMessage(
-          chatId,
-
-`⚠️ CANCEL ORDER #${orderId}?
-
-This will mark the order as cancelled.`,
-
-          {
-            reply_markup: {
-              inline_keyboard: [
-                [
-                  {
-                    text:
-                      "❌ Yes, Cancel",
-
-                    callback_data:
-                      `admin_cancel_confirm_${orderId}`
-                  },
-
-                  {
-                    text:
-                      "Keep Order",
-
-                    callback_data:
-                      `admin_order_${orderId}`
-                  }
-                ]
-              ]
-            }
-          }
-        );
-      }
-
-      /* =====================================================
          CONFIRM CANCELLATION
+
+         IMPORTANT: this check MUST come before
+         the general admin_cancel_ check.
          ===================================================== */
 
       if (
@@ -6143,6 +6185,11 @@ This will mark the order as cancelled.`,
           );
         }
 
+        const creditRestored =
+          restoreStoreCreditForOrder(
+            order
+          );
+
         order.paymentStatus =
           "cancelled";
 
@@ -6152,6 +6199,12 @@ This will mark the order as cancelled.`,
         order.cancelledAt =
           new Date()
             .toISOString();
+
+        order.cancelledBy =
+          String(
+            q.from?.id ||
+            ""
+          );
 
         saveOrder(
           order
@@ -6168,19 +6221,132 @@ This will mark the order as cancelled.`,
 Order:
 #${orderId}
 
-If you believe this was a mistake, please contact support.`
+${
+  creditRestored
+    ? `Store credit restored:
+${money(
+  order.storeCreditPence
+)}
+
+`
+    : ""
+}If you believe this was a mistake, please contact support.`
           );
         }
 
         await safeSendMessage(
           chatId,
 
-          `❌ Order #${orderId} cancelled.`
+`❌ Order #${orderId} cancelled.${
+  creditRestored
+    ? `
+
+Store credit restored:
+${money(
+  order.storeCreditPence
+)}`
+    : ""
+}`
         );
 
         return showAdminOrder(
           chatId,
           order
+        );
+      }
+
+      /* =====================================================
+         CANCEL ORDER
+         ===================================================== */
+
+      if (
+        data.startsWith(
+          "admin_cancel_"
+        )
+      ) {
+        if (
+          !isAdmin(
+            q.from?.id
+          )
+        ) {
+          return;
+        }
+
+        const orderId =
+          Number(
+            data.replace(
+              "admin_cancel_",
+              ""
+            )
+          );
+
+        const order =
+          orders.get(
+            orderId
+          );
+
+        if (
+          !order
+        ) {
+          return safeSendMessage(
+            chatId,
+
+            "Order not found."
+          );
+        }
+
+        if (
+          order.paymentStatus !==
+          "awaiting_payment"
+        ) {
+          return safeSendMessage(
+            chatId,
+
+            "Only unpaid orders with no submitted payment can be cancelled here."
+          );
+        }
+
+        return safeSendMessage(
+          chatId,
+
+`⚠️ CANCEL ORDER #${orderId}?
+
+This will mark the order as cancelled.
+
+${
+  Number(
+    order.storeCreditPence ||
+    0
+  ) > 0
+    ? `Store credit of ${money(
+        order.storeCreditPence
+      )} will be restored automatically.`
+    : "No store credit was used."
+}`,
+
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  {
+                    text:
+                      "❌ Yes, Cancel",
+
+                    callback_data:
+                      `admin_cancel_confirm_${orderId}`
+                  },
+
+                  {
+                    text:
+                      "Keep Order",
+
+                    callback_data:
+                      `admin_order_${orderId}`
+                  }
+                ]
+              ]
+            }
+          }
         );
       }
 
@@ -6538,7 +6704,13 @@ ${text}`
 
           createdAt:
             new Date()
-              .toISOString()
+              .toISOString(),
+
+          adminTelegramId:
+            String(
+              msg.from?.id ||
+              ""
+            )
         });
 
         saveOrder(
@@ -6802,6 +6974,16 @@ app.listen(
 
     console.log(
       `Products: ${products.length}`
+    );
+
+    console.log(
+      `Admins configured: ${adminTelegramIds.length}`
+    );
+
+    console.log(
+      `Primary admin configured: ${Boolean(
+        primaryAdminTelegramId
+      )}`
     );
 
     console.log(
