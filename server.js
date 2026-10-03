@@ -3827,28 +3827,27 @@ ${list
 
       /* SUPPORT */
 
-      if (
-        data ===
-        "customer_support"
-      ) {
+if (
+  data ===
+  "customer_support"
+) {
 
-        const supportText =
-          supportTelegramIds.length
-            ? `💬 SUPPORT
+  return safeSendMessage(
+    chatId,
 
-Please contact support and include your order number.
+`💬 KAGE SUPPS SUPPORT
 
-Support IDs:
-${supportTelegramIds.join(", ")}`
-            : `💬 SUPPORT
+Need help with an order?
 
-Please send a message with your order number and what you need help with.`;
+Main Support:
+@KageSupps
 
-        return safeSendMessage(
-          chatId,
-          supportText
-        );
-      }
+Alternative Support:
+@SuperSeiyanGoku33
+
+Please include your order number when messaging support.`
+  );
+}
 
       /* CUSTOMER ORDERS */
 
