@@ -4,25 +4,17 @@ if (tg) {
   tg.expand();
 }
 
-/* =========================================================
-   KAGE SUPPS — PRODUCT CATALOGUE
+const telegramUser = tg?.initDataUnsafe?.user || null;
 
-   Every product lives in /public/products.json — the server reads
-   that exact same file to validate prices and stock, so a client
-   can never submit its own price or exceed stock. Every product in
-   it automatically gets add/remove-to-basket controls; there is no
-   separate "display-only" list. Add lawful products there, using
-   one of the category/section pairs below.
-   ========================================================= */
+const preferredCategoryOrder = ["Oils", "Orals", "Pharma", "Peps"];
+const categoryIcons = {
+  Oils: "🛢️",
+  Orals: "💪",
+  Pharma: "💊",
+  Peps: "⚡"
+};
 
-const categories = [
-  { name: "Oils", icon: "🛢️" },
-  { name: "Orals", icon: "💪" },
-  { name: "Pharma", icon: "💊" },
-  { name: "Peps", icon: "⚡" }
-];
-
-const sectionOrder = {
+const preferredSectionOrder = {
   Oils: ["Pre-Workout", "Oils", "Blends"],
   Orals: ["Orals"],
   Pharma: ["General Pharma"],
@@ -30,17 +22,63 @@ const sectionOrder = {
 };
 
 let products = [];
+let categories = [];
+let sectionOrder = {};
 
 const basket = {};
-let currentCategory = categories[0].name;
-let appliedCode = null; // affiliate/discount code validated by the server
-let appliedStorewideCode = null; // temporary stackable store-wide promo
-let appliedStoreCredit = null; // { code, balancePence } once validated by the server
+let currentCategory = null;
+let appliedCode = null;
+let appliedStorewideCode = null;
+let appliedStoreCredit = null;
 
-const money = p => `£${(p / 100).toFixed(2)}`;
+const money = p => `£${(Number(p || 0) / 100).toFixed(2)}`;
 
-// Best-effort basket telemetry for the admin's weekly summary. Never blocks
-// the UI and failures are silently ignored.
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function rebuildCatalogueNavigation() {
+  const foundCategories = [...new Set(
+    products
+      .map(p => String(p.category || "Other").trim() || "Other")
+  )];
+
+  const ordered = [
+    ...preferredCategoryOrder.filter(name => foundCategories.includes(name)),
+    ...foundCategories.filter(name => !preferredCategoryOrder.includes(name))
+  ];
+
+  categories = ordered.map(name => ({
+    name,
+    icon: categoryIcons[name] || "•"
+  }));
+
+  sectionOrder = {};
+
+  for (const category of ordered) {
+    const foundSections = [...new Set(
+      products
+        .filter(p => String(p.category || "Other").trim() === category)
+        .map(p => String(p.section || "Other").trim() || "Other")
+    )];
+
+    const preferred = preferredSectionOrder[category] || [];
+    sectionOrder[category] = [
+      ...preferred.filter(name => foundSections.includes(name)),
+      ...foundSections.filter(name => !preferred.includes(name))
+    ];
+  }
+
+  if (!currentCategory || !ordered.includes(currentCategory)) {
+    currentCategory = ordered[0] || null;
+  }
+}
+
 function postCartEvent(productId, action) {
   fetch("/api/cart-events", {
     method: "POST",
@@ -50,28 +88,34 @@ function postCartEvent(productId, action) {
 }
 
 function stockBadge(stock, unit = "items") {
-  if (stock === null || stock === undefined) {
+  if (stock === null || stock === undefined || Number.isNaN(Number(stock))) {
     return `<span class="stock low">Stock not entered</span>`;
   }
 
-  if (stock <= 0) {
+  const n = Number(stock);
+
+  if (n <= 0) {
     return `<span class="stock out">Out of stock</span>`;
   }
 
-  if (stock <= 10) {
-    return `<span class="stock low">${stock} ${unit} left</span>`;
+  if (n <= 10) {
+    return `<span class="stock low">${n} ${escapeHtml(unit)} left</span>`;
   }
 
-  return `<span class="stock good">${stock} ${unit} in stock</span>`;
+  return `<span class="stock good">${n} ${escapeHtml(unit)} in stock</span>`;
 }
 
 function renderTabs() {
-  document.getElementById("tabs").innerHTML = categories.map(c => `
+  const tabs = document.getElementById("tabs");
+  if (!tabs) return;
+
+  tabs.innerHTML = categories.map(c => `
     <button
       class="tab ${c.name === currentCategory ? "active" : ""}"
-      data-category="${c.name}"
+      data-category="${escapeHtml(c.name)}"
+      type="button"
     >
-      ${c.icon} ${c.name}
+      ${c.icon} ${escapeHtml(c.name)}
     </button>
   `).join("");
 
@@ -85,9 +129,16 @@ function renderTabs() {
 }
 
 function shopCard(p) {
-  const qty = basket[p.id] || 0;
-  const shownPricePence = p.displayPricePence ?? p.pricePence;
-  const canPurchase = p.purchasable !== false && Number.isFinite(p.pricePence);
+  const id = Number(p.id);
+  const qty = basket[id] || 0;
+  const shownPricePence = Number(p.displayPricePence ?? p.pricePence);
+  const truePricePence = Number(p.pricePence);
+  const stock = Number(p.stock ?? 0);
+  const canPurchase =
+    p.purchasable !== false &&
+    Number.isFinite(truePricePence) &&
+    truePricePence >= 0;
+
   const priceText = Number.isFinite(shownPricePence)
     ? money(shownPricePence)
     : "";
@@ -95,70 +146,91 @@ function shopCard(p) {
   return `
     <div class="product">
       <div>
-        <h3>${p.name}</h3>
-        ${p.subtitle ? `<div class="sub">${p.subtitle}</div>` : ""}
+        <h3>${escapeHtml(p.name)}</h3>
+        ${p.subtitle ? `<div class="sub">${escapeHtml(p.subtitle)}</div>` : ""}
         ${stockBadge(p.stock, p.unit)}
       </div>
 
       <div>
         <div class="price">${priceText}</div>
 
-        <div class="qty">
-          <button
-            data-id="${p.id}"
-            data-d="-1"
-            ${qty === 0 || !canPurchase ? "disabled" : ""}
-          >
-            −
-          </button>
+        ${canPurchase ? `
+          <div class="qty">
+            <button
+              data-id="${id}"
+              data-d="-1"
+              type="button"
+              ${qty === 0 ? "disabled" : ""}
+            >−</button>
 
-          <span>${qty}</span>
+            <span>${qty}</span>
 
-          <button
-            data-id="${p.id}"
-            data-d="1"
-            ${qty >= p.stock || !canPurchase ? "disabled" : ""}
-          >
-            +
-          </button>
-        </div>
+            <button
+              data-id="${id}"
+              data-d="1"
+              type="button"
+              ${qty >= stock ? "disabled" : ""}
+            >+</button>
+          </div>
+        ` : ""}
       </div>
     </div>
   `;
 }
 
 function renderProducts() {
+  const container = document.getElementById("products");
+  if (!container) return;
+
+  if (!products.length) {
+    container.innerHTML = `
+      <div class="catalogue-error">
+        No products could be loaded. Please refresh the shop.
+      </div>
+    `;
+    return;
+  }
+
+  if (!currentCategory) {
+    container.innerHTML = products.map(shopCard).join("");
+    return;
+  }
+
+  const sections = sectionOrder[currentCategory] || [];
   let html = "";
 
-  (sectionOrder[currentCategory] || []).forEach(section => {
+  for (const section of sections) {
     const shopItems = products.filter(
-      p => p.category === currentCategory && p.section === section
+      p => String(p.category || "Other").trim() === currentCategory &&
+           String(p.section || "Other").trim() === section
     );
 
-    html += `<div class="section-title">${section}</div>`;
+    if (!shopItems.length) continue;
 
-    if (!shopItems.length) {
-      html += `<div class="empty">No products added yet.</div>`;
-    } else {
-      html += shopItems.map(shopCard).join("");
-    }
-  });
+    html += `<div class="section-title">${escapeHtml(section)}</div>`;
+    html += shopItems.map(shopCard).join("");
+  }
 
-  document.getElementById("products").innerHTML = html;
+  if (!html) {
+    const fallback = products.filter(
+      p => String(p.category || "Other").trim() === currentCategory
+    );
+    html = fallback.map(shopCard).join("");
+  }
+
+  container.innerHTML = html;
 
   document.querySelectorAll("[data-d]").forEach(btn => {
     btn.addEventListener("click", () => {
       const id = Number(btn.dataset.id);
       const delta = Number(btn.dataset.d);
-      const product = products.find(p => p.id === id);
+      const product = products.find(p => Number(p.id) === id);
 
       if (!product) return;
 
+      const stock = Math.max(0, Number(product.stock || 0));
       const current = basket[id] || 0;
-      const next = Math.max(
-        0,
-        Math.min(product.stock, current + delta)
-      );
+      const next = Math.max(0, Math.min(stock, current + delta));
 
       if (next === 0) {
         delete basket[id];
@@ -175,13 +247,14 @@ function renderProducts() {
 }
 
 function basketCount() {
-  return Object.values(basket).reduce((sum, qty) => sum + qty, 0);
+  return Object.values(basket).reduce((sum, qty) => sum + Number(qty || 0), 0);
 }
 
 function basketSubtotalValue() {
   return Object.entries(basket).reduce((sum, [id, qty]) => {
-    const product = products.find(p => p.id === Number(id));
-    return sum + (product ? product.pricePence * qty : 0);
+    const product = products.find(p => Number(p.id) === Number(id));
+    const price = Number(product?.pricePence);
+    return sum + (product && Number.isFinite(price) ? price * Number(qty) : 0);
   }, 0);
 }
 
@@ -189,39 +262,27 @@ function discountForSubtotal(subtotalPence) {
   if (!appliedCode) return 0;
 
   const raw = appliedCode.discountType === "percent"
-    ? Math.round(subtotalPence * (appliedCode.discountValue / 100))
-    : appliedCode.discountValue;
+    ? Math.round(subtotalPence * (Number(appliedCode.discountValue) / 100))
+    : Number(appliedCode.discountValue || 0);
 
-  return Math.min(raw, subtotalPence);
+  return Math.min(Math.max(0, raw), subtotalPence);
 }
 
 function storewideDiscountForSubtotal(subtotalPence) {
   if (!appliedStorewideCode) return 0;
 
-  return Math.min(
-    subtotalPence,
-    Math.round(
-      subtotalPence *
-      (Number(appliedStorewideCode.discountPercent || 0) / 100)
-    )
+  const raw = Math.round(
+    subtotalPence * (Number(appliedStorewideCode.discountPercent || 0) / 100)
   );
+
+  return Math.min(Math.max(0, raw), subtotalPence);
 }
 
 function storeCreditForRemaining(remainingPence) {
   if (!appliedStoreCredit) return 0;
-  return Math.min(appliedStoreCredit.balancePence, remainingPence);
-}
-
-function basketTotalValue() {
-  const subtotal = basketSubtotalValue();
-  const discount = discountForSubtotal(subtotal);
-  const storewideDiscount = storewideDiscountForSubtotal(subtotal);
-  const credit = storeCreditForRemaining(
-    subtotal - discount - storewideDiscount
-  );
-  return Math.max(
-    0,
-    subtotal - discount - storewideDiscount - credit
+  return Math.min(
+    Math.max(0, Number(appliedStoreCredit.balancePence || 0)),
+    Math.max(0, remainingPence)
   );
 }
 
@@ -233,49 +294,44 @@ function renderBasket() {
   const promoRow = document.getElementById("promoRow");
   const totalSavingsRow = document.getElementById("totalSavingsRow");
   const creditRow = document.getElementById("creditRow");
+
   const entries = Object.entries(basket);
   const subtotal = basketSubtotalValue();
-  const discount = discountForSubtotal(subtotal);
+  const affiliateDiscount = discountForSubtotal(subtotal);
   const storewideDiscount = storewideDiscountForSubtotal(subtotal);
-  const totalSavings = discount + storewideDiscount;
+  const totalSavings = affiliateDiscount + storewideDiscount;
   const credit = storeCreditForRemaining(
-    subtotal - discount - storewideDiscount
+    subtotal - affiliateDiscount - storewideDiscount
+  );
+  const totalBeforeShipping = Math.max(
+    0,
+    subtotal - affiliateDiscount - storewideDiscount - credit
   );
 
-  if (cartCount) {
-    cartCount.textContent = basketCount();
-  }
-
-  if (basketTotal) {
-    basketTotal.textContent = money(
-      Math.max(
-        0,
-        subtotal - discount - storewideDiscount - credit
-      )
-    );
-  }
+  if (cartCount) cartCount.textContent = basketCount();
+  if (basketTotal) basketTotal.textContent = money(totalBeforeShipping);
 
   if (discountRow) {
-    discountRow.innerHTML = discount > 0
-      ? `<div class="discount-line">Code <strong>${appliedCode.code}</strong> applied: −${money(discount)}</div>`
+    discountRow.innerHTML = affiliateDiscount > 0
+      ? `<div class="discount-line">Affiliate code <strong>${escapeHtml(appliedCode.code)}</strong>: −${money(affiliateDiscount)}</div>`
       : "";
   }
 
   if (promoRow) {
     promoRow.innerHTML = storewideDiscount > 0
-      ? `<div class="discount-line">Store promo <strong>${appliedStorewideCode.code}</strong>: −${money(storewideDiscount)}</div>`
+      ? `<div class="discount-line">Store promo <strong>${escapeHtml(appliedStorewideCode.code)}</strong>: −${money(storewideDiscount)}</div>`
       : "";
   }
 
   if (totalSavingsRow) {
     totalSavingsRow.innerHTML = totalSavings > 0
-      ? `<div class="savings-total">Total savings: ${money(totalSavings)}</div>`
+      ? `<div class="savings-total">You save ${money(totalSavings)}</div>`
       : "";
   }
 
   if (creditRow) {
     creditRow.innerHTML = credit > 0
-      ? `<div class="discount-line">Store credit <strong>${appliedStoreCredit.code}</strong> applied: −${money(credit)}</div>`
+      ? `<div class="discount-line">Store credit <strong>${escapeHtml(appliedStoreCredit.code)}</strong>: −${money(credit)}</div>`
       : "";
   }
 
@@ -287,18 +343,21 @@ function renderBasket() {
   }
 
   basketLines.innerHTML = entries.map(([id, qty]) => {
-    const p = products.find(x => x.id === Number(id));
+    const p = products.find(x => Number(x.id) === Number(id));
+    if (!p) return "";
+
+    const price = Number(p.pricePence || 0);
 
     return `
       <div class="basket-line">
         <div>
-          <strong>${p.name}</strong><br>
-          <span>${qty} × ${money(p.pricePence)}</span>
+          <strong>${escapeHtml(p.name)}</strong><br>
+          <span>${qty} × ${money(price)}</span>
         </div>
 
         <div class="basket-right">
-          <strong>${money(p.pricePence * qty)}</strong>
-          <button data-remove="${p.id}">Remove</button>
+          <strong>${money(price * Number(qty))}</strong>
+          <button data-remove="${Number(p.id)}" type="button">Remove</button>
         </div>
       </div>
     `;
@@ -321,14 +380,41 @@ function render() {
   renderBasket();
 }
 
+async function fetchProductsFrom(url) {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`${url} returned ${res.status}`);
+  const data = await res.json();
+  if (!Array.isArray(data)) throw new Error(`${url} did not return a product array`);
+  return data;
+}
+
 async function loadProducts() {
+  const productsContainer = document.getElementById("products");
+
   try {
-    const res = await fetch("/products.json");
-    products = await res.json();
-  } catch (err) {
-    console.error("Failed to load products", err);
-    products = [];
+    products = await fetchProductsFrom("/products.json");
+  } catch (firstError) {
+    console.warn("/products.json failed", firstError);
+
+    try {
+      products = await fetchProductsFrom("/api/products");
+    } catch (secondError) {
+      console.error("Both product endpoints failed", secondError);
+      products = [];
+
+      if (productsContainer) {
+        productsContainer.innerHTML = `
+          <div class="catalogue-error">
+            The catalogue could not be loaded from the server. Refresh the Mini App after the latest deployment finishes.
+          </div>
+        `;
+      }
+
+      return;
+    }
   }
+
+  rebuildCatalogueNavigation();
   render();
 }
 
@@ -346,6 +432,7 @@ async function applyDiscountCode() {
   if (!code) {
     appliedCode = null;
     renderBasket();
+    setStatus("");
     return;
   }
 
@@ -356,7 +443,7 @@ async function applyDiscountCode() {
     if (!res.ok || !data.valid) {
       appliedCode = null;
       renderBasket();
-      setStatus(data.error || "That code isn't valid.", "error");
+      setStatus(data.error || "That affiliate code isn't valid.", "error");
       return;
     }
 
@@ -366,10 +453,10 @@ async function applyDiscountCode() {
       discountValue: data.discountValue
     };
 
-    setStatus("Code applied!", "success");
+    setStatus(`${data.code} applied.`, "success");
     renderBasket();
-  } catch (err) {
-    setStatus("Couldn't check that code, try again.", "error");
+  } catch {
+    setStatus("Couldn't check that affiliate code. Try again.", "error");
   }
 }
 
@@ -380,13 +467,12 @@ async function applyStorewideCode() {
   if (!code) {
     appliedStorewideCode = null;
     renderBasket();
+    setStatus("");
     return;
   }
 
   try {
-    const res = await fetch(
-      `/api/storewide-promo/${encodeURIComponent(code)}`
-    );
+    const res = await fetch(`/api/storewide-promo/${encodeURIComponent(code)}`);
     const data = await res.json();
 
     if (!res.ok || !data.valid) {
@@ -398,16 +484,13 @@ async function applyStorewideCode() {
 
     appliedStorewideCode = {
       code: data.code,
-      discountPercent: data.discountPercent
+      discountPercent: Number(data.discountPercent || 0)
     };
 
-    setStatus(
-      `${data.code} applied — extra ${data.discountPercent}% off!`,
-      "success"
-    );
+    setStatus(`${data.code} applied — extra ${data.discountPercent}% off.`, "success");
     renderBasket();
-  } catch (err) {
-    setStatus("Couldn't check that store promo, try again.", "error");
+  } catch {
+    setStatus("Couldn't check that store promo. Try again.", "error");
   }
 }
 
@@ -418,6 +501,7 @@ async function applyStoreCredit() {
   if (!code) {
     appliedStoreCredit = null;
     renderBasket();
+    setStatus("");
     return;
   }
 
@@ -428,22 +512,26 @@ async function applyStoreCredit() {
     if (!res.ok) {
       appliedStoreCredit = null;
       renderBasket();
-      setStatus(data.error || "That code isn't valid.", "error");
+      setStatus(data.error || "That store credit code isn't valid.", "error");
       return;
     }
 
-    if (!data.balancePence || data.balancePence <= 0) {
+    if (!data.balancePence || Number(data.balancePence) <= 0) {
       appliedStoreCredit = null;
       renderBasket();
-      setStatus("No store credit available on that code.", "error");
+      setStatus("No store credit is available on that code.", "error");
       return;
     }
 
-    appliedStoreCredit = { code: data.code, balancePence: data.balancePence };
-    setStatus(`Store credit applied: ${money(data.balancePence)} available!`, "success");
+    appliedStoreCredit = {
+      code: data.code,
+      balancePence: Number(data.balancePence)
+    };
+
+    setStatus(`Store credit applied: ${money(data.balancePence)} available.`, "success");
     renderBasket();
-  } catch (err) {
-    setStatus("Couldn't check that code, try again.", "error");
+  } catch {
+    setStatus("Couldn't check that store credit code. Try again.", "error");
   }
 }
 
@@ -451,9 +539,10 @@ async function submitOrder() {
   const customerName = document.getElementById("name")?.value.trim();
   const telegramUsername = document.getElementById("handle")?.value.trim();
   const address = document.getElementById("address")?.value.trim();
+
   const items = Object.entries(basket).map(([id, quantity]) => ({
     id: Number(id),
-    quantity
+    quantity: Number(quantity)
   }));
 
   if (!items.length) {
@@ -477,6 +566,7 @@ async function submitOrder() {
       body: JSON.stringify({
         customerName,
         telegramUsername,
+        telegramId: telegramUser?.id || undefined,
         address,
         items,
         discountCode: appliedCode?.code || undefined,
@@ -492,18 +582,29 @@ async function submitOrder() {
       return;
     }
 
-    setStatus(`Order #${data.orderId} created — total ${money(data.totalPence)}.`, "success");
+    setStatus(
+      `Order #${data.orderId} created — total ${money(data.totalPence)} including shipping.`,
+      "success"
+    );
+
     Object.keys(basket).forEach(id => delete basket[id]);
     appliedCode = null;
     appliedStorewideCode = null;
     appliedStoreCredit = null;
-    if (document.getElementById("discountCode")) document.getElementById("discountCode").value = "";
-    if (document.getElementById("storewideCode")) document.getElementById("storewideCode").value = "";
-    if (document.getElementById("storeCreditCode")) document.getElementById("storeCreditCode").value = "";
+
+    const discountInput = document.getElementById("discountCode");
+    const promoInput = document.getElementById("storewideCode");
+    const creditInput = document.getElementById("storeCreditCode");
+
+    if (discountInput) discountInput.value = "";
+    if (promoInput) promoInput.value = "";
+    if (creditInput) creditInput.value = "";
+
     render();
     renderPaymentPanel(data);
-  } catch (err) {
-    setStatus("Couldn't reach the server, try again.", "error");
+
+  } catch {
+    setStatus("Couldn't reach the server. Try again.", "error");
   } finally {
     if (checkoutBtn) checkoutBtn.disabled = false;
   }
@@ -518,22 +619,30 @@ function renderPaymentPanel(order) {
     return;
   }
 
+  const quote = order.payment.quote?.USDT ?? "QUOTE_PENDING";
+
   panel.innerHTML = `
     <div class="payment-panel">
-      <div class="payment-title">Send USDT (ERC-20, Ethereum mainnet) to</div>
-      <div class="payment-address">${order.payment.address}</div>
-      <div class="payment-quote">≈ ${order.payment.quote.USDT} USDT</div>
-      <div class="payment-sub">${order.payment.instructions}</div>
+      <div class="payment-title">Send USDT (ERC-20)</div>
+      <div class="payment-address">${escapeHtml(order.payment.address || "")}</div>
+      <div class="payment-quote">${escapeHtml(quote)} USDT</div>
+      <div class="payment-sub">${escapeHtml(order.payment.instructions || "")}</div>
 
-      <label>Transaction hash</label>
+      <label for="paymentTxId">Transaction hash</label>
       <input id="paymentTxId" placeholder="0x...">
 
-      <button id="confirmPaymentBtn" class="gold-btn" type="button">I've paid — confirm</button>
+      <button id="confirmPaymentBtn" class="gold-btn" type="button">
+        I've paid — submit transaction
+      </button>
+
       <div id="paymentStatus" class="status"></div>
     </div>
   `;
 
-  document.getElementById("confirmPaymentBtn")?.addEventListener("click", () => confirmPayment(order.orderId));
+  document.getElementById("confirmPaymentBtn")?.addEventListener(
+    "click",
+    () => confirmPayment(order.orderId)
+  );
 }
 
 async function confirmPayment(orderId) {
@@ -553,7 +662,7 @@ async function confirmPayment(orderId) {
 
   const btn = document.getElementById("confirmPaymentBtn");
   if (btn) btn.disabled = true;
-  setPaymentStatus("Submitting payment for confirmation…");
+  setPaymentStatus("Submitting transaction for confirmation…");
 
   try {
     const res = await fetch(`/api/orders/${orderId}/confirm-payment`, {
@@ -565,13 +674,16 @@ async function confirmPayment(orderId) {
     const data = await res.json();
 
     if (!res.ok) {
-      setPaymentStatus(data.error || "Could not confirm payment.", "error");
+      setPaymentStatus(data.error || "Could not submit payment.", "error");
       return;
     }
 
-    setPaymentStatus("Payment submitted! We'll confirm it shortly.", "success");
-  } catch (err) {
-    setPaymentStatus("Couldn't reach the server, try again.", "error");
+    setPaymentStatus(
+      "Payment submitted. We'll confirm it shortly.",
+      "success"
+    );
+  } catch {
+    setPaymentStatus("Couldn't reach the server. Try again.", "error");
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -584,5 +696,12 @@ document.getElementById("checkoutBtn")?.addEventListener("click", submitOrder);
 document.getElementById("cartJump")?.addEventListener("click", () => {
   document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth" });
 });
+
+if (telegramUser?.username) {
+  const handleInput = document.getElementById("handle");
+  if (handleInput && !handleInput.value) {
+    handleInput.value = `@${telegramUser.username}`;
+  }
+}
 
 loadProducts();
