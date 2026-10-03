@@ -9,17 +9,8 @@
   --border:#e9e4d7;
 }
 
-
-/* =========================================================
-   BASE
-   ========================================================= */
-
 *{
   box-sizing:border-box;
-}
-
-html{
-  scroll-behavior:smooth;
 }
 
 body{
@@ -29,11 +20,6 @@ body{
   color:var(--text);
 }
 
-
-/* =========================================================
-   TOP BAR
-   ========================================================= */
-
 .topbar{
   position:sticky;
   top:0;
@@ -41,82 +27,25 @@ body{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:10px;
   padding:14px 16px 10px;
   background:rgba(255,255,255,.98);
   border-bottom:1px solid var(--border);
 }
 
 .brand{
-  display:flex;
-  align-items:center;
-  gap:8px;
   font-weight:900;
   letter-spacing:1px;
   font-size:20px;
-  perspective:400px;
-  white-space:nowrap;
 }
 
-.brand-logo{
-  width:28px;
-  height:28px;
-  display:block;
-  flex-shrink:0;
-  animation:brand-logo-spin 3s linear infinite;
-  transform-style:preserve-3d;
-}
-
-@keyframes brand-logo-spin{
-  from{
-    transform:rotateY(0deg);
-  }
-
-  to{
-    transform:rotateY(360deg);
-  }
-}
-
-@media (prefers-reduced-motion:reduce){
-  .brand-logo{
-    animation:none;
-  }
-}
-
-
-/* =========================================================
-   TOP ACTIONS
-   ========================================================= */
-
-.top-actions{
-  display:flex;
-  align-items:center;
-  justify-content:flex-end;
-  gap:7px;
-}
-
-.reviews-pill,
 .cart-pill{
   border:1px solid var(--gold);
   background:var(--white);
   color:var(--gold-dark);
   border-radius:999px;
-  padding:9px 12px;
+  padding:9px 13px;
   font-weight:800;
-  font-size:13px;
-  white-space:nowrap;
-  cursor:pointer;
 }
-
-.reviews-pill:active,
-.cart-pill:active{
-  transform:scale(.97);
-}
-
-
-/* =========================================================
-   CATEGORY TABS
-   ========================================================= */
 
 .tabs{
   position:sticky;
@@ -146,7 +75,6 @@ body{
   font-size:15px;
   font-weight:800;
   color:var(--muted);
-  cursor:pointer;
 }
 
 .tab.active{
@@ -154,21 +82,11 @@ body{
   border-bottom-color:var(--gold);
 }
 
-
-/* =========================================================
-   MAIN
-   ========================================================= */
-
 main{
   max-width:720px;
   margin:0 auto;
   padding:16px 18px 24px;
 }
-
-
-/* =========================================================
-   PRODUCT SECTIONS
-   ========================================================= */
 
 .section-title{
   margin:18px 4px 10px;
@@ -182,11 +100,6 @@ main{
 .products{
   display:block;
 }
-
-
-/* =========================================================
-   PRODUCT CARDS
-   ========================================================= */
 
 .product{
   background:var(--white);
@@ -210,11 +123,6 @@ main{
   font-size:14px;
   margin-top:4px;
 }
-
-
-/* =========================================================
-   STOCK
-   ========================================================= */
 
 .stock{
   display:inline-block;
@@ -240,11 +148,6 @@ main{
   color:#a5362f;
 }
 
-
-/* =========================================================
-   PRICE / QUANTITY
-   ========================================================= */
-
 .price{
   font-size:20px;
   font-weight:900;
@@ -268,12 +171,10 @@ main{
   background:var(--white);
   color:var(--gold-dark);
   font-size:24px;
-  cursor:pointer;
 }
 
 .qty button:disabled{
   opacity:.35;
-  cursor:default;
 }
 
 .qty span{
@@ -282,27 +183,24 @@ main{
   text-align:center;
 }
 
-
-/* =========================================================
-   EMPTY
-   ========================================================= */
-
 .empty{
   color:var(--muted);
   padding:8px 4px 14px;
   font-size:14px;
 }
 
-
-/* =========================================================
-   SHARED SECTION HEADER
-   ========================================================= */
+.checkout-card{
+  margin-top:22px;
+  background:var(--white);
+  border:1px solid var(--border);
+  border-radius:22px;
+  padding:20px;
+}
 
 .section-head{
   display:flex;
   align-items:flex-start;
   justify-content:space-between;
-  gap:15px;
 }
 
 .section-head h2{
@@ -314,179 +212,6 @@ main{
   font-size:12px;
   letter-spacing:1.7px;
   font-weight:900;
-}
-
-
-/* =========================================================
-   REVIEWS SECTION
-   ========================================================= */
-
-.reviews-section{
-  margin:6px 0 22px;
-  background:var(--white);
-  border:1px solid var(--border);
-  border-radius:22px;
-  padding:20px;
-  scroll-margin-top:125px;
-}
-
-.reviews-section[hidden]{
-  display:none !important;
-}
-
-.close-reviews{
-  width:38px;
-  height:38px;
-  flex-shrink:0;
-  border:1px solid var(--border);
-  border-radius:50%;
-  background:var(--off);
-  color:var(--muted);
-  font-size:17px;
-  font-weight:800;
-  cursor:pointer;
-}
-
-.close-reviews:active{
-  transform:scale(.95);
-}
-
-
-/* =========================================================
-   REVIEWS SUMMARY
-   ========================================================= */
-
-.reviews-summary{
-  margin-top:18px;
-  padding:18px;
-  text-align:center;
-  background:var(--gold-soft);
-  border:1px solid rgba(200,166,70,.35);
-  border-radius:16px;
-}
-
-.review-summary-stars{
-  color:var(--gold);
-  font-size:23px;
-  letter-spacing:3px;
-  line-height:1;
-}
-
-.review-average{
-  margin-top:8px;
-  color:var(--gold-dark);
-  font-size:25px;
-  font-weight:900;
-}
-
-.review-count{
-  margin-top:4px;
-  color:var(--muted);
-  font-size:13px;
-}
-
-
-/* =========================================================
-   REVIEW LIST
-   ========================================================= */
-
-.reviews-list{
-  margin-top:14px;
-  display:flex;
-  flex-direction:column;
-  gap:11px;
-}
-
-.review-card{
-  padding:16px;
-  border:1px solid var(--border);
-  border-radius:16px;
-  background:var(--white);
-}
-
-.review-card-top{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-}
-
-.review-name{
-  font-size:15px;
-  font-weight:900;
-}
-
-.verified-order{
-  display:inline-block;
-  margin-top:5px;
-  padding:4px 8px;
-  border-radius:999px;
-  background:#e4f7ec;
-  color:#0b7a4d;
-  font-size:11px;
-  font-weight:800;
-}
-
-.review-stars{
-  flex-shrink:0;
-  color:var(--gold);
-  font-size:15px;
-  letter-spacing:1px;
-}
-
-.review-text{
-  margin-top:13px;
-  color:#383632;
-  font-size:14px;
-  line-height:1.55;
-  white-space:pre-wrap;
-  word-break:break-word;
-}
-
-
-/* =========================================================
-   NO REVIEWS
-   ========================================================= */
-
-.no-reviews{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  text-align:center;
-  padding:28px 16px;
-  border:1px dashed var(--border);
-  border-radius:16px;
-  color:var(--muted);
-}
-
-.no-reviews-star{
-  margin-bottom:8px;
-  color:var(--gold);
-  font-size:34px;
-}
-
-.no-reviews strong{
-  color:var(--text);
-  font-size:15px;
-}
-
-.no-reviews span{
-  margin-top:5px;
-  font-size:13px;
-}
-
-
-/* =========================================================
-   CHECKOUT
-   ========================================================= */
-
-.checkout-card{
-  margin-top:22px;
-  background:var(--white);
-  border:1px solid var(--border);
-  border-radius:22px;
-  padding:20px;
-  scroll-margin-top:125px;
 }
 
 .basket-total{
@@ -501,57 +226,11 @@ main{
   margin-top:14px;
 }
 
-
-/* =========================================================
-   BASKET LINE
-   ========================================================= */
-
-.basket-line{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:14px;
-  padding:11px 0;
-  border-bottom:1px solid var(--border);
-}
-
-.basket-line:last-child{
-  border-bottom:0;
-}
-
-.basket-right{
-  display:flex;
-  flex-direction:column;
-  align-items:flex-end;
-  gap:5px;
-}
-
-.basket-right button{
-  appearance:none;
-  border:0;
-  background:transparent;
-  padding:2px 0;
-  color:#a5362f;
-  font-size:12px;
-  font-weight:800;
-  cursor:pointer;
-}
-
-
-/* =========================================================
-   DIVIDER
-   ========================================================= */
-
 .divider{
   height:1px;
   background:var(--border);
   margin:18px 0;
 }
-
-
-/* =========================================================
-   FORM
-   ========================================================= */
 
 label{
   display:block;
@@ -568,57 +247,12 @@ textarea{
   border-radius:14px;
   padding:14px;
   font:inherit;
-  color:var(--text);
-  outline:none;
-}
-
-input:focus,
-textarea:focus{
-  border-color:var(--gold);
 }
 
 textarea{
   min-height:100px;
   resize:vertical;
 }
-
-
-/* =========================================================
-   DISCOUNT
-   ========================================================= */
-
-.discount-line{
-  color:#0b7a4d;
-  font-weight:800;
-  font-size:14px;
-  margin-top:8px;
-}
-
-.discount-row{
-  display:flex;
-  gap:10px;
-}
-
-.discount-row input{
-  flex:1;
-  min-width:0;
-}
-
-.apply-btn{
-  border:1px solid var(--gold);
-  background:var(--white);
-  color:var(--gold-dark);
-  border-radius:14px;
-  padding:0 18px;
-  font-weight:900;
-  white-space:nowrap;
-  cursor:pointer;
-}
-
-
-/* =========================================================
-   PAYMENT METHOD
-   ========================================================= */
 
 .payment-box{
   margin-top:18px;
@@ -646,11 +280,6 @@ textarea{
   font-size:22px;
 }
 
-
-/* =========================================================
-   GOLD BUTTON
-   ========================================================= */
-
 .gold-btn{
   width:100%;
   margin-top:16px;
@@ -661,135 +290,65 @@ textarea{
   color:#fff;
   font-size:17px;
   font-weight:900;
-  cursor:pointer;
 }
-
-.gold-btn:active{
-  transform:scale(.99);
-}
-
-.gold-btn:disabled{
-  opacity:.55;
-  cursor:default;
-}
-
-
-/* =========================================================
-   STATUS
-   ========================================================= */
 
 .status{
   margin-top:12px;
   font-weight:800;
 }
 
-.status.error{
-  color:#a5362f;
-}
-
-.status.success{
-  color:#0b7a4d;
-}
-
 
 /* =========================================================
-   PAYMENT PANEL
+   DISCOUNTS / PROMO / SAVINGS
    ========================================================= */
 
-.payment-panel{
-  margin-top:16px;
-  padding:16px;
+.shop-notice{
+  padding:13px 14px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--off);
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.5;
+}
+
+.code-row{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:9px;
+  align-items:center;
+}
+
+.code-row input{
+  min-width:0;
+}
+
+.code-btn{
   border:1px solid var(--gold);
-  border-radius:16px;
-  background:var(--gold-soft);
-}
-
-.wallet-box{
-  margin:12px 0;
-}
-
-.payment-address{
-  font-family:monospace;
-  font-size:14px;
-  word-break:break-all;
-  margin-top:6px;
-  padding:14px;
+  border-radius:14px;
+  padding:13px 15px;
   background:var(--white);
-  border-radius:10px;
-  border:1px solid var(--border);
-  cursor:pointer;
-}
-
-.payment-quote{
-  margin-top:8px;
-  font-weight:900;
   color:var(--gold-dark);
+  font:inherit;
+  font-weight:900;
 }
 
-.copy-btn{
-  width:100%;
+.discount-line{
   margin-top:8px;
-  padding:13px;
-  border:1px solid var(--border);
-  border-radius:10px;
-  background:var(--white);
-  color:var(--text);
-  font-weight:700;
-  cursor:pointer;
+  padding:9px 11px;
+  border-radius:12px;
+  background:var(--gold-soft);
+  color:var(--gold-dark);
+  font-size:13px;
+  font-weight:800;
 }
 
-.copy-btn:active{
-  transform:scale(.98);
-}
-
-
-/* =========================================================
-   MOBILE
-   ========================================================= */
-
-@media (max-width:480px){
-
-  .topbar{
-    padding-left:12px;
-    padding-right:12px;
-  }
-
-  .brand{
-    gap:6px;
-    font-size:17px;
-    letter-spacing:.7px;
-  }
-
-  .brand-logo{
-    width:25px;
-    height:25px;
-  }
-
-  .top-actions{
-    gap:5px;
-  }
-
-  .reviews-pill{
-    padding:8px 9px;
-    font-size:12px;
-  }
-
-  .cart-pill{
-    padding:8px 10px;
-    font-size:12px;
-  }
-
-  main{
-    padding-left:14px;
-    padding-right:14px;
-  }
-
-  .review-card-top{
-    flex-direction:column;
-    gap:7px;
-  }
-
-  .review-stars{
-    font-size:14px;
-  }
+.savings-total{
+  margin-top:10px;
+  padding:11px 12px;
+  border:1px solid var(--gold);
+  border-radius:12px;
+  color:var(--gold-dark);
+  font-weight:900;
+  text-align:center;
 }
