@@ -1416,95 +1416,203 @@ if (
 
 /* =========================================================
 
-   TELEGRAM BOT
+   TELEGRAM /START
 
    ========================================================= */
 
-let bot = null;
+if (bot) {
 
-if (token) {
+  bot.onText(
 
-  try {
+    /^\/start(?:@\w+)?(?:\s.*)?$/i,
 
-    bot = new TelegramBot(
+    async (msg) => {
 
-      token,
+      const chatId = msg.chat.id;
 
-      {
+      const keyboard = {
 
-        polling: true
+        reply_markup: {
 
-      }
+          inline_keyboard: [
 
-    );
+            [
 
-    bot.on(
+              {
 
-      "polling_error",
+                text: "🛍 OPEN SHOP — TAP HERE",
 
-      err => {
+                web_app: {
 
-        console.error(
+                  url: webAppUrl
 
-          "TELEGRAM POLLING ERROR:",
+                }
 
-          err?.response?.body ||
+              }
 
-          err?.message ||
+            ],
 
-          err
+            [
 
-        );
+              {
 
-      }
+                text: "📦 My Orders",
 
-    );
+                callback_data: "customer_orders"
 
-    bot.on(
+              },
 
-      "error",
+              {
 
-      err => {
+                text: "💬 Support",
 
-        console.error(
+                callback_data: "customer_support"
 
-          "TELEGRAM ERROR:",
+              }
 
-          err?.message ||
+            ],
 
-          err
+            [
 
-        );
+              {
 
-      }
+                text: "ℹ️ Info",
 
-    );
+                callback_data: "customer_info"
 
-    console.log(
+              }
 
-      "Telegram bot started."
+            ]
 
-    );
+          ]
 
-  } catch (err) {
+        }
 
-    console.error(
+      };
 
-      "Telegram startup failed:",
+      await safeSendMessage(
 
-      err
+        chatId,
 
-    );
+        `⚡️ KAGE SUPPS
 
-  }
+Welcome to Kage Supps.
 
-} else {
+Use the menu below to open the shop, view your orders or contact support.`,
 
-  console.warn(
+        keyboard
 
-    "Telegram bot token missing."
+      );
+
+    }
 
   );
+
+}
+
+if (bot) {
+
+  bot.on("callback_query", async (query) => {
+
+    const chatId = query.message?.chat?.id;
+
+    const data = query.data;
+
+    if (!chatId) return;
+
+    try {
+
+      await bot.answerCallbackQuery(query.id);
+
+    } catch {}
+
+    if (data === "customer_info") {
+
+      await safeSendMessage(
+
+        chatId,
+
+        `ℹ️ KAGE SUPPS
+
+🛍 Use Open Shop to browse the catalogue.
+
+📦 Use My Orders to check your recent orders.
+
+💬 Use Support if you need help with an order.`
+
+      );
+
+      return;
+
+    }
+
+    if (data === "customer_support") {
+
+      await safeSendMessage(
+
+        chatId,
+
+        `💬 SUPPORT
+
+Please send us a message with your order number and what you need help with.`
+
+      );
+
+      return;
+
+    }
+
+    if (data === "customer_orders") {
+
+      const telegramId = String(query.from.id);
+
+      const customerOrders = getSortedOrders()
+
+        .filter(order =>
+
+          String(order.telegramId || "") === telegramId
+
+        )
+
+        .slice(0, 10);
+
+      if (!customerOrders.length) {
+
+        await safeSendMessage(
+
+          chatId,
+
+          "📦 You don't have any orders linked to this Telegram account yet."
+
+        );
+
+        return;
+
+      }
+
+      const text = customerOrders.map(order => {
+
+        return `#${order.orderId}
+
+${getOrderStatusText(order)}
+
+${money(order.totalPence)}`;
+
+      }).join("\n\n");
+
+      await safeSendMessage(
+
+        chatId,
+
+        `📦 YOUR ORDERS\n\n${text}`
+
+      );
+
+      return;
+
+    }
+
+  });
 
 }
 
