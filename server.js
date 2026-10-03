@@ -166,6 +166,11 @@ const affiliateCodes = [
   {
     code: "STEVIEWONDER",
     owner: "@Steviewonder987"
+  },
+
+  {
+    code: "KITTYSJ10",
+    owner: "@Sjobje"
   }
 ];
 
