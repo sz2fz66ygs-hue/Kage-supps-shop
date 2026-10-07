@@ -428,3 +428,131 @@ textarea{
   color:var(--muted);
   font-weight:700;
 }
+/* =========================================================
+   WALLET / PAYMENT COPY
+   ========================================================= */
+
+.payment-wallet-label {
+  margin-top: 16px;
+  margin-bottom: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+.payment-address {
+  width: 100%;
+  padding: 14px;
+  margin-bottom: 10px;
+
+  border: 1px solid rgba(201, 162, 39, 0.55);
+  border-radius: 12px;
+
+  background: rgba(0, 0, 0, 0.04);
+
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 1.5;
+
+  overflow-wrap: anywhere;
+  word-break: break-all;
+
+  /*
+    VERY IMPORTANT FOR IPHONE / TELEGRAM.
+
+    Allows users to press and hold the address
+    and manually copy it as a backup.
+  */
+
+  -webkit-user-select: text !important;
+  user-select: text !important;
+
+  cursor: text;
+
+  -webkit-touch-callout: default !important;
+}
+
+.copy-wallet-btn {
+  width: 100%;
+  margin-top: 4px;
+  margin-bottom: 7px;
+
+  touch-action: manipulation;
+
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.wallet-copy-status {
+  margin-top: 5px;
+  margin-bottom: 16px;
+
+  font-size: 12px;
+  line-height: 1.4;
+
+  opacity: 0.75;
+}
+
+.payment-network {
+  margin-top: 3px;
+  margin-bottom: 12px;
+
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.payment-quote {
+  margin-top: 14px;
+
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.payment-sub {
+  margin-top: 8px;
+  margin-bottom: 18px;
+
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.payment-reservation {
+  margin-top: 14px;
+
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.reservation-countdown {
+  margin-top: 5px;
+  margin-bottom: 18px;
+
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.reservation-countdown.expired {
+  font-weight: 800;
+}
+
+/*
+  Make sure the transaction hash itself
+  can also be selected/corrected normally.
+*/
+
+#paymentTxId {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
+/*
+  If another part of your stylesheet has
+  user-select:none applied broadly, these
+  rules override it for the wallet.
+*/
+
+.payment-panel .payment-address {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default !important;
+}
