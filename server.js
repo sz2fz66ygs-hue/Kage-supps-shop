@@ -151,43 +151,51 @@ const STOCK_RESERVATION_MS =
   1000;
 
 /* =========================================================
-   AFFILIATES
+   AFFILIATE / REFERRAL CODES
    ========================================================= */
 
-const AFFILIATE_DISCOUNT_PERCENT =
-  10;
-
-const AFFILIATE_COMMISSION_PERCENT =
-  5;
+const AFFILIATE_DISCOUNT_PERCENT = 10;
+const AFFILIATE_COMMISSION_PERCENT = 5;
 
 const affiliateCodes = [
   {
     code: "Y8",
     owner: "@Y8_JKO"
   },
+
   {
     code: "TWARD",
     owner: "@tward1994"
   },
+
   {
     code: "CHODE10",
     owner: "@Hex_case"
   },
+
   {
     code: "DOMINATE",
     owner: "@dom_harriss"
   },
+
   {
     code: "STEVIEWONDER",
     owner: "@Steviewonder987"
   },
+
   {
     code: "KITTYSJ10",
     owner: "@Sjobje"
   },
+
   {
     code: "DABBLE",
     owner: "@Peachy001"
+  },
+
+  {
+    code: "JAM97",
+    owner: "@Jam97"
   }
 ];
 
