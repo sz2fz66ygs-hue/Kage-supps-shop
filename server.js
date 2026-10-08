@@ -60,11 +60,17 @@ const webAppUrl =
 
   "";
 
+const adminTelegramIds =
+  String(
+    process.env.ADMIN_TELEGRAM_IDS ||
+    ""
+  )
+    .split(",")
+    .map(id => id.trim())
+    .filter(Boolean);
+
 const adminTelegramId =
-
-  process.env.ADMIN_TELEGRAM_ID ||
-
-  "";
+  adminTelegramIds[0] || "";
 
 const supportTelegramIds =
 
