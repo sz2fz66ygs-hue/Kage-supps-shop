@@ -1,12 +1,3 @@
-ADMINS
-   ========================================================= */
-
-const ownerTelegramId =
-  String(
-    process.env.OWNER_TELEGRAM_ID ||
-    ""
-  ).trim();
-
 import "dotenv/config";
 
 import { readFileSync, mkdirSync } from "fs";
@@ -23,109 +14,85 @@ import express from "express";
 
 import TelegramBot from "node-telegram-bot-api";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+/* =========================================================
 
-const app = express();
+   BASE SETUP
 
-const port = Number(process.env.PORT || 3000);
+   ========================================================= */
 
-const token =
+const __dirname = path.dirname(
 
-process.env.TELEGRAM ||
-
-process.env.TELEGRAM_BOT_TOKEN;
-
-const receivingAddress =
-
-process.env.ETH_RECEIVING_ADDRESS || "";
-
-const etherscanApiKey =
-
-process.env.ETHERSCAN ||
-
-process.env.ETHERSCAN_API_KEY ||
-
-"";
-
-const webAppUrl =
-
-process.env.WEBAPP_URL || "";
-
-const ownerTelegramId =
-
-String(
-
-process.env.OWNER_TELEGRAM_ID ||
-
-""
-
-).trim();
-
-const singleAdminId =
-
-String(
-
-process.env.ADMIN_TELEGRAM_ID ||
-
-""
-
-).trim();
-
-const adminIdsFromEnv =
-
-String(
-
-process.env.ADMIN_TELEGRAM_IDS ||
-
-""
-
-)
-
-.split(",")
-
-.map(id => id.trim())
-
-.filter(Boolean);
-
-const configuredAdminIds =
-
-new Set(
-
-[
-
-ownerTelegramId,
-
-singleAdminId,
-
-...adminIdsFromEnv
-
-].filter(Boolean)
+  fileURLToPath(import.meta.url)
 
 );
 
+const app = express();
+
+const port =
+
+  Number(process.env.PORT || 3000);
+
+const token =
+
+  process.env.TELEGRAM ||
+
+  process.env.TELEGRAM_BOT_TOKEN ||
+
+  "";
+
+const receivingAddress =
+
+  process.env.ETH_RECEIVING_ADDRESS ||
+
+  "";
+
+const etherscanApiKey =
+
+  process.env.ETHERSCAN ||
+
+  process.env.ETHERSCAN_API_KEY ||
+
+  "";
+
+const webAppUrl =
+
+  process.env.WEBAPP_URL ||
+
+  "";
+
 const adminTelegramId =
 
-ownerTelegramId ||
+  process.env.ADMIN_TELEGRAM_ID ||
 
-singleAdminId ||
-
-adminIdsFromEnv[0] ||
-
-"";
-
-const DATA_DIR =
-
-process.env.DATA_DIR || ".";
+  "";
 
 const supportTelegramIds =
 
-(process.env.SUPPORT_TELEGRAM_IDS || "")
+  String(
 
-.split(",")
+    process.env.SUPPORT_TELEGRAM_IDS ||
 
-.map(x => x.trim())
+    ""
 
-.filter(Boolean);
+  )
+
+    .split(",")
+
+    .map(id => id.trim())
+
+    .filter(Boolean);
+
+const DATA_DIR =
+
+  process.env.DATA_DIR ||
+
+  ".";
+
+/* =========================================================
+
+   STORE SETTINGS
+
+   ========================================================= */
 
 const MINIMUM_ORDER_PENCE = 5000;
 
@@ -135,49 +102,151 @@ const LOW_STOCK_THRESHOLD = 5;
 
 const STOCK_RESERVATION_MINUTES = 30;
 
-const STOCK_RESERVATION_MS = STOCK_RESERVATION_MINUTES * 60 * 1000;
+const STOCK_RESERVATION_MS =
+
+  STOCK_RESERVATION_MINUTES *
+
+  60 *
+
+  1000;
 
 const AFFILIATE_DISCOUNT_PERCENT = 10;
 
 const AFFILIATE_COMMISSION_PERCENT = 5;
 
+/* =========================================================
+
+   AFFILIATES
+
+   ========================================================= */
+
 const affiliateCodes = [
 
-{ code: "Y8", owner: "@Y8_JKO" },
+  {
 
-{ code: "TWARD", owner: "@tward1994" },
+    code: "Y8",
 
-{ code: "CHODE10", owner: "@Hex_case" },
+    owner: "@Y8_JKO"
 
-{ code: "DOMINATE", owner: "@dom_harriss" },
+  },
 
-{ code: "STEVIEWONDER", owner: "@Steviewonder987" },
+  {
 
-{ code: "KITTYSJ10", owner: "@Sjobje" },
+    code: "TWARD",
 
-{ code: "DABBLE", owner: "@Peachy001" },
+    owner: "@tward1994"
 
-{ code: "JAM97", owner: "@Jam97" }
+  },
+
+  {
+
+    code: "CHODE10",
+
+    owner: "@Hex_case"
+
+  },
+
+  {
+
+    code: "DOMINATE",
+
+    owner: "@dom_harriss"
+
+  },
+
+  {
+
+    code: "STEVIEWONDER",
+
+    owner: "@Steviewonder987"
+
+  },
+
+  {
+
+    code: "KITTYSJ10",
+
+    owner: "@Sjobje"
+
+  },
+
+  {
+
+    code: "DABBLE",
+
+    owner: "@Peachy001"
+
+  },
+
+  {
+
+    code: "JAM97",
+
+    owner: "@Jam97"
+
+  }
 
 ];
 
+/* =========================================================
+
+   STORE-WIDE PROMO
+
+   ========================================================= */
+
 const STOREWIDE_PROMO_DEFAULTS = {
 
-code: "WEEKEND10",
+  code: "WEEKEND10",
 
-discountPercent: 10,
+  discountPercent: 10,
 
-active: false
+  active: false
 
 };
 
-app.use(express.json({ limit: "1mb" }));
+/* =========================================================
 
-mkdirSync(DATA_DIR, { recursive: true });
+   EXPRESS
+
+   ========================================================= */
+
+app.use(
+
+  express.json({
+
+    limit: "1mb"
+
+  })
+
+);
+
+/* =========================================================
+
+   DATABASE
+
+   ========================================================= */
+
+mkdirSync(
+
+  DATA_DIR,
+
+  {
+
+    recursive: true
+
+  }
+
+);
 
 const db = new DatabaseSync(
 
-path.join(DATA_DIR, "kage.sqlite")
+  path.join(
+
+    DATA_DIR,
+
+    "kage.sqlite"
+
+  )
 
 );
 
@@ -185,143 +254,247 @@ db.exec(`
 
 CREATE TABLE IF NOT EXISTS orders (
 
-id INTEGER PRIMARY KEY,
+  id INTEGER PRIMARY KEY,
 
-json TEXT NOT NULL
+  json TEXT NOT NULL
 
 );
 
 CREATE TABLE IF NOT EXISTS discount_codes (
 
-code TEXT PRIMARY KEY,
+  code TEXT PRIMARY KEY,
 
-json TEXT NOT NULL
+  json TEXT NOT NULL
 
 );
 
 CREATE TABLE IF NOT EXISTS referral_earnings (
 
-code TEXT PRIMARY KEY,
+  code TEXT PRIMARY KEY,
 
-json TEXT NOT NULL
+  json TEXT NOT NULL
 
 );
 
 CREATE TABLE IF NOT EXISTS meta (
 
-key TEXT PRIMARY KEY,
+  key TEXT PRIMARY KEY,
 
-value TEXT NOT NULL
+  value TEXT NOT NULL
 
 );
 
 CREATE TABLE IF NOT EXISTS cart_events (
 
-id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-productId INTEGER NOT NULL,
+  productId INTEGER NOT NULL,
 
-action TEXT NOT NULL,
+  action TEXT NOT NULL,
 
-createdAt TEXT NOT NULL
+  createdAt TEXT NOT NULL
 
 );
 
 CREATE TABLE IF NOT EXISTS inventory (
 
-product_id INTEGER PRIMARY KEY,
+  product_id INTEGER PRIMARY KEY,
 
-stock INTEGER
+  stock INTEGER
 
 );
 
 CREATE TABLE IF NOT EXISTS reviews (
 
-id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-order_id INTEGER NOT NULL UNIQUE,
+  order_id INTEGER NOT NULL UNIQUE,
 
-telegram_id TEXT,
+  telegram_id TEXT,
 
-display_name TEXT NOT NULL,
+  display_name TEXT NOT NULL,
 
-rating INTEGER NOT NULL,
+  rating INTEGER NOT NULL,
 
-review_text TEXT NOT NULL,
+  review_text TEXT NOT NULL,
 
-approved INTEGER NOT NULL DEFAULT 0,
+  approved INTEGER NOT NULL DEFAULT 0,
 
-created_at TEXT NOT NULL
+  created_at TEXT NOT NULL
 
 );
 
 `);
 
-const upsertOrderStmt = db.prepare(`
+/* =========================================================
 
-INSERT INTO orders (id, json)
+   DB STATEMENTS
 
-VALUES (?, ?)
+   ========================================================= */
+
+const upsertOrderStmt =
+
+  db.prepare(`
+
+INSERT INTO orders (
+
+  id,
+
+  json
+
+)
+
+VALUES (
+
+  ?,
+
+  ?
+
+)
 
 ON CONFLICT(id)
 
-DO UPDATE SET json = excluded.json
+DO UPDATE SET
+
+  json = excluded.json
 
 `);
 
-const upsertDiscountStmt = db.prepare(`
+const upsertDiscountStmt =
 
-INSERT INTO discount_codes (code, json)
+  db.prepare(`
 
-VALUES (?, ?)
+INSERT INTO discount_codes (
+
+  code,
+
+  json
+
+)
+
+VALUES (
+
+  ?,
+
+  ?
+
+)
 
 ON CONFLICT(code)
 
-DO UPDATE SET json = excluded.json
+DO UPDATE SET
+
+  json = excluded.json
 
 `);
 
-const upsertReferralStmt = db.prepare(`
+const upsertReferralStmt =
 
-INSERT INTO referral_earnings (code, json)
+  db.prepare(`
 
-VALUES (?, ?)
+INSERT INTO referral_earnings (
+
+  code,
+
+  json
+
+)
+
+VALUES (
+
+  ?,
+
+  ?
+
+)
 
 ON CONFLICT(code)
 
-DO UPDATE SET json = excluded.json
+DO UPDATE SET
+
+  json = excluded.json
 
 `);
 
-const upsertMetaStmt = db.prepare(`
+const upsertMetaStmt =
 
-INSERT INTO meta (key, value)
+  db.prepare(`
 
-VALUES (?, ?)
+INSERT INTO meta (
+
+  key,
+
+  value
+
+)
+
+VALUES (
+
+  ?,
+
+  ?
+
+)
 
 ON CONFLICT(key)
 
-DO UPDATE SET value = excluded.value
+DO UPDATE SET
+
+  value = excluded.value
 
 `);
 
-const insertCartEventStmt = db.prepare(`
+const insertCartEventStmt =
 
-INSERT INTO cart_events (productId, action, createdAt)
+  db.prepare(`
 
-VALUES (?, ?, ?)
+INSERT INTO cart_events (
+
+  productId,
+
+  action,
+
+  createdAt
+
+)
+
+VALUES (
+
+  ?,
+
+  ?,
+
+  ?
+
+)
 
 `);
 
-const insertInventoryStmt = db.prepare(`
+const insertInventoryStmt =
 
-INSERT OR IGNORE INTO inventory (product_id, stock)
+  db.prepare(`
 
-VALUES (?, ?)
+INSERT OR IGNORE INTO inventory (
+
+  product_id,
+
+  stock
+
+)
+
+VALUES (
+
+  ?,
+
+  ?
+
+)
 
 `);
 
-const getInventoryStmt = db.prepare(`
+const getInventoryStmt =
+
+  db.prepare(`
 
 SELECT stock
 
@@ -331,7 +504,9 @@ WHERE product_id = ?
 
 `);
 
-const setInventoryStmt = db.prepare(`
+const setInventoryStmt =
+
+  db.prepare(`
 
 UPDATE inventory
 
@@ -341,7 +516,9 @@ WHERE product_id = ?
 
 `);
 
-const reserveInventoryStmt = db.prepare(`
+const reserveInventoryStmt =
+
+  db.prepare(`
 
 UPDATE inventory
 
@@ -349,11 +526,13 @@ SET stock = stock - ?
 
 WHERE product_id = ?
 
-AND stock >= ?
+  AND stock >= ?
 
 `);
 
-const restoreInventoryStmt = db.prepare(`
+const restoreInventoryStmt =
+
+  db.prepare(`
 
 UPDATE inventory
 
@@ -363,449 +542,973 @@ WHERE product_id = ?
 
 `);
 
+/* =========================================================
+
+   PRODUCTS
+
+   ========================================================= */
+
 let products = [];
 
 try {
 
-products = JSON.parse(
+  products =
 
-readFileSync(
+    JSON.parse(
 
-path.join(__dirname, "public", "products.json"),
+      readFileSync(
 
-"utf8"
+        path.join(
 
-)
+          __dirname,
 
-);
+          "public",
 
-if (!Array.isArray(products)) {
+          "products.json"
 
-throw new Error("products.json must contain an array.");
+        ),
 
-}
+        "utf8"
+
+      )
+
+    );
+
+  if (
+
+    !Array.isArray(
+
+      products
+
+    )
+
+  ) {
+
+    throw new Error(
+
+      "products.json must contain an array."
+
+    );
+
+  }
 
 } catch (err) {
 
-console.error("PRODUCT LOAD ERROR:", err);
+  console.error(
 
-process.exit(1);
+    "PRODUCT LOAD ERROR:",
 
-}
+    err
 
-const productsById = new Map(
+  );
 
-products.map(product => [
-
-Number(product.id),
-
-product
-
-])
-
-);
-
-for (const product of products) {
-
-const id = Number(product.id);
-
-const originalStock = Number(product.stock);
-
-if (!Number.isInteger(id)) {
-
-continue;
+  process.exit(1);
 
 }
 
-if (Number.isFinite(originalStock)) {
+const productsById =
 
-insertInventoryStmt.run(
+  new Map(
 
-id,
+    products.map(
 
-Math.max(0, Math.floor(originalStock))
+      product => [
 
-);
+        Number(product.id),
+
+        product
+
+      ]
+
+    )
+
+  );
+
+/* =========================================================
+
+   INVENTORY INITIALISATION
+
+   ========================================================= */
+
+for (
+
+  const product
+
+  of products
+
+) {
+
+  const id =
+
+    Number(product.id);
+
+  const originalStock =
+
+    Number(product.stock);
+
+  if (
+
+    !Number.isInteger(id)
+
+  ) {
+
+    continue;
+
+  }
+
+  if (
+
+    Number.isFinite(
+
+      originalStock
+
+    )
+
+  ) {
+
+    insertInventoryStmt.run(
+
+      id,
+
+      Math.max(
+
+        0,
+
+        Math.floor(
+
+          originalStock
+
+        )
+
+      )
+
+    );
+
+  }
 
 }
 
-}
+/* =========================================================
 
-function getLiveStock(productId) {
+   INVENTORY HELPERS
 
-const row = getInventoryStmt.get(
+   ========================================================= */
 
-Number(productId)
+function getLiveStock(
 
-);
+  productId
 
-if (!row) {
+) {
 
-return null;
+  const row =
 
-}
+    getInventoryStmt.get(
 
-return Number(row.stock);
+      Number(productId)
+
+    );
+
+  if (!row) {
+
+    return null;
+
+  }
+
+  return Number(
+
+    row.stock
+
+  );
 
 }
 
 function getLiveProducts() {
 
-return products.map(product => {
+  return products.map(
 
-const liveStock = getLiveStock(
+    product => {
 
-product.id
+      const liveStock =
 
-);
+        getLiveStock(
 
-return {
+          product.id
 
-...product,
+        );
 
-stock:
+      return {
 
-liveStock !== null
+        ...product,
 
-? liveStock
+        stock:
 
-: product.stock
+          liveStock !== null
 
-};
+            ? liveStock
 
-});
+            : product.stock
+
+      };
+
+    }
+
+  );
 
 }
 
-app.get("/products.json", (_req, res) => {
+/* =========================================================
 
-res.json(getLiveProducts());
+   LIVE PRODUCTS ROUTES
 
-});
+   ========================================================= */
 
-app.get("/api/products", (_req, res) => {
+app.get(
 
-res.json(getLiveProducts());
+  "/products.json",
 
-});
+  (
+
+    _req,
+
+    res
+
+  ) => {
+
+    res.json(
+
+      getLiveProducts()
+
+    );
+
+  }
+
+);
+
+app.get(
+
+  "/api/products",
+
+  (
+
+    _req,
+
+    res
+
+  ) => {
+
+    res.json(
+
+      getLiveProducts()
+
+    );
+
+  }
+
+);
+
+/* =========================================================
+
+   STATIC
+
+   ========================================================= */
 
 app.use(
 
-express.static(
+  express.static(
 
-path.join(__dirname, "public")
+    path.join(
 
-)
+      __dirname,
+
+      "public"
+
+    )
+
+  )
 
 );
 
-const orders = new Map();
+/* =========================================================
 
-const discountCodes = new Map();
+   IN-MEMORY STATE
 
-const referralEarnings = new Map();
+   ========================================================= */
+
+const orders =
+
+  new Map();
+
+const discountCodes =
+
+  new Map();
+
+const referralEarnings =
+
+  new Map();
 
 let nextOrderId = 1001;
 
-for (
+/* =========================================================
 
-const row of db
+   LOAD ORDERS
 
-.prepare("SELECT id, json FROM orders")
-
-.all()
-
-) {
-
-try {
-
-orders.set(
-
-Number(row.id),
-
-JSON.parse(row.json)
-
-);
-
-} catch {}
-
-}
+   ========================================================= */
 
 for (
 
-const row of db
+  const row
 
-.prepare("SELECT code, json FROM discount_codes")
+  of db
 
-.all()
+    .prepare(
+
+      `
+
+SELECT
+
+  id,
+
+  json
+
+FROM orders
+
+`
+
+    )
+
+    .all()
 
 ) {
 
-try {
+  try {
 
-discountCodes.set(
+    orders.set(
 
-String(row.code).toUpperCase(),
+      Number(row.id),
 
-JSON.parse(row.json)
+      JSON.parse(
 
-);
+        row.json
 
-} catch {}
+      )
+
+    );
+
+  } catch {}
 
 }
+
+/* =========================================================
+
+   LOAD DISCOUNT CODES
+
+   ========================================================= */
 
 for (
 
-const row of db
+  const row
 
-.prepare("SELECT code, json FROM referral_earnings")
+  of db
 
-.all()
+    .prepare(
+
+      `
+
+SELECT
+
+  code,
+
+  json
+
+FROM discount_codes
+
+`
+
+    )
+
+    .all()
 
 ) {
 
-try {
+  try {
 
-referralEarnings.set(
+    discountCodes.set(
 
-String(row.code).toUpperCase(),
+      String(
 
-JSON.parse(row.json)
+        row.code
 
-);
+      ).toUpperCase(),
 
-} catch {}
+      JSON.parse(
 
-}
+        row.json
 
-const savedNextOrderId = db
+      )
 
-.prepare(
+    );
 
-"SELECT value FROM meta WHERE key = ?"
-
-)
-
-.get("nextOrderId");
-
-if (savedNextOrderId) {
-
-nextOrderId =
-
-Number(savedNextOrderId.value) ||
-
-1001;
+  } catch {}
 
 }
 
-function money(pence) {
+/* =========================================================
 
-return `£${(
+   LOAD REFERRAL EARNINGS
 
-Number(pence || 0) / 100
+   ========================================================= */
 
-).toFixed(2)}`;
+for (
 
-}
+  const row
 
-function normaliseCode(value) {
+  of db
 
-return String(value || "")
+    .prepare(
 
-.trim()
+      `
 
-.toUpperCase();
+SELECT
 
-}
+  code,
 
-function normaliseUsername(value) {
+  json
 
-return String(value || "")
+FROM referral_earnings
 
-.replace(/^@/, "")
+`
 
-.trim()
+    )
 
-.toLowerCase();
+    .all()
 
-}
+) {
 
-function saveOrder(order) {
+  try {
 
-orders.set(
+    referralEarnings.set(
 
-Number(order.orderId),
+      String(
 
-order
+        row.code
 
-);
+      ).toUpperCase(),
 
-upsertOrderStmt.run(
+      JSON.parse(
 
-Number(order.orderId),
+        row.json
 
-JSON.stringify(order)
+      )
 
-);
+    );
 
-}
-
-function saveNextOrderId(value) {
-
-nextOrderId = value;
-
-upsertMetaStmt.run(
-
-"nextOrderId",
-
-String(value)
-
-);
+  } catch {}
 
 }
 
-function getMetaValue(key, fallback = null) {
+/* =========================================================
 
-const row = db
+   NEXT ORDER ID
 
-.prepare("SELECT value FROM meta WHERE key = ?")
+   ========================================================= */
 
-.get(key);
+const savedNextOrderId =
 
-return row ? row.value : fallback;
+  db
+
+    .prepare(
+
+      `
+
+SELECT value
+
+FROM meta
+
+WHERE key = ?
+
+`
+
+    )
+
+    .get(
+
+      "nextOrderId"
+
+    );
+
+if (
+
+  savedNextOrderId
+
+) {
+
+  nextOrderId =
+
+    Number(
+
+      savedNextOrderId.value
+
+    ) ||
+
+    1001;
 
 }
 
-function setMetaValue(key, value) {
+/* =========================================================
 
-upsertMetaStmt.run(
+   BASIC HELPERS
 
-key,
+   ========================================================= */
 
-String(value)
+function money(
 
-);
+  pence
+
+) {
+
+  return (
+
+    `£${(
+
+      Number(
+
+        pence ||
+
+        0
+
+      ) /
+
+      100
+
+    ).toFixed(2)}`
+
+  );
 
 }
+
+function normaliseCode(
+
+  value
+
+) {
+
+  return String(
+
+    value ||
+
+    ""
+
+  )
+
+    .trim()
+
+    .toUpperCase();
+
+}
+
+function normaliseUsername(
+
+  value
+
+) {
+
+  return String(
+
+    value ||
+
+    ""
+
+  )
+
+    .replace(
+
+      /^@/,
+
+      ""
+
+    )
+
+    .trim()
+
+    .toLowerCase();
+
+}
+
+/* =========================================================
+
+   ORDER SAVE
+
+   ========================================================= */
+
+function saveOrder(
+
+  order
+
+) {
+
+  orders.set(
+
+    Number(
+
+      order.orderId
+
+    ),
+
+    order
+
+  );
+
+  upsertOrderStmt.run(
+
+    Number(
+
+      order.orderId
+
+    ),
+
+    JSON.stringify(
+
+      order
+
+    )
+
+  );
+
+}
+
+function saveNextOrderId(
+
+  value
+
+) {
+
+  nextOrderId =
+
+    value;
+
+  upsertMetaStmt.run(
+
+    "nextOrderId",
+
+    String(value)
+
+  );
+
+}
+
+/* =========================================================
+
+   META
+
+   ========================================================= */
+
+function getMetaValue(
+
+  key,
+
+  fallback = null
+
+) {
+
+  const row =
+
+    db
+
+      .prepare(
+
+        `
+
+SELECT value
+
+FROM meta
+
+WHERE key = ?
+
+`
+
+      )
+
+      .get(key);
+
+  return row
+
+    ? row.value
+
+    : fallback;
+
+}
+
+function setMetaValue(
+
+  key,
+
+  value
+
+) {
+
+  upsertMetaStmt.run(
+
+    key,
+
+    String(value)
+
+  );
+
+}
+
+/* =========================================================
+
+   STORE-WIDE PROMO HELPERS
+
+   ========================================================= */
 
 function getStorewidePromo() {
 
-return {
+  return {
 
-code: normaliseCode(
+    code:
 
-getMetaValue(
+      normaliseCode(
 
-"storewidePromo:code",
+        getMetaValue(
 
-STOREWIDE_PROMO_DEFAULTS.code
+          "storewidePromo:code",
 
-)
+          STOREWIDE_PROMO_DEFAULTS.code
 
-),
+        )
 
-discountPercent: Number(
+      ),
 
-getMetaValue(
+    discountPercent:
 
-"storewidePromo:discountPercent",
+      Number(
 
-STOREWIDE_PROMO_DEFAULTS.discountPercent
+        getMetaValue(
 
-)
+          "storewidePromo:discountPercent",
 
-) || STOREWIDE_PROMO_DEFAULTS.discountPercent,
+          STOREWIDE_PROMO_DEFAULTS.discountPercent
 
-active: String(
+        )
 
-getMetaValue(
+      ) ||
 
-"storewidePromo:active",
+      STOREWIDE_PROMO_DEFAULTS.discountPercent,
 
-STOREWIDE_PROMO_DEFAULTS.active ? "true" : "false"
+    active:
 
-)
+      String(
 
-) === "true"
+        getMetaValue(
 
-};
+          "storewidePromo:active",
 
-}
+          STOREWIDE_PROMO_DEFAULTS.active
 
-function isStorewidePromoLive(promo = getStorewidePromo()) {
+            ? "true"
 
-return Boolean(
+            : "false"
 
-promo &&
+        )
 
-promo.active
+      ) ===
 
-);
+      "true"
 
-}
-
-function storewideDiscountForSubtotal(subtotalPence, promo = getStorewidePromo()) {
-
-if (!promo || !isStorewidePromoLive(promo)) return 0;
-
-const discountPercent = Number(
-
-promo.discountPercent || 0
-
-);
-
-if (!Number.isFinite(discountPercent) || discountPercent <= 0) {
-
-return 0;
+  };
 
 }
 
-const discount = Math.round(
+function isStorewidePromoLive(
 
-Number(subtotalPence) *
+  promo =
 
-(discountPercent / 100)
+    getStorewidePromo()
 
-);
+) {
 
-return Math.min(
+  return Boolean(
 
-Number(subtotalPence),
+    promo &&
 
-Math.max(0, discount)
+    promo.active
 
-);
+  );
 
 }
+
+function storewideDiscountForSubtotal(
+
+  subtotalPence,
+
+  promo =
+
+    getStorewidePromo()
+
+) {
+
+  if (
+
+    !promo ||
+
+    !isStorewidePromoLive(
+
+      promo
+
+    )
+
+  ) {
+
+    return 0;
+
+  }
+
+  const discountPercent =
+
+    Number(
+
+      promo.discountPercent ||
+
+      0
+
+    );
+
+  if (
+
+    !Number.isFinite(
+
+      discountPercent
+
+    ) ||
+
+    discountPercent <=
+
+      0
+
+  ) {
+
+    return 0;
+
+  }
+
+  const discount =
+
+    Math.round(
+
+      Number(
+
+        subtotalPence
+
+      ) *
+
+      (
+
+        discountPercent /
+
+        100
+
+      )
+
+    );
+
+  return Math.min(
+
+    Number(
+
+      subtotalPence
+
+    ),
+
+    Math.max(
+
+      0,
+
+      discount
+
+    )
+
+  );
+
+}
+
+/* =========================================================
+
+   AFFILIATE EARNINGS TEXT
+
+   ========================================================= */
 
 function getAffiliateEarningsText() {
 
-let totalBalancePence = 0;
+  let totalBalancePence = 0;
 
-let totalEarnedPence = 0;
+  let totalEarnedPence = 0;
 
-let totalPaidOutPence = 0;
+  let totalPaidOutPence = 0;
 
-const sections = affiliateCodes.map(affiliate => {
+  const sections =
 
-const record = referralEarnings.get(affiliate.code);
+    affiliateCodes.map(
 
-const balancePence = Number(record?.balancePence || 0);
+      affiliate => {
 
-const totalEarnedPenceForCode = Number(record?.totalEarnedPence || 0);
+        const record =
 
-const paidOutPence = Number(record?.paidOutPence || 0);
+          referralEarnings.get(
 
-totalBalancePence += balancePence;
+            affiliate.code
 
-totalEarnedPence += totalEarnedPenceForCode;
+          );
 
-totalPaidOutPence += paidOutPence;
+        const balancePence =
 
-return `👤 ${affiliate.owner}
+          Number(
 
-Code: ${affiliate.code}
+            record?.balancePence ||
+
+            0
+
+          );
+
+        const totalEarnedPenceForCode =
+
+          Number(
+
+            record?.totalEarnedPence ||
+
+            0
+
+          );
+
+        const paidOutPence =
+
+          Number(
+
+            record?.paidOutPence ||
+
+            0
+
+          );
+
+        totalBalancePence +=
+
+          balancePence;
+
+        totalEarnedPence +=
+
+          totalEarnedPenceForCode;
+
+        totalPaidOutPence +=
+
+          paidOutPence;
+
+        return (
+
+`👤 ${affiliate.owner}
+
+Code:
+
+${affiliate.code}
 
 Currently owed:
 
@@ -813,1161 +1516,1987 @@ ${money(balancePence)}
 
 Lifetime earned:
 
-${money(totalEarnedPenceForCode)}
+${money(
+
+  totalEarnedPenceForCode
+
+)}
 
 Paid out:
 
-${money(paidOutPence)}`;
+${money(
 
-});
+  paidOutPence
 
-return `💰 AFFILIATE EARNINGS
+)}`
 
-${sections.join("\n\n")}
+        );
+
+      }
+
+    );
+
+  return (
+
+`💰 AFFILIATE EARNINGS
+
+${sections.join(
+
+  "\n\n"
+
+)}
 
 ━━━━━━━━━━━━━━
 
 TOTAL CURRENTLY OWED:
 
-${money(totalBalancePence)}
+${money(
+
+  totalBalancePence
+
+)}
 
 TOTAL AFFILIATE EARNINGS:
 
-${money(totalEarnedPence)}
+${money(
+
+  totalEarnedPence
+
+)}
 
 TOTAL PAID OUT:
 
-${money(totalPaidOutPence)}`;
+${money(
+
+  totalPaidOutPence
+
+)}`
+
+  );
 
 }
+
+/* =========================================================
+
+   SAVE DISCOUNT
+
+   ========================================================= */
 
 function saveDiscountCode(
 
-code,
+  code,
 
-record
+  record
 
 ) {
 
-const clean = normaliseCode(code);
+  const clean =
 
-discountCodes.set(
+    normaliseCode(
 
-clean,
+      code
 
-record
+    );
 
-);
+  discountCodes.set(
 
-upsertDiscountStmt.run(
+    clean,
 
-clean,
+    record
 
-JSON.stringify(record)
+  );
 
-);
+  upsertDiscountStmt.run(
+
+    clean,
+
+    JSON.stringify(
+
+      record
+
+    )
+
+  );
 
 }
+
+/* =========================================================
+
+   SAVE REFERRAL EARNINGS
+
+   ========================================================= */
 
 function saveReferralEarnings(
 
-code,
+  code,
 
-record
+  record
 
 ) {
 
-const clean = normaliseCode(code);
+  const clean =
 
-referralEarnings.set(
+    normaliseCode(
 
-clean,
+      code
 
-record
+    );
 
-);
+  referralEarnings.set(
 
-upsertReferralStmt.run(
+    clean,
 
-clean,
+    record
 
-JSON.stringify(record)
+  );
 
-);
+  upsertReferralStmt.run(
+
+    clean,
+
+    JSON.stringify(
+
+      record
+
+    )
+
+  );
 
 }
+
+/* =========================================================
+
+   DISCOUNT CALCULATION
+
+   ========================================================= */
 
 function calculateDiscount(
 
-subtotalPence,
+  subtotalPence,
 
-record
-
-) {
-
-if (!record) {
-
-return 0;
-
-}
-
-if (
-
-record.discountType ===
-
-"percent"
+  record
 
 ) {
 
-return Math.min(
+  if (!record) {
 
-subtotalPence,
+    return 0;
 
-Math.round(
+  }
 
-subtotalPence *
+  if (
 
-(
+    record.discountType ===
 
-Number(record.discountValue) /
+    "percent"
 
-100
+  ) {
 
-)
+    return Math.min(
 
-)
+      subtotalPence,
 
-);
+      Math.round(
+
+        subtotalPence *
+
+        (
+
+          Number(
+
+            record.discountValue
+
+          ) /
+
+          100
+
+        )
+
+      )
+
+    );
+
+  }
+
+  return Math.min(
+
+    subtotalPence,
+
+    Number(
+
+      record.discountValue ||
+
+      0
+
+    )
+
+  );
 
 }
 
-return Math.min(
+/* =========================================================
 
-subtotalPence,
+   ORDER OWNERSHIP
 
-Number(
-
-record.discountValue ||
-
-0
-
-)
-
-);
-
-}
+   ========================================================= */
 
 function orderBelongsToViewer(
 
-order,
+  order,
 
-viewer
+  viewer
 
 ) {
+
+  if (
+
+    viewer.telegramId &&
+
+    order.telegramId &&
+
+    String(
+
+      viewer.telegramId
+
+    ) ===
+
+    String(
+
+      order.telegramId
+
+    )
+
+  ) {
+
+    return true;
+
+  }
+
+  const a =
+
+    normaliseUsername(
+
+      order.telegramUsername
+
+    );
+
+  const b =
+
+    normaliseUsername(
+
+      viewer.telegramUsername
+
+    );
+
+  return Boolean(
+
+    a &&
+
+    b &&
+
+    a === b
+
+  );
+
+}
+
+/* =========================================================
+
+   ADMIN
+
+   ========================================================= */
+
+function isAdmin(
+
+  userId
+
+) {
+
+  return Boolean(
+
+    adminTelegramId &&
+
+    String(userId) ===
+
+      String(
+
+        adminTelegramId
+
+      )
+
+  );
+
+}
+
+/* =========================================================
+
+   INITIALISE AFFILIATES
+
+   ========================================================= */
+
+for (
+
+  const affiliate
+
+  of affiliateCodes
+
+) {
+
+  saveDiscountCode(
+
+    affiliate.code,
+
+    {
+
+      code:
+
+        affiliate.code,
+
+      discountType:
+
+        "percent",
+
+      discountValue:
+
+        AFFILIATE_DISCOUNT_PERCENT,
+
+      referralOwner:
+
+        affiliate.owner,
+
+      commissionPercent:
+
+        AFFILIATE_COMMISSION_PERCENT,
+
+      cashOnly:
+
+        true,
+
+      active:
+
+        true,
+
+      protected:
+
+        true
+
+    }
+
+  );
+
+  if (
+
+    !referralEarnings.has(
+
+      affiliate.code
+
+    )
+
+  ) {
+
+    saveReferralEarnings(
+
+      affiliate.code,
+
+      {
+
+        code:
+
+          affiliate.code,
+
+        owner:
+
+          affiliate.owner,
+
+        balancePence:
+
+          0,
+
+        totalEarnedPence:
+
+          0,
+
+        paidOutPence:
+
+          0,
+
+        cashOnly:
+
+          true
+
+      }
+
+    );
+
+  } else {
+
+    const existing =
+
+      referralEarnings.get(
+
+        affiliate.code
+
+      );
+
+    existing.owner =
+
+      affiliate.owner;
+
+    existing.cashOnly =
+
+      true;
+
+    existing.balancePence =
+
+      Number(
+
+        existing.balancePence ||
+
+        0
+
+      );
+
+    existing.totalEarnedPence =
+
+      Number(
+
+        existing.totalEarnedPence ||
+
+        0
+
+      );
+
+    existing.paidOutPence =
+
+      Number(
+
+        existing.paidOutPence ||
+
+        0
+
+      );
+
+    saveReferralEarnings(
+
+      affiliate.code,
+
+      existing
+
+    );
+
+  }
+
+}
+
+/* =========================================================
+
+   INITIALISE STORE PROMO META
+
+   ========================================================= */
 
 if (
 
-viewer.telegramId &&
+  getMetaValue(
 
-order.telegramId &&
+    "storewidePromo:code"
 
-String(viewer.telegramId) ===
+  ) ===
 
-String(order.telegramId)
+  null
 
 ) {
 
-return true;
+  setMetaValue(
+
+    "storewidePromo:code",
+
+    STOREWIDE_PROMO_DEFAULTS.code
+
+  );
 
 }
-
-const a = normaliseUsername(
-
-order.telegramUsername
-
-);
-
-const b = normaliseUsername(
-
-viewer.telegramUsername
-
-);
-
-return Boolean(
-
-a &&
-
-b &&
-
-a === b
-
-);
-
-}
-
-function isAdmin(userId) {
 
 if (
 
-userId === undefined ||
+  getMetaValue(
 
-userId === null
+    "storewidePromo:discountPercent"
+
+  ) ===
+
+  null
 
 ) {
 
-return false;
+  setMetaValue(
+
+    "storewidePromo:discountPercent",
+
+    STOREWIDE_PROMO_DEFAULTS.discountPercent
+
+  );
 
 }
 
-return configuredAdminIds.has(
+if (
 
-String(userId)
+  getMetaValue(
 
-);
+    "storewidePromo:active"
 
-}
+  ) ===
 
-for (const affiliate of affiliateCodes) {
+  null
 
-saveDiscountCode(
+) {
 
-affiliate.code,
+  setMetaValue(
 
-{
+    "storewidePromo:active",
 
-code: affiliate.code,
+    STOREWIDE_PROMO_DEFAULTS.active
 
-discountType: "percent",
-
-discountValue: AFFILIATE_DISCOUNT_PERCENT,
-
-referralOwner: affiliate.owner,
-
-commissionPercent: AFFILIATE_COMMISSION_PERCENT,
-
-cashOnly: true,
-
-active: true,
-
-protected: true
+  );
 
 }
 
-);
+/* =========================================================
 
-if (!referralEarnings.has(affiliate.code)) {
+   REFERRAL CREDIT
 
-saveReferralEarnings(
-
-affiliate.code,
-
-{
-
-code: affiliate.code,
-
-owner: affiliate.owner,
-
-balancePence: 0,
-
-totalEarnedPence: 0,
-
-paidOutPence: 0,
-
-cashOnly: true
-
-}
-
-);
-
-} else {
-
-const existing = referralEarnings.get(affiliate.code);
-
-existing.owner = affiliate.owner;
-
-existing.cashOnly = true;
-
-existing.balancePence = Number(existing.balancePence || 0);
-
-existing.totalEarnedPence = Number(existing.totalEarnedPence || 0);
-
-existing.paidOutPence = Number(existing.paidOutPence || 0);
-
-saveReferralEarnings(
-
-affiliate.code,
-
-existing
-
-);
-
-}
-
-}
-
-if (getMetaValue("storewidePromo:code") === null) {
-
-setMetaValue("storewidePromo:code", STOREWIDE_PROMO_DEFAULTS.code);
-
-}
-
-if (getMetaValue("storewidePromo:discountPercent") === null) {
-
-setMetaValue("storewidePromo:discountPercent", STOREWIDE_PROMO_DEFAULTS.discountPercent);
-
-}
-
-if (getMetaValue("storewidePromo:active") === null) {
-
-setMetaValue("storewidePromo:active", STOREWIDE_PROMO_DEFAULTS.active);
-
-}
+   ========================================================= */
 
 function creditReferralForOrder(
 
-order
+  order
 
 ) {
 
-if (
+  if (
 
-!order ||
+    !order ||
 
-order.referralCredited ||
+    order.referralCredited ||
 
-!order.discountCode ||
+    !order.discountCode ||
 
-!order.referralCommissionPence
+    !order.referralCommissionPence
+
+  ) {
+
+    return;
+
+  }
+
+  const code =
+
+    normaliseCode(
+
+      order.discountCode
+
+    );
+
+  const record =
+
+    referralEarnings.get(
+
+      code
+
+    ) ||
+
+    {
+
+      code,
+
+      owner:
+
+        order.referralOwner ||
+
+        null,
+
+      balancePence:
+
+        0,
+
+      totalEarnedPence:
+
+        0,
+
+      paidOutPence:
+
+        0,
+
+      cashOnly:
+
+        false
+
+    };
+
+  record.owner =
+
+    record.owner ||
+
+    order.referralOwner ||
+
+    null;
+
+  record.balancePence =
+
+    Number(
+
+      record.balancePence ||
+
+      0
+
+    ) +
+
+    Number(
+
+      order.referralCommissionPence ||
+
+      0
+
+    );
+
+  record.totalEarnedPence =
+
+    Number(
+
+      record.totalEarnedPence ||
+
+      0
+
+    ) +
+
+    Number(
+
+      order.referralCommissionPence ||
+
+      0
+
+    );
+
+  saveReferralEarnings(
+
+    code,
+
+    record
+
+  );
+
+  order.referralCredited =
+
+    true;
+
+  saveOrder(
+
+    order
+
+  );
+
+}
+
+/* =========================================================
+
+   STOCK RESERVATION
+
+   ========================================================= */
+
+function reserveStockForOrder(
+
+  order
 
 ) {
 
-return;
+  if (
+
+    order.stockReserved ||
+
+    order.stockDeducted
+
+  ) {
+
+    return {
+
+      ok: true,
+
+      alreadyDone: true
+
+    };
+
+  }
+
+  db.exec(
+
+    "BEGIN IMMEDIATE"
+
+  );
+
+  try {
+
+    for (
+
+      const item
+
+      of order.items ||
+
+      []
+
+    ) {
+
+      const liveStock =
+
+        getLiveStock(
+
+          item.id
+
+        );
+
+      if (
+
+        liveStock ===
+
+        null
+
+      ) {
+
+        continue;
+
+      }
+
+      const qty =
+
+        Number(
+
+          item.quantity ||
+
+          0
+
+        );
+
+      const result =
+
+        reserveInventoryStmt.run(
+
+          qty,
+
+          Number(
+
+            item.id
+
+          ),
+
+          qty
+
+        );
+
+      if (
+
+        Number(
+
+          result.changes ||
+
+          0
+
+        ) !==
+
+        1
+
+      ) {
+
+        throw new Error(
+
+          `Not enough stock remaining for ${item.name}. Available: ${getLiveStock(item.id) ?? 0}.`
+
+        );
+
+      }
+
+    }
+
+    db.exec(
+
+      "COMMIT"
+
+    );
+
+  } catch (err) {
+
+    db.exec(
+
+      "ROLLBACK"
+
+    );
+
+    return {
+
+      ok: false,
+
+      error:
+
+        err?.message ||
+
+        "Could not reserve stock."
+
+    };
+
+  }
+
+  const now =
+
+    Date.now();
+
+  order.stockReserved =
+
+    true;
+
+  order.stockReservationReleased =
+
+    false;
+
+  order.stockReservedAt =
+
+    new Date(
+
+      now
+
+    ).toISOString();
+
+  order.reservationExpiresAt =
+
+    new Date(
+
+      now +
+
+      STOCK_RESERVATION_MS
+
+    ).toISOString();
+
+  return {
+
+    ok: true
+
+  };
 
 }
 
-const code = normaliseCode(
+/* =========================================================
 
-order.discountCode
+   RESTORE RESERVED STOCK
 
-);
+   ========================================================= */
 
-const record =
+function restoreReservedStock(
 
-referralEarnings.get(code) ||
-
-{
-
-code,
-
-owner:
-
-order.referralOwner ||
-
-null,
-
-balancePence: 0,
-
-totalEarnedPence: 0,
-
-paidOutPence: 0,
-
-cashOnly: false
-
-};
-
-record.owner =
-
-record.owner ||
-
-order.referralOwner ||
-
-null;
-
-record.balancePence =
-
-Number(record.balancePence || 0) +
-
-Number(
-
-order.referralCommissionPence ||
-
-0
-
-);
-
-record.totalEarnedPence =
-
-Number(
-
-record.totalEarnedPence ||
-
-0
-
-) +
-
-Number(
-
-order.referralCommissionPence ||
-
-0
-
-);
-
-saveReferralEarnings(
-
-code,
-
-record
-
-);
-
-order.referralCredited = true;
-
-saveOrder(order);
-
-}
-
-function reserveStockForOrder(order) {
-
-if (order.stockReserved || order.stockDeducted) {
-
-return { ok: true, alreadyDone: true };
-
-}
-
-db.exec("BEGIN IMMEDIATE");
-
-try {
-
-for (const item of order.items || []) {
-
-const liveStock = getLiveStock(item.id);
-
-if (liveStock === null) {
-
-continue;
-
-}
-
-const qty = Number(item.quantity || 0);
-
-const result = reserveInventoryStmt.run(
-
-qty,
-
-Number(item.id),
-
-qty
-
-);
-
-if (Number(result.changes || 0) !== 1) {
-
-throw new Error(
-
-`Not enough stock remaining for ${item.name}. Available: ${getLiveStock(item.id) ?? 0}.`
-
-);
-
-}
-
-}
-
-db.exec("COMMIT");
-
-} catch (err) {
-
-db.exec("ROLLBACK");
-
-return {
-
-ok: false,
-
-error: err?.message || "Could not reserve stock."
-
-};
-
-}
-
-const now = Date.now();
-
-order.stockReserved = true;
-
-order.stockReservationReleased = false;
-
-order.stockReservedAt = new Date(now).toISOString();
-
-order.reservationExpiresAt = new Date(
-
-now + STOCK_RESERVATION_MS
-
-).toISOString();
-
-return { ok: true };
-
-}
-
-function restoreReservedStock(order) {
-
-if (!order?.stockReserved || order.stockReservationReleased) {
-
-return { ok: true, alreadyDone: true };
-
-}
-
-db.exec("BEGIN IMMEDIATE");
-
-try {
-
-for (const item of order.items || []) {
-
-const liveStock = getLiveStock(item.id);
-
-if (liveStock === null) {
-
-continue;
-
-}
-
-restoreInventoryStmt.run(
-
-Number(item.quantity || 0),
-
-Number(item.id)
-
-);
-
-}
-
-db.exec("COMMIT");
-
-} catch (err) {
-
-db.exec("ROLLBACK");
-
-throw err;
-
-}
-
-order.stockReserved = false;
-
-order.stockReservationReleased = true;
-
-order.stockReleasedAt = new Date().toISOString();
-
-return { ok: true };
-
-}
-
-function restoreStoreCreditForOrder(order) {
-
-if (
-
-!order ||
-
-order.storeCreditRestored ||
-
-!order.storeCreditCode ||
-
-Number(order.storeCreditPence || 0) <= 0
+  order
 
 ) {
 
-return;
+  if (
+
+    !order?.stockReserved ||
+
+    order.stockReservationReleased
+
+  ) {
+
+    return {
+
+      ok: true,
+
+      alreadyDone: true
+
+    };
+
+  }
+
+  db.exec(
+
+    "BEGIN IMMEDIATE"
+
+  );
+
+  try {
+
+    for (
+
+      const item
+
+      of order.items ||
+
+      []
+
+    ) {
+
+      const liveStock =
+
+        getLiveStock(
+
+          item.id
+
+        );
+
+      if (
+
+        liveStock ===
+
+        null
+
+      ) {
+
+        continue;
+
+      }
+
+      restoreInventoryStmt.run(
+
+        Number(
+
+          item.quantity ||
+
+          0
+
+        ),
+
+        Number(
+
+          item.id
+
+        )
+
+      );
+
+    }
+
+    db.exec(
+
+      "COMMIT"
+
+    );
+
+  } catch (err) {
+
+    db.exec(
+
+      "ROLLBACK"
+
+    );
+
+    throw err;
+
+  }
+
+  order.stockReserved =
+
+    false;
+
+  order.stockReservationReleased =
+
+    true;
+
+  order.stockReleasedAt =
+
+    new Date().toISOString();
+
+  return {
+
+    ok: true
+
+  };
 
 }
 
-const code = normaliseCode(order.storeCreditCode);
+/* =========================================================
 
-const record = referralEarnings.get(code);
+   RESTORE STORE CREDIT
 
-if (!record || record.cashOnly === true) {
+   ========================================================= */
 
-return;
+function restoreStoreCreditForOrder(
 
-}
-
-record.balancePence =
-
-Number(record.balancePence || 0) +
-
-Number(order.storeCreditPence || 0);
-
-saveReferralEarnings(code, record);
-
-order.storeCreditRestored = true;
-
-order.storeCreditRestoredAt = new Date().toISOString();
-
-}
-
-function reservationHasExpired(order) {
-
-if (!order?.reservationExpiresAt) {
-
-return false;
-
-}
-
-const expires = new Date(order.reservationExpiresAt).getTime();
-
-return Number.isFinite(expires) && Date.now() >= expires;
-
-}
-
-function expireOrderReservation(order) {
-
-if (
-
-!order ||
-
-order.paymentStatus !== "awaiting_payment" ||
-
-!order.stockReserved ||
-
-!reservationHasExpired(order)
+  order
 
 ) {
 
-return false;
+  if (
+
+    !order ||
+
+    order.storeCreditRestored ||
+
+    !order.storeCreditCode ||
+
+    Number(
+
+      order.storeCreditPence ||
+
+      0
+
+    ) <=
+
+    0
+
+  ) {
+
+    return;
+
+  }
+
+  const code =
+
+    normaliseCode(
+
+      order.storeCreditCode
+
+    );
+
+  const record =
+
+    referralEarnings.get(
+
+      code
+
+    );
+
+  if (
+
+    !record ||
+
+    record.cashOnly ===
+
+    true
+
+  ) {
+
+    return;
+
+  }
+
+  record.balancePence =
+
+    Number(
+
+      record.balancePence ||
+
+      0
+
+    ) +
+
+    Number(
+
+      order.storeCreditPence ||
+
+      0
+
+    );
+
+  saveReferralEarnings(
+
+    code,
+
+    record
+
+  );
+
+  order.storeCreditRestored =
+
+    true;
+
+  order.storeCreditRestoredAt =
+
+    new Date().toISOString();
 
 }
 
-restoreReservedStock(order);
+/* =========================================================
 
-restoreStoreCreditForOrder(order);
+   RESERVATION EXPIRY
 
-order.paymentStatus = "cancelled";
+   ========================================================= */
 
-order.fulfilmentStatus = "cancelled";
+function reservationHasExpired(
 
-order.cancelledAt = new Date().toISOString();
+  order
 
-order.cancellationReason =
+) {
 
-`Payment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes.`;
+  if (
 
-saveOrder(order);
+    !order?.reservationExpiresAt
 
-return true;
+  ) {
+
+    return false;
+
+  }
+
+  const expires =
+
+    new Date(
+
+      order.reservationExpiresAt
+
+    ).getTime();
+
+  return (
+
+    Number.isFinite(
+
+      expires
+
+    ) &&
+
+    Date.now() >=
+
+      expires
+
+  );
+
+}
+
+function expireOrderReservation(
+
+  order
+
+) {
+
+  if (
+
+    !order ||
+
+    order.paymentStatus !==
+
+      "awaiting_payment" ||
+
+    !order.stockReserved ||
+
+    !reservationHasExpired(
+
+      order
+
+    )
+
+  ) {
+
+    return false;
+
+  }
+
+  restoreReservedStock(
+
+    order
+
+  );
+
+  restoreStoreCreditForOrder(
+
+    order
+
+  );
+
+  order.paymentStatus =
+
+    "cancelled";
+
+  order.fulfilmentStatus =
+
+    "cancelled";
+
+  order.cancelledAt =
+
+    new Date().toISOString();
+
+  order.cancellationReason =
+
+    `Payment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes.`;
+
+  saveOrder(
+
+    order
+
+  );
+
+  return true;
 
 }
 
 function expireOldReservations() {
 
-const expired = [];
+  const expired = [];
 
-for (const order of orders.values()) {
+  for (
 
-if (expireOrderReservation(order)) {
+    const order
 
-expired.push(order);
+    of orders.values()
 
-}
+  ) {
 
-}
+    if (
 
-return expired;
+      expireOrderReservation(
 
-}
+        order
 
-function deductStockForOrder(order) {
+      )
 
-if (order.stockDeducted) {
+    ) {
 
-return { ok: true, alreadyDone: true };
+      expired.push(
 
-}
+        order
 
-db.exec("BEGIN IMMEDIATE");
+      );
 
-try {
+    }
 
-for (const item of order.items || []) {
+  }
 
-const liveStock = getLiveStock(item.id);
-
-if (liveStock === null) {
-
-continue;
+  return expired;
 
 }
 
-const qty = Number(item.quantity || 0);
+/* =========================================================
 
-const result = reserveInventoryStmt.run(
+   LEGACY STOCK DEDUCTION
 
-qty,
+   ========================================================= */
 
-Number(item.id),
+function deductStockForOrder(
 
-qty
+  order
 
-);
+) {
 
-if (Number(result.changes || 0) !== 1) {
+  if (
 
-throw new Error(
+    order.stockDeducted
 
-`Not enough stock remaining for ${item.name}. Available: ${getLiveStock(item.id) ?? 0}.`
+  ) {
 
-);
+    return {
+
+      ok: true,
+
+      alreadyDone: true
+
+    };
+
+  }
+
+  db.exec(
+
+    "BEGIN IMMEDIATE"
+
+  );
+
+  try {
+
+    for (
+
+      const item
+
+      of order.items ||
+
+      []
+
+    ) {
+
+      const liveStock =
+
+        getLiveStock(
+
+          item.id
+
+        );
+
+      if (
+
+        liveStock ===
+
+        null
+
+      ) {
+
+        continue;
+
+      }
+
+      const qty =
+
+        Number(
+
+          item.quantity ||
+
+          0
+
+        );
+
+      const result =
+
+        reserveInventoryStmt.run(
+
+          qty,
+
+          Number(
+
+            item.id
+
+          ),
+
+          qty
+
+        );
+
+      if (
+
+        Number(
+
+          result.changes ||
+
+          0
+
+        ) !==
+
+        1
+
+      ) {
+
+        throw new Error(
+
+          `Not enough stock remaining for ${item.name}. Available: ${getLiveStock(item.id) ?? 0}.`
+
+        );
+
+      }
+
+    }
+
+    db.exec(
+
+      "COMMIT"
+
+    );
+
+  } catch (err) {
+
+    db.exec(
+
+      "ROLLBACK"
+
+    );
+
+    return {
+
+      ok: false,
+
+      error:
+
+        err?.message ||
+
+        "Could not deduct stock."
+
+    };
+
+  }
+
+  order.stockDeducted =
+
+    true;
+
+  order.stockDeductedAt =
+
+    new Date().toISOString();
+
+  saveOrder(
+
+    order
+
+  );
+
+  return {
+
+    ok: true
+
+  };
 
 }
 
-}
+/* =========================================================
 
-db.exec("COMMIT");
+   USDT QUOTE
 
-} catch (err) {
-
-db.exec("ROLLBACK");
-
-return {
-
-ok: false,
-
-error: err?.message || "Could not deduct stock."
-
-};
-
-}
-
-order.stockDeducted = true;
-
-order.stockDeductedAt = new Date().toISOString();
-
-saveOrder(order);
-
-return { ok: true };
-
-}
+   ========================================================= */
 
 async function getUsdtQuote(
 
-totalPence
+  totalPence
 
 ) {
 
-try {
+  try {
 
-const response =
+    const response =
 
-await fetch(
+      await fetch(
 
-"https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=gbp"
+        "https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=gbp"
 
-);
+      );
 
-if (!response.ok) {
+    if (
 
-throw new Error(
+      !response.ok
 
-`CoinGecko HTTP ${response.status}`
+    ) {
 
-);
+      throw new Error(
+
+        `CoinGecko HTTP ${response.status}`
+
+      );
+
+    }
+
+    const data =
+
+      await response.json();
+
+    const gbpPerUsdt =
+
+      Number(
+
+        data?.tether?.gbp
+
+      );
+
+    if (
+
+      !Number.isFinite(
+
+        gbpPerUsdt
+
+      ) ||
+
+      gbpPerUsdt <=
+
+        0
+
+    ) {
+
+      throw new Error(
+
+        "Invalid GBP/USDT rate"
+
+      );
+
+    }
+
+    const pounds =
+
+      Number(totalPence) /
+
+      100;
+
+    return (
+
+      pounds /
+
+      gbpPerUsdt
+
+    ).toFixed(2);
+
+  } catch (err) {
+
+    console.error(
+
+      "USDT QUOTE ERROR:",
+
+      err?.message ||
+
+      err
+
+    );
+
+    return null;
+
+  }
 
 }
 
-const data =
+/* =========================================================
 
-await response.json();
+   TELEGRAM
 
-const gbpPerUsdt =
-
-Number(
-
-data?.tether?.gbp
-
-);
-
-if (
-
-!Number.isFinite(gbpPerUsdt) ||
-
-gbpPerUsdt <= 0
-
-) {
-
-throw new Error(
-
-"Invalid GBP/USDT rate"
-
-);
-
-}
-
-const pounds =
-
-Number(totalPence) /
-
-100;
-
-return (
-
-pounds /
-
-gbpPerUsdt
-
-).toFixed(2);
-
-} catch (err) {
-
-console.error(
-
-"USDT QUOTE ERROR:",
-
-err?.message || err
-
-);
-
-return null;
-
-}
-
-}
+   ========================================================= */
 
 let bot = null;
 
 if (token) {
 
-try {
+  try {
 
-bot =
+    bot =
 
-new TelegramBot(
+      new TelegramBot(
 
-token,
+        token,
 
-{
+        {
 
-polling: true
+          polling: true
 
-}
+        }
 
-);
+      );
 
-bot.on(
+    bot.on(
 
-"polling_error",
+      "polling_error",
 
-err => {
+      err => {
 
-console.error(
+        console.error(
 
-"TELEGRAM POLLING ERROR:",
+          "TELEGRAM POLLING ERROR:",
 
-err?.response?.body ||
+          err?.response?.body ||
 
-err?.message ||
+          err?.message ||
 
-err
+          err
 
-);
+        );
 
-}
+      }
 
-);
+    );
 
-bot.on(
+    bot.on(
 
-"error",
+      "error",
 
-err => {
+      err => {
 
-console.error(
+        console.error(
 
-"TELEGRAM ERROR:",
+          "TELEGRAM ERROR:",
 
-err?.message ||
+          err?.message ||
 
-err
+          err
 
-);
+        );
 
-}
+      }
 
-);
+    );
 
-console.log(
+    console.log(
 
-"Telegram bot started."
+      "Telegram bot started."
 
-);
+    );
 
-} catch (err) {
+  } catch (err) {
 
-console.error(
+    console.error(
 
-"Telegram startup failed:",
+      "Telegram startup failed:",
 
-err
+      err
 
-);
+    );
 
-}
+  }
 
 } else {
 
-console.warn(
+  console.warn(
 
-"Telegram token missing."
+    "Telegram token missing."
 
-);
+  );
 
 }
+
+/* =========================================================
+
+   SAFE TELEGRAM SEND
+
+   ========================================================= */
 
 async function safeSendMessage(
 
-chatId,
+  chatId,
 
-message,
+  message,
 
-options
-
-) {
-
-if (
-
-!bot ||
-
-!chatId
+  options
 
 ) {
 
-return null;
+  if (
+
+    !bot ||
+
+    !chatId
+
+  ) {
+
+    return null;
+
+  }
+
+  try {
+
+    return await bot.sendMessage(
+
+      chatId,
+
+      message,
+
+      options
+
+    );
+
+  } catch (err) {
+
+    console.error(
+
+      "TELEGRAM SEND ERROR:",
+
+      err?.response?.body ||
+
+      err?.message ||
+
+      err
+
+    );
+
+    return null;
+
+  }
 
 }
 
-try {
+/* =========================================================
 
-return await bot.sendMessage(
+   RESERVATION CLEANUP
 
-chatId,
-
-message,
-
-options
-
-);
-
-} catch (err) {
-
-console.error(
-
-"TELEGRAM SEND ERROR:",
-
-err?.response?.body ||
-
-err?.message ||
-
-err
-
-);
-
-return null;
-
-}
-
-}
+   ========================================================= */
 
 async function runReservationCleanup() {
 
-const expired = expireOldReservations();
+  const expired =
 
-for (const order of expired) {
+    expireOldReservations();
 
-await safeSendMessage(
+  for (
 
-adminTelegramId,
+    const order
 
-`⌛ ORDER EXPIRED\n\nOrder: #${order.orderId}\nCustomer: ${order.customerName}\n\nPayment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes.\nReserved stock has been returned to circulation.`
+    of expired
 
-);
+  ) {
 
-if (order.telegramId) {
+    await safeSendMessage(
 
-await safeSendMessage(
+      adminTelegramId,
 
-order.telegramId,
+      `⌛ ORDER EXPIRED
 
-`⌛ Order #${order.orderId} expired because payment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes. The reserved stock has been released.`
+Order:
 
-);
+#${order.orderId}
+
+Customer:
+
+${order.customerName}
+
+Payment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes.
+
+Reserved stock has been returned to circulation.`
+
+    );
+
+    if (
+
+      order.telegramId
+
+    ) {
+
+      await safeSendMessage(
+
+        order.telegramId,
+
+        `⌛ Order #${order.orderId} expired because payment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes. The reserved stock has been released.`
+
+      );
+
+    }
+
+  }
 
 }
 
-}
+runReservationCleanup()
 
-}
+  .catch(
 
-runReservationCleanup().catch(err =>
+    err =>
 
-console.error("RESERVATION CLEANUP ERROR:", err)
+      console.error(
 
-);
+        "RESERVATION CLEANUP ERROR:",
 
-const reservationCleanupTimer = setInterval(() => {
+        err
 
-runReservationCleanup().catch(err =>
+      )
 
-console.error("RESERVATION CLEANUP ERROR:", err)
+  );
 
-);
+const reservationCleanupTimer =
 
-}, 60 * 1000);
+  setInterval(
 
-reservationCleanupTimer.unref?.();
+    () => {
 
-function getReviewUrl(order) {
+      runReservationCleanup()
 
-if (
+        .catch(
 
-!webAppUrl ||
+          err =>
 
-!order.reviewToken
+            console.error(
+
+              "RESERVATION CLEANUP ERROR:",
+
+              err
+
+            )
+
+        );
+
+    },
+
+    60 * 1000
+
+  );
+
+reservationCleanupTimer
+
+  .unref?.();
+
+/* =========================================================
+
+   REVIEW URL
+
+   ========================================================= */
+
+function getReviewUrl(
+
+  order
 
 ) {
 
-return null;
+  if (
+
+    !webAppUrl ||
+
+    !order.reviewToken
+
+  ) {
+
+    return null;
+
+  }
+
+  const base =
+
+    webAppUrl.replace(
+
+      /\/+$/,
+
+      ""
+
+    );
+
+  return (
+
+    `${base}/review/${order.orderId}` +
+
+    `?token=${encodeURIComponent(
+
+      order.reviewToken
+
+    )}`
+
+  );
 
 }
 
-const base =
+/* =========================================================
 
-webAppUrl.replace(
+   MARK ORDER PAID
 
-/\/+$/,
-
-""
-
-);
-
-return (
-
-`${base}/review/${order.orderId}` +
-
-`?token=${encodeURIComponent(
-
-order.reviewToken
-
-)}`
-
-);
-
-}
+   ========================================================= */
 
 async function markOrderPaid(
 
-order
+  order
 
 ) {
 
-if (
+  if (
 
-order.paymentStatus ===
+    order.paymentStatus ===
 
-"paid"
+    "paid"
 
-) {
+  ) {
 
-return {
+    return {
 
-ok: true,
+      ok: true,
 
-alreadyPaid: true
+      alreadyPaid: true
 
-};
+    };
 
-}
+  }
 
-if (
+  if (
 
-order.paymentStatus ===
+    order.paymentStatus ===
 
-"cancelled"
+    "cancelled"
 
-) {
+  ) {
 
-return {
+    return {
 
-ok: false,
+      ok: false,
 
-error:
+      error:
 
-"This order has been cancelled."
+        "This order has been cancelled."
 
-};
+    };
 
-}
+  }
 
-if (order.stockReserved) {
+  if (
 
-order.stockReserved = false;
+    order.stockReserved
 
-order.stockReservationReleased = false;
+  ) {
 
-order.stockCommitted = true;
+    order.stockReserved =
 
-order.stockCommittedAt = new Date().toISOString();
+      false;
 
-order.reservationExpiresAt = null;
+    order.stockReservationReleased =
 
-order.stockDeducted = true;
+      false;
 
-order.stockDeductedAt = order.stockReservedAt || new Date().toISOString();
+    order.stockCommitted =
 
-} else if (!order.stockDeducted) {
+      true;
 
-const stockResult = deductStockForOrder(order);
+    order.stockCommittedAt =
 
-if (!stockResult.ok) {
+      new Date().toISOString();
 
-return stockResult;
+    order.reservationExpiresAt =
 
-}
+      null;
 
-}
+    order.stockDeducted =
 
-order.paymentStatus = "paid";
+      true;
 
-order.paidAt =
+    order.stockDeductedAt =
 
-new Date().toISOString();
+      order.stockReservedAt ||
 
-saveOrder(order);
+      new Date().toISOString();
 
-if (
+  } else if (
 
-order.referralCommissionPence >
+    !order.stockDeducted
 
-0 &&
+  ) {
 
-!order.referralCredited
+    const stockResult =
 
-) {
+      deductStockForOrder(
 
-creditReferralForOrder(order);
+        order
 
-}
+      );
 
-const itemLines =
+    if (
 
-order.items
+      !stockResult.ok
 
-.map(
+    ) {
 
-item =>
+      return stockResult;
 
-`${item.quantity} × ${item.name}`
+    }
 
-)
+  }
 
-.join("\n");
+  order.paymentStatus =
 
-await safeSendMessage(
+    "paid";
 
-adminTelegramId,
+  order.paidAt =
+
+    new Date().toISOString();
+
+  saveOrder(
+
+    order
+
+  );
+
+  if (
+
+    order.referralCommissionPence >
+
+      0 &&
+
+    !order.referralCredited
+
+  ) {
+
+    creditReferralForOrder(
+
+      order
+
+    );
+
+  }
+
+  const itemLines =
+
+    order.items
+
+      .map(
+
+        item =>
+
+          `${item.quantity} × ${item.name}`
+
+      )
+
+      .join("\n");
+
+  await safeSendMessage(
+
+    adminTelegramId,
 
 `✅ PAYMENT CONFIRMED
 
@@ -1983,15 +3512,15 @@ Telegram:
 
 ${
 
-order.telegramUsername
+  order.telegramUsername
 
-? `@${normaliseUsername(
+    ? `@${normaliseUsername(
 
-order.telegramUsername
+        order.telegramUsername
 
-)}`
+      )}`
 
-: "Not supplied"
+    : "Not supplied"
 
 }
 
@@ -2005,31 +3534,51 @@ ${itemLines}
 
 Basket:
 
-${money(order.subtotalPence)}
+${money(
+
+  order.subtotalPence
+
+)}
 
 Discount:
 
--${money(order.discountPence)}
+-${money(
+
+  order.discountPence
+
+)}
 
 Store credit:
 
--${money(order.storeCreditPence)}
+-${money(
+
+  order.storeCreditPence
+
+)}
 
 Shipping:
 
-${money(order.shippingPence)}
+${money(
+
+  order.shippingPence
+
+)}
 
 TOTAL:
 
-${money(order.totalPence)}
+${money(
+
+  order.totalPence
+
+)}
 
 Transaction:
 
 ${
 
-order.transactionId ||
+  order.transactionId ||
 
-"Marked paid manually"
+  "Marked paid manually"
 
 }
 
@@ -2037,51 +3586,59 @@ Stock updated:
 
 ✅`
 
-);
+  );
 
-if (order.telegramId) {
+  if (
 
-const reviewUrl =
+    order.telegramId
 
-getReviewUrl(order);
+  ) {
 
-const options =
+    const reviewUrl =
 
-reviewUrl
+      getReviewUrl(
 
-? {
+        order
 
-reply_markup: {
+      );
 
-inline_keyboard: [
+    const options =
 
-[
+      reviewUrl
 
-{
+        ? {
 
-text:
+            reply_markup: {
 
-"⭐ Leave a Review",
+              inline_keyboard: [
 
-url:
+                [
 
-reviewUrl
+                  {
 
-}
+                    text:
 
-]
+                      "⭐ Leave a Review",
 
-]
+                    url:
 
-}
+                      reviewUrl
 
-}
+                  }
 
-: undefined;
+                ]
 
-await safeSendMessage(
+              ]
 
-order.telegramId,
+            }
+
+          }
+
+        : undefined;
+
+    await safeSendMessage(
+
+      order.telegramId,
 
 `✅ Payment confirmed
 
@@ -2091,999 +3648,1257 @@ Order:
 
 Total:
 
-${money(order.totalPence)}
+${money(
+
+  order.totalPence
+
+)}
 
 Your order is now being processed.
 
 Thank you for your order. ⭐`,
 
-options
+      options
 
-);
+    );
+
+  }
+
+  return {
+
+    ok: true
+
+  };
 
 }
 
-return {
+/* =========================================================
 
-ok: true
+   HEALTH
 
-};
-
-}
+   ========================================================= */
 
 app.get(
 
-"/health",
+  "/health",
 
-(_req, res) => {
+  (
 
-res.json({
+    _req,
 
-ok: true,
+    res
 
-products:
+  ) => {
 
-products.length,
+    res.json({
 
-minimumOrderPence:
+      ok: true,
 
-MINIMUM_ORDER_PENCE,
+      products:
 
-shippingPence:
+        products.length,
 
-SHIPPING_PENCE,
+      minimumOrderPence:
 
-y8Loaded:
+        MINIMUM_ORDER_PENCE,
 
-discountCodes.has(
+      shippingPence:
 
-"Y8"
+        SHIPPING_PENCE,
 
-),
+      y8Loaded:
 
-y8Owner:
+        discountCodes.has(
 
-"@Y8_JKO",
+          "Y8"
 
-telegramConfigured:
+        ),
 
-Boolean(token),
+      y8Owner:
 
-receivingAddressConfigured:
+        "@Y8_JKO",
 
-Boolean(receivingAddress),
+      telegramConfigured:
 
-etherscanConfigured:
+        Boolean(token),
 
-Boolean(etherscanApiKey)
+      receivingAddressConfigured:
 
-});
+        Boolean(
 
-}
+          receivingAddress
+
+        ),
+
+      etherscanConfigured:
+
+        Boolean(
+
+          etherscanApiKey
+
+        )
+
+    });
+
+  }
 
 );
+
+/* =========================================================
+
+   CART EVENTS
+
+   ========================================================= */
 
 app.post(
 
-"/api/cart-events",
+  "/api/cart-events",
 
-(req, res) => {
+  (
 
-const productId =
+    req,
 
-Number(
+    res
 
-req.body?.productId
+  ) => {
+
+    const productId =
+
+      Number(
+
+        req.body?.productId
+
+      );
+
+    const action =
+
+      req.body?.action;
+
+    if (
+
+      !productsById.has(
+
+        productId
+
+      ) ||
+
+      ![
+
+        "add",
+
+        "remove"
+
+      ].includes(
+
+        action
+
+      )
+
+    ) {
+
+      return res
+
+        .status(400)
+
+        .json({
+
+          error:
+
+            "Invalid cart event"
+
+        });
+
+    }
+
+    insertCartEventStmt.run(
+
+      productId,
+
+      action,
+
+      new Date().toISOString()
+
+    );
+
+    res.json({
+
+      ok: true
+
+    });
+
+  }
 
 );
 
-const action =
+/* =========================================================
 
-req.body?.action;
+   DISCOUNT LOOKUP
 
-if (
-
-!productsById.has(productId) ||
-
-!["add", "remove"].includes(
-
-action
-
-)
-
-) {
-
-return res
-
-.status(400)
-
-.json({
-
-error:
-
-"Invalid cart event"
-
-});
-
-}
-
-insertCartEventStmt.run(
-
-productId,
-
-action,
-
-new Date().toISOString()
-
-);
-
-res.json({
-
-ok: true
-
-});
-
-}
-
-);
+   ========================================================= */
 
 app.get(
 
-"/api/discount-codes/:code",
+  "/api/discount-codes/:code",
 
-(req, res) => {
+  (
 
-const code =
+    req,
 
-normaliseCode(
+    res
 
-req.params.code
+  ) => {
+
+    const code =
+
+      normaliseCode(
+
+        req.params.code
+
+      );
+
+    const record =
+
+      discountCodes.get(
+
+        code
+
+      );
+
+    if (
+
+      !record ||
+
+      record.active ===
+
+        false
+
+    ) {
+
+      return res
+
+        .status(404)
+
+        .json({
+
+          valid: false,
+
+          error:
+
+            "That code isn't valid."
+
+        });
+
+    }
+
+    return res.json({
+
+      valid: true,
+
+      code,
+
+      discountType:
+
+        record.discountType,
+
+      discountValue:
+
+        record.discountValue
+
+    });
+
+  }
 
 );
 
-const record =
+/* =========================================================
 
-discountCodes.get(code);
+   STORE-WIDE PROMO LOOKUP
 
-if (
-
-!record ||
-
-record.active === false
-
-) {
-
-return res
-
-.status(404)
-
-.json({
-
-valid: false,
-
-error:
-
-"That code isn't valid."
-
-});
-
-}
-
-return res.json({
-
-valid: true,
-
-code,
-
-discountType:
-
-record.discountType,
-
-discountValue:
-
-record.discountValue
-
-});
-
-}
-
-);
+   ========================================================= */
 
 app.get(
 
-"/api/storewide-promo/:code",
+  "/api/storewide-promo/:code",
 
-(req, res) => {
+  (
 
-const submittedCode = normaliseCode(req.params.code);
+    req,
 
-const promo = getStorewidePromo();
+    res
 
-if (submittedCode !== promo.code) {
+  ) => {
 
-return res
+    const submittedCode =
 
-.status(404)
+      normaliseCode(
 
-.json({
+        req.params.code
 
-valid: false,
+      );
 
-error: "That store promo code isn't valid."
+    const promo =
 
-});
+      getStorewidePromo();
 
-}
+    if (
 
-if (!isStorewidePromoLive(promo)) {
+      submittedCode !==
 
-return res
+      promo.code
 
-.status(400)
+    ) {
 
-.json({
+      return res
 
-valid: false,
+        .status(404)
 
-error: "That store promo isn't currently active."
+        .json({
 
-});
+          valid: false,
 
-}
+          error:
 
-return res.json({
+            "That store promo code isn't valid."
 
-valid: true,
+        });
 
-code: promo.code,
+    }
 
-discountPercent: promo.discountPercent,
+    if (
 
-active: true,
+      !isStorewidePromoLive(
 
-stackWithAffiliate: true
+        promo
 
-});
+      )
 
-}
+    ) {
+
+      return res
+
+        .status(400)
+
+        .json({
+
+          valid: false,
+
+          error:
+
+            "That store promo isn't currently active."
+
+        });
+
+    }
+
+    return res.json({
+
+      valid: true,
+
+      code:
+
+        promo.code,
+
+      discountPercent:
+
+        promo.discountPercent,
+
+      active:
+
+        true,
+
+      stackWithAffiliate:
+
+        true
+
+    });
+
+  }
 
 );
+
+/* =========================================================
+
+   REFERRAL EARNINGS
+
+   ========================================================= */
 
 app.get(
 
-"/api/referral-codes/:code/earnings",
+  "/api/referral-codes/:code/earnings",
 
-(req, res) => {
+  (
 
-const code =
+    req,
 
-normaliseCode(
+    res
 
-req.params.code
+  ) => {
+
+    const code =
+
+      normaliseCode(
+
+        req.params.code
+
+      );
+
+    const record =
+
+      referralEarnings.get(
+
+        code
+
+      );
+
+    if (
+
+      !record
+
+    ) {
+
+      return res
+
+        .status(404)
+
+        .json({
+
+          error:
+
+            "Referral code not found."
+
+        });
+
+    }
+
+    return res.json({
+
+      code,
+
+      owner:
+
+        record.owner ||
+
+        null,
+
+      balancePence:
+
+        Number(
+
+          record.balancePence ||
+
+          0
+
+        ),
+
+      totalEarnedPence:
+
+        Number(
+
+          record.totalEarnedPence ||
+
+          0
+
+        ),
+
+      paidOutPence:
+
+        Number(
+
+          record.paidOutPence ||
+
+          0
+
+        )
+
+    });
+
+  }
 
 );
 
-const record =
+/* =========================================================
 
-referralEarnings.get(code);
+   CREATE ORDER
 
-if (!record) {
-
-return res
-
-.status(404)
-
-.json({
-
-error:
-
-"Referral code not found."
-
-});
-
-}
-
-return res.json({
-
-code,
-
-owner:
-
-record.owner ||
-
-null,
-
-balancePence:
-
-Number(
-
-record.balancePence ||
-
-0
-
-),
-
-totalEarnedPence:
-
-Number(
-
-record.totalEarnedPence ||
-
-0
-
-),
-
-paidOutPence:
-
-Number(
-
-record.paidOutPence ||
-
-0
-
-)
-
-});
-
-}
-
-);
+   ========================================================= */
 
 app.post(
 
-"/api/orders",
+  "/api/orders",
 
-async (
+  async (
 
-req,
+    req,
 
-res
+    res
 
-) => {
+  ) => {
 
-try {
+    try {
 
-const {
+      const {
 
-customerName,
+        customerName,
 
-telegramUsername,
+        telegramUsername,
 
-telegramId,
+        telegramId,
 
-address,
+        address,
 
-items,
+        items,
 
-discountCode,
+        discountCode,
 
-storewideCode,
+        storewideCode,
 
-storeCreditCode
+        storeCreditCode
 
-} =
+      } =
 
-req.body || {};
+        req.body ||
 
-if (
+        {};
 
-!customerName ||
+      if (
 
-!address ||
+        !customerName ||
 
-!Array.isArray(items) ||
+        !address ||
 
-items.length === 0
+        !Array.isArray(
 
-) {
+          items
 
-return res
+        ) ||
 
-.status(400)
+        items.length ===
 
-.json({
+          0
 
-error:
+      ) {
 
-"Missing order details"
+        return res
 
-});
+          .status(400)
 
-}
+          .json({
 
-const lineItems = [];
+            error:
 
-let subtotalPence = 0;
+              "Missing order details"
 
-for (const rawItem of items) {
+          });
 
-const id =
+      }
 
-Number(rawItem?.id);
+      const lineItems = [];
 
-const quantity =
+      let subtotalPence =
 
-Number(
+        0;
 
-rawItem?.quantity
+      for (
 
-);
+        const rawItem
 
-const product =
+        of items
 
-productsById.get(id);
+      ) {
 
-if (
+        const id =
 
-!product ||
+          Number(
 
-!Number.isInteger(quantity) ||
+            rawItem?.id
 
-quantity <= 0
+          );
 
-) {
+        const quantity =
 
-return res
+          Number(
 
-.status(400)
+            rawItem?.quantity
 
-.json({
+          );
 
-error:
+        const product =
 
-"Invalid item in basket"
+          productsById.get(
 
-});
+            id
 
-}
+          );
 
-const liveStock =
+        if (
 
-getLiveStock(id);
+          !product ||
 
-if (
+          !Number.isInteger(
 
-liveStock !== null &&
+            quantity
 
-quantity > liveStock
+          ) ||
 
-) {
+          quantity <=
 
-return res
+            0
 
-.status(400)
+        ) {
 
-.json({
+          return res
 
-error:
+            .status(400)
 
-`Not enough stock for ${product.name}. Available: ${liveStock}.`
+            .json({
 
-});
+              error:
 
-}
+                "Invalid item in basket"
 
-const pricePence =
+            });
 
-Number(
+        }
 
-product.pricePence
+        const liveStock =
 
-);
+          getLiveStock(
 
-if (
+            id
 
-!Number.isInteger(
+          );
 
-pricePence
+        if (
 
-) ||
+          liveStock !==
 
-pricePence < 0
+            null &&
 
-) {
+          quantity >
 
-return res
+            liveStock
 
-.status(400)
+        ) {
 
-.json({
+          return res
 
-error:
+            .status(400)
 
-`${product.name} has an invalid price.`
+            .json({
 
-});
+              error:
 
-}
+                `Not enough stock for ${product.name}. Available: ${liveStock}.`
 
-const lineTotalPence =
+            });
 
-pricePence *
+        }
 
-quantity;
+        const pricePence =
 
-subtotalPence +=
+          Number(
 
-lineTotalPence;
+            product.pricePence
 
-lineItems.push({
+          );
 
-id:
+        if (
 
-Number(product.id),
+          !Number.isInteger(
 
-name:
+            pricePence
 
-product.name,
+          ) ||
 
-quantity,
+          pricePence <
 
-pricePence,
+            0
 
-lineTotalPence
+        ) {
 
-});
+          return res
 
-}
+            .status(400)
 
-if (
+            .json({
 
-subtotalPence <
+              error:
 
-MINIMUM_ORDER_PENCE
+                `${product.name} has an invalid price.`
 
-) {
+            });
 
-return res
+        }
 
-.status(400)
+        const lineTotalPence =
 
-.json({
+          pricePence *
 
-error:
+          quantity;
 
-"Minimum basket is £50 before discount and shipping."
+        subtotalPence +=
 
-});
+          lineTotalPence;
 
-}
+        lineItems.push({
 
-let discountPence = 0;
+          id:
 
-let appliedDiscountCode =
+            Number(
 
-null;
+              product.id
 
-let referralOwner = null;
+            ),
 
-let referralCommissionPence =
+          name:
 
-0;
+            product.name,
 
-if (discountCode) {
+          quantity,
 
-const code =
+          pricePence,
 
-normaliseCode(
+          lineTotalPence
 
-discountCode
+        });
 
-);
+      }
 
-const record =
+      if (
 
-discountCodes.get(code);
+        subtotalPence <
 
-if (
+        MINIMUM_ORDER_PENCE
 
-record &&
+      ) {
 
-record.active !== false
+        return res
 
-) {
+          .status(400)
 
-discountPence =
+          .json({
 
-calculateDiscount(
+            error:
 
-subtotalPence,
+              "Minimum basket is £50 before discount and shipping."
 
-record
+          });
 
-);
+      }
 
-appliedDiscountCode =
+      let discountPence =
 
-code;
+        0;
 
-if (
+      let appliedDiscountCode =
 
-record.referralOwner &&
+        null;
 
-Number(
+      let referralOwner =
 
-record.commissionPercent
+        null;
 
-) > 0
+      let referralCommissionPence =
 
-) {
+        0;
 
-referralOwner =
+      if (
 
-record.referralOwner;
+        discountCode
 
-referralCommissionPence =
+      ) {
 
-Math.round(
+        const code =
 
-subtotalPence *
+          normaliseCode(
 
-(
+            discountCode
 
-Number(
+          );
 
-record.commissionPercent
+        const record =
 
-) /
+          discountCodes.get(
 
-100
+            code
 
-)
+          );
 
-);
+        if (
 
-}
+          record &&
 
-}
+          record.active !==
 
-}
+            false
 
-let storewideDiscountPence = 0;
+        ) {
 
-let appliedStorewideCode = null;
+          discountPence =
 
-if (storewideCode) {
+            calculateDiscount(
 
-const promo = getStorewidePromo();
+              subtotalPence,
 
-const code = normaliseCode(storewideCode);
+              record
 
-if (
+            );
 
-code === promo.code &&
+          appliedDiscountCode =
 
-isStorewidePromoLive(promo)
+            code;
 
-) {
+          if (
 
-storewideDiscountPence =
+            record.referralOwner &&
 
-storewideDiscountForSubtotal(
+            Number(
 
-subtotalPence,
+              record.commissionPercent
 
-promo
+            ) >
 
-);
+              0
 
-appliedStorewideCode = promo.code;
+          ) {
 
-}
+            referralOwner =
 
-}
+              record.referralOwner;
 
-const totalSavingsPence =
+            referralCommissionPence =
 
-discountPence +
+              Math.round(
 
-storewideDiscountPence;
+                subtotalPence *
 
-let storeCreditPence = 0;
+                (
 
-let appliedCreditCode = null;
+                  Number(
 
-if (storeCreditCode) {
+                    record.commissionPercent
 
-const code =
+                  ) /
 
-normaliseCode(
+                  100
 
-storeCreditCode
+                )
 
-);
+              );
 
-const credit =
+          }
 
-referralEarnings.get(code);
+        }
 
-if (
+      }
 
-credit &&
+      let storewideDiscountPence =
 
-credit.cashOnly !== true
+        0;
 
-) {
+      let appliedStorewideCode =
 
-const remaining =
+        null;
 
-Math.max(
+      if (
 
-0,
+        storewideCode
 
-subtotalPence -
+      ) {
 
-discountPence -
+        const promo =
 
-storewideDiscountPence
+          getStorewidePromo();
 
-);
+        const code =
 
-storeCreditPence =
+          normaliseCode(
 
-Math.min(
+            storewideCode
 
-remaining,
+          );
 
-Number(
+        if (
 
-credit.balancePence ||
+          code ===
 
-0
+            promo.code &&
 
-)
+          isStorewidePromoLive(
 
-);
+            promo
 
-if (
+          )
 
-storeCreditPence > 0
+        ) {
 
-) {
+          storewideDiscountPence =
 
-appliedCreditCode =
+            storewideDiscountForSubtotal(
 
-code;
+              subtotalPence,
 
-credit.balancePence =
+              promo
 
-Math.max(
+            );
 
-0,
+          appliedStorewideCode =
 
-Number(
+            promo.code;
 
-credit.balancePence ||
+        }
 
-0
+      }
 
-) -
+      const totalSavingsPence =
 
-storeCreditPence
+        discountPence +
 
-);
+        storewideDiscountPence;
 
-saveReferralEarnings(
+      let storeCreditPence =
 
-code,
+        0;
 
-credit
+      let appliedCreditCode =
 
-);
+        null;
 
-}
+      if (
 
-}
+        storeCreditCode
 
-}
+      ) {
 
-const productsAfterDiscount =
+        const code =
 
-Math.max(
+          normaliseCode(
 
-0,
+            storeCreditCode
 
-subtotalPence -
+          );
 
-discountPence -
+        const credit =
 
-storewideDiscountPence -
+          referralEarnings.get(
 
-storeCreditPence
+            code
 
-);
+          );
 
-const shippingPence =
+        if (
 
-SHIPPING_PENCE;
+          credit &&
 
-const totalPence =
+          credit.cashOnly !==
 
-productsAfterDiscount +
+            true
 
-shippingPence;
+        ) {
 
-const usdtQuote =
+          const remaining =
 
-await getUsdtQuote(
+            Math.max(
 
-totalPence
+              0,
 
-);
+              subtotalPence -
 
-const orderId =
+              discountPence -
 
-nextOrderId;
+              storewideDiscountPence
 
-saveNextOrderId(
+            );
 
-nextOrderId + 1
+          storeCreditPence =
 
-);
+            Math.min(
 
-const order = {
+              remaining,
 
-orderId,
+              Number(
 
-customerName:
+                credit.balancePence ||
 
-String(
+                0
 
-customerName
+              )
 
-).trim(),
+            );
 
-telegramUsername:
+          if (
 
-telegramUsername ||
+            storeCreditPence >
 
-"",
+            0
 
-telegramId:
+          ) {
 
-telegramId ||
+            appliedCreditCode =
 
-null,
+              code;
 
-address:
+            credit.balancePence =
 
-String(
+              Math.max(
 
-address
+                0,
 
-).trim(),
+                Number(
 
-items:
+                  credit.balancePence ||
 
-lineItems,
+                  0
 
-subtotalPence,
+                ) -
 
-discountPence,
+                storeCreditPence
 
-affiliateDiscountPence: discountPence,
+              );
 
-storewideDiscountPence,
+            saveReferralEarnings(
 
-totalSavingsPence,
+              code,
 
-storeCreditPence,
+              credit
 
-shippingPence,
+            );
 
-totalPence,
+          }
 
-discountCode:
+        }
 
-appliedDiscountCode,
+      }
 
-storewideCode:
+      const productsAfterDiscount =
 
-appliedStorewideCode,
+        Math.max(
 
-storeCreditCode:
+          0,
 
-appliedCreditCode,
+          subtotalPence -
 
-referralOwner,
+          discountPence -
 
-referralCommissionPence,
+          storewideDiscountPence -
 
-referralCredited:
+          storeCreditPence
 
-false,
+        );
 
-stockDeducted:
+      const shippingPence =
 
-false,
+        SHIPPING_PENCE;
 
-stockReserved:
+      const totalPence =
 
-false,
+        productsAfterDiscount +
 
-stockReservationReleased:
+        shippingPence;
 
-false,
+      const usdtQuote =
 
-reservationExpiresAt:
+        await getUsdtQuote(
 
-null,
+          totalPence
 
-paymentStatus:
+        );
 
-"awaiting_payment",
+      const orderId =
 
-fulfilmentStatus:
+        nextOrderId;
 
-"not_shipped",
+      saveNextOrderId(
 
-quotedUsdt:
+        nextOrderId +
 
-usdtQuote,
+        1
 
-transactionId:
+      );
 
-null,
+      const order = {
 
-trackingNumber:
+        orderId,
 
-null,
+        customerName:
 
-adminNotes: [],
+          String(
 
-reviewToken:
+            customerName
 
-randomUUID(),
+          ).trim(),
 
-createdAt:
+        telegramUsername:
 
-new Date().toISOString()
+          telegramUsername ||
 
-};
+          "",
 
-const reservationResult =
+        telegramId:
 
-reserveStockForOrder(order);
+          telegramId ||
 
-if (!reservationResult.ok) {
+          null,
 
-restoreStoreCreditForOrder(order);
+        address:
 
-return res
+          String(
 
-.status(409)
+            address
 
-.json({
+          ).trim(),
 
-error:
+        items:
 
-reservationResult.error ||
+          lineItems,
 
-"One or more products are no longer available."
+        subtotalPence,
 
-});
+        discountPence,
 
-}
+        affiliateDiscountPence:
 
-saveOrder(order);
+          discountPence,
 
-const itemLines =
+        storewideDiscountPence,
 
-lineItems
+        totalSavingsPence,
 
-.map(
+        storeCreditPence,
 
-item =>
+        shippingPence,
 
-`${item.quantity} × ${item.name}`
+        totalPence,
 
-)
+        discountCode:
 
-.join("\n");
+          appliedDiscountCode,
 
-await safeSendMessage(
+        storewideCode:
 
-adminTelegramId,
+          appliedStorewideCode,
+
+        storeCreditCode:
+
+          appliedCreditCode,
+
+        referralOwner,
+
+        referralCommissionPence,
+
+        referralCredited:
+
+          false,
+
+        stockDeducted:
+
+          false,
+
+        stockReserved:
+
+          false,
+
+        stockReservationReleased:
+
+          false,
+
+        reservationExpiresAt:
+
+          null,
+
+        paymentStatus:
+
+          "awaiting_payment",
+
+        fulfilmentStatus:
+
+          "not_shipped",
+
+        quotedUsdt:
+
+          usdtQuote,
+
+        transactionId:
+
+          null,
+
+        trackingNumber:
+
+          null,
+
+        adminNotes:
+
+          [],
+
+        reviewToken:
+
+          randomUUID(),
+
+        createdAt:
+
+          new Date().toISOString()
+
+      };
+
+      const reservationResult =
+
+        reserveStockForOrder(
+
+          order
+
+        );
+
+      if (
+
+        !reservationResult.ok
+
+      ) {
+
+        restoreStoreCreditForOrder(
+
+          order
+
+        );
+
+        return res
+
+          .status(409)
+
+          .json({
+
+            error:
+
+              reservationResult.error ||
+
+              "One or more products are no longer available."
+
+          });
+
+      }
+
+      saveOrder(
+
+        order
+
+      );
+
+      const itemLines =
+
+        lineItems
+
+          .map(
+
+            item =>
+
+              `${item.quantity} × ${item.name}`
+
+          )
+
+          .join("\n");
+
+      await safeSendMessage(
+
+        adminTelegramId,
 
 `🧾 NEW ORDER
 
@@ -3099,15 +4914,15 @@ Telegram:
 
 ${
 
-order.telegramUsername
+  order.telegramUsername
 
-? `@${normaliseUsername(
+    ? `@${normaliseUsername(
 
-order.telegramUsername
+        order.telegramUsername
 
-)}`
+      )}`
 
-: "Not supplied"
+    : "Not supplied"
 
 }
 
@@ -3121,65 +4936,93 @@ ${itemLines}
 
 Basket:
 
-${money(subtotalPence)}
+${money(
+
+  subtotalPence
+
+)}
 
 Affiliate saving:
 
--${money(discountPence)}
+-${money(
+
+  discountPence
+
+)}
 
 Store promo saving:
 
--${money(storewideDiscountPence)}
+-${money(
+
+  storewideDiscountPence
+
+)}
 
 TOTAL SAVINGS:
 
-${money(totalSavingsPence)}
+${money(
+
+  totalSavingsPence
+
+)}
 
 Store credit:
 
--${money(storeCreditPence)}
+-${money(
+
+  storeCreditPence
+
+)}
 
 Shipping:
 
-${money(shippingPence)}
+${money(
+
+  shippingPence
+
+)}
 
 TOTAL:
 
-${money(totalPence)}
+${money(
+
+  totalPence
+
+)}
 
 ${
 
-appliedDiscountCode
+  appliedDiscountCode
 
-? `Affiliate code: ${appliedDiscountCode}`
+    ? `Affiliate code: ${appliedDiscountCode}`
 
-: "Affiliate code: None"
+    : "Affiliate code: None"
 
 }
 
 ${
 
-appliedStorewideCode
+  appliedStorewideCode
 
-? `Store promo: ${appliedStorewideCode}`
+    ? `Store promo: ${appliedStorewideCode}`
 
-: "Store promo: None"
+    : "Store promo: None"
 
 }
 
 ${
 
-referralCommissionPence
+  referralCommissionPence
 
-? `Referral owner: ${referralOwner}
+    ? `Referral owner: ${referralOwner}
 
 Commission once paid: ${money(
 
-referralCommissionPence
+        referralCommissionPence
 
-)}`
+      )}`
 
-: ""
+    : ""
 
 }
 
@@ -3195,387 +5038,463 @@ Reservation expires:
 
 ${order.reservationExpiresAt}`
 
+      );
+
+      return res.json({
+
+        ok:
+
+          true,
+
+        orderId,
+
+        subtotalPence,
+
+        discountPence,
+
+        affiliateDiscountPence:
+
+          discountPence,
+
+        storewideDiscountPence,
+
+        totalSavingsPence,
+
+        storeCreditPence,
+
+        shippingPence,
+
+        totalPence,
+
+        status:
+
+          order.paymentStatus,
+
+        reservationExpiresAt:
+
+          order.reservationExpiresAt,
+
+        reservationMinutes:
+
+          STOCK_RESERVATION_MINUTES,
+
+        payment: {
+
+          method:
+
+            "crypto",
+
+          network:
+
+            "ERC-20",
+
+          address:
+
+            receivingAddress,
+
+          quote: {
+
+            USDT:
+
+              usdtQuote ||
+
+              "QUOTE_PENDING"
+
+          },
+
+          instructions:
+
+            receivingAddress
+
+              ? (
+
+                  usdtQuote
+
+                    ? `Send ${usdtQuote} USDT using Ethereum ERC-20 only, then submit the transaction hash.`
+
+                    : "Payment quote is temporarily unavailable."
+
+                )
+
+              : "Payment address is not configured."
+
+        }
+
+      });
+
+    } catch (err) {
+
+      console.error(
+
+        "CREATE ORDER ERROR:",
+
+        err
+
+      );
+
+      return res
+
+        .status(500)
+
+        .json({
+
+          error:
+
+            "Server error while creating order."
+
+        });
+
+    }
+
+  }
+
 );
 
-return res.json({
+/* =========================================================
 
-ok: true,
+   ORDER STATUS
 
-orderId,
-
-subtotalPence,
-
-discountPence,
-
-affiliateDiscountPence: discountPence,
-
-storewideDiscountPence,
-
-totalSavingsPence,
-
-storeCreditPence,
-
-shippingPence,
-
-totalPence,
-
-status:
-
-order.paymentStatus,
-
-reservationExpiresAt:
-
-order.reservationExpiresAt,
-
-reservationMinutes:
-
-STOCK_RESERVATION_MINUTES,
-
-payment: {
-
-method: "crypto",
-
-network: "ERC-20",
-
-address:
-
-receivingAddress,
-
-quote: {
-
-USDT:
-
-usdtQuote ||
-
-"QUOTE_PENDING"
-
-},
-
-instructions:
-
-receivingAddress
-
-? (
-
-usdtQuote
-
-? `Send ${usdtQuote} USDT using Ethereum ERC-20 only, then submit the transaction hash.`
-
-: "Payment quote is temporarily unavailable."
-
-)
-
-: "Payment address is not configured."
-
-}
-
-});
-
-} catch (err) {
-
-console.error(
-
-"CREATE ORDER ERROR:",
-
-err
-
-);
-
-return res
-
-.status(500)
-
-.json({
-
-error:
-
-"Server error while creating order."
-
-});
-
-}
-
-}
-
-);
+   ========================================================= */
 
 app.get(
 
-"/api/orders/:id",
+  "/api/orders/:id",
 
-(
+  (
 
-req,
+    req,
 
-res
+    res
 
-) => {
+  ) => {
 
-const order =
+    const order =
 
-orders.get(
+      orders.get(
 
-Number(req.params.id)
+        Number(
+
+          req.params.id
+
+        )
+
+      );
+
+    if (
+
+      !order
+
+    ) {
+
+      return res
+
+        .status(404)
+
+        .json({
+
+          error:
+
+            "Order not found"
+
+        });
+
+    }
+
+    return res.json({
+
+      orderId:
+
+        order.orderId,
+
+      paymentStatus:
+
+        order.paymentStatus,
+
+      fulfilmentStatus:
+
+        order.fulfilmentStatus,
+
+      subtotalPence:
+
+        order.subtotalPence,
+
+      discountPence:
+
+        order.discountPence,
+
+      storeCreditPence:
+
+        order.storeCreditPence,
+
+      shippingPence:
+
+        order.shippingPence,
+
+      totalPence:
+
+        order.totalPence,
+
+      quotedUsdt:
+
+        order.quotedUsdt,
+
+      reservationExpiresAt:
+
+        order.reservationExpiresAt ||
+
+        null,
+
+      stockReservationExpiresAt:
+
+        order.reservationExpiresAt ||
+
+        null,
+
+      trackingNumber:
+
+        order.trackingNumber ||
+
+        null
+
+    });
+
+  }
 
 );
 
-if (!order) {
+/* =========================================================
 
-return res
+   CONFIRM PAYMENT HASH
 
-.status(404)
-
-.json({
-
-error:
-
-"Order not found"
-
-});
-
-}
-
-return res.json({
-
-orderId:
-
-order.orderId,
-
-paymentStatus:
-
-order.paymentStatus,
-
-fulfilmentStatus:
-
-order.fulfilmentStatus,
-
-subtotalPence:
-
-order.subtotalPence,
-
-discountPence:
-
-order.discountPence,
-
-storeCreditPence:
-
-order.storeCreditPence,
-
-shippingPence:
-
-order.shippingPence,
-
-totalPence:
-
-order.totalPence,
-
-quotedUsdt:
-
-order.quotedUsdt,
-
-trackingNumber:
-
-order.trackingNumber ||
-
-null
-
-});
-
-}
-
-);
+   ========================================================= */
 
 app.post(
 
-"/api/orders/:id/confirm-payment",
+  "/api/orders/:id/confirm-payment",
 
-async (
+  async (
 
-req,
+    req,
 
-res
+    res
 
-) => {
+  ) => {
 
-const order =
+    const order =
 
-orders.get(
+      orders.get(
 
-Number(req.params.id)
+        Number(
 
-);
+          req.params.id
 
-if (!order) {
+        )
 
-return res
+      );
 
-.status(404)
+    if (
 
-.json({
+      !order
 
-error:
+    ) {
 
-"Order not found"
+      return res
 
-});
+        .status(404)
 
-}
+        .json({
 
-if (
+          error:
 
-order.paymentStatus ===
+            "Order not found"
 
-"paid"
+        });
 
-) {
+    }
 
-return res.json({
+    if (
 
-ok: true,
+      order.paymentStatus ===
 
-alreadyPaid: true
+      "paid"
 
-});
+    ) {
 
-}
+      return res.json({
 
-if (
+        ok:
 
-order.paymentStatus ===
+          true,
 
-"cancelled"
+        alreadyPaid:
 
-) {
+          true
 
-return res
+      });
 
-.status(400)
+    }
 
-.json({
+    if (
 
-error:
+      order.paymentStatus ===
 
-"This order has been cancelled."
+      "cancelled"
 
-});
+    ) {
 
-}
+      return res
 
-if (
+        .status(400)
 
-order.paymentStatus === "awaiting_payment" &&
+        .json({
 
-reservationHasExpired(order)
+          error:
 
-) {
+            "This order has been cancelled."
 
-expireOrderReservation(order);
+        });
 
-return res
+    }
 
-.status(410)
+    if (
 
-.json({
+      order.paymentStatus ===
 
-error:
+        "awaiting_payment" &&
 
-"This order expired because payment was not submitted within 30 minutes. The reserved stock has been returned."
+      reservationHasExpired(
 
-});
+        order
 
-}
+      )
 
-const transactionId =
+    ) {
 
-String(
+      expireOrderReservation(
 
-req.body?.transactionId ||
+        order
 
-""
+      );
 
-).trim();
+      return res
 
-if (
+        .status(410)
 
-!/^0x[a-fA-F0-9]{64}$/.test(
+        .json({
 
-transactionId
+          error:
 
-)
+            "This order expired because payment was not submitted within 30 minutes. The reserved stock has been returned."
 
-) {
+        });
 
-return res
+    }
 
-.status(400)
+    const transactionId =
 
-.json({
+      String(
 
-error:
+        req.body?.transactionId ||
 
-"Enter a valid Ethereum transaction hash."
+        ""
 
-});
+      ).trim();
 
-}
+    if (
 
-const alreadyUsed =
+      !/^0x[a-fA-F0-9]{64}$/.test(
 
-[...orders.values()]
+        transactionId
 
-.some(
+      )
 
-existing =>
+    ) {
 
-existing.orderId !==
+      return res
 
-order.orderId &&
+        .status(400)
 
-existing.transactionId
+        .json({
 
-?.toLowerCase() ===
+          error:
 
-transactionId.toLowerCase()
+            "Enter a valid Ethereum transaction hash."
 
-);
+        });
 
-if (alreadyUsed) {
+    }
 
-return res
+    const alreadyUsed =
 
-.status(400)
+      [
 
-.json({
+        ...orders.values()
 
-error:
+      ].some(
 
-"That transaction has already been used."
+        existing =>
 
-});
+          existing.orderId !==
 
-}
+            order.orderId &&
 
-order.transactionId =
+          existing.transactionId
 
-transactionId;
+            ?.toLowerCase() ===
 
-order.paymentStatus =
+          transactionId.toLowerCase()
 
-"payment_submitted";
+      );
 
-order.paymentSubmittedAt =
+    if (
 
-new Date().toISOString();
+      alreadyUsed
 
-order.reservationExpiresAt = null;
+    ) {
 
-order.stockReservationHeldForPayment = true;
+      return res
 
-saveOrder(order);
+        .status(400)
 
-await safeSendMessage(
+        .json({
 
-adminTelegramId,
+          error:
+
+            "That transaction has already been used."
+
+        });
+
+    }
+
+    order.transactionId =
+
+      transactionId;
+
+    order.paymentStatus =
+
+      "payment_submitted";
+
+    order.paymentSubmittedAt =
+
+      new Date().toISOString();
+
+    order.reservationExpiresAt =
+
+      null;
+
+    order.stockReservationHeldForPayment =
+
+      true;
+
+    saveOrder(
+
+      order
+
+    );
+
+    await safeSendMessage(
+
+      adminTelegramId,
 
 `💳 PAYMENT SUBMITTED
 
@@ -3593,7 +5512,11 @@ ${order.address}
 
 Expected total:
 
-${money(order.totalPence)}
+${money(
+
+  order.totalPence
+
+)}
 
 Transaction:
 
@@ -3605,51 +5528,69 @@ Use:
 
 once payment has been confirmed.`
 
+    );
+
+    return res.json({
+
+      ok:
+
+        true,
+
+      orderId:
+
+        order.orderId,
+
+      status:
+
+        "payment_submitted",
+
+      message:
+
+        "Payment submitted for confirmation."
+
+    });
+
+  }
+
 );
 
-return res.json({
+/* =========================================================
 
-ok: true,
+   PUBLIC REVIEWS
 
-orderId:
-
-order.orderId,
-
-status:
-
-"payment_submitted",
-
-message:
-
-"Payment submitted for confirmation."
-
-});
-
-}
-
-);
+   ========================================================= */
 
 app.get(
 
-"/api/reviews",
+  "/api/reviews",
 
-(_req, res) => {
+  (
 
-const rows =
+    _req,
 
-db.prepare(`
+    res
+
+  ) => {
+
+    const rows =
+
+      db
+
+        .prepare(
+
+          `
 
 SELECT
 
-id,
+  id,
 
-display_name,
+  display_name,
 
-rating,
+  rating,
 
-review_text,
+  review_text,
 
-created_at
+  created_at
 
 FROM reviews
 
@@ -3659,241 +5600,321 @@ ORDER BY id DESC
 
 LIMIT 100
 
-`).all();
+`
 
-return res.json(rows);
+        )
 
-}
+        .all();
+
+    return res.json(
+
+      rows
+
+    );
+
+  }
 
 );
+
+/* =========================================================
+
+   SUBMIT REVIEW
+
+   ========================================================= */
 
 app.post(
 
-"/api/reviews",
+  "/api/reviews",
 
-(req, res) => {
+  (
 
-const orderId =
+    req,
 
-Number(
+    res
 
-req.body?.orderId
+  ) => {
 
-);
+    const orderId =
 
-const reviewToken =
+      Number(
 
-String(
+        req.body?.orderId
 
-req.body?.token ||
+      );
 
-""
+    const reviewToken =
 
-);
+      String(
 
-const rating =
+        req.body?.token ||
 
-Number(
+        ""
 
-req.body?.rating
+      );
 
-);
+    const rating =
 
-const displayName =
+      Number(
 
-String(
+        req.body?.rating
 
-req.body?.displayName ||
+      );
 
-"Customer"
+    const displayName =
 
-)
+      String(
 
-.trim()
+        req.body?.displayName ||
 
-.slice(0, 50);
+        "Customer"
 
-const reviewText =
+      )
 
-String(
+        .trim()
 
-req.body?.reviewText ||
+        .slice(
 
-""
+          0,
 
-)
+          50
 
-.trim()
+        );
 
-.slice(0, 1000);
+    const reviewText =
 
-const order =
+      String(
 
-orders.get(orderId);
+        req.body?.reviewText ||
 
-if (!order) {
+        ""
 
-return res
+      )
 
-.status(404)
+        .trim()
 
-.json({
+        .slice(
 
-error:
+          0,
 
-"Order not found."
+          1000
 
-});
+        );
 
-}
+    const order =
 
-if (
+      orders.get(
 
-order.paymentStatus !==
+        orderId
 
-"paid"
+      );
 
-) {
+    if (
 
-return res
+      !order
 
-.status(403)
+    ) {
 
-.json({
+      return res
 
-error:
+        .status(404)
 
-"Reviews can be left after payment is confirmed."
+        .json({
 
-});
+          error:
 
-}
+            "Order not found."
 
-if (
+        });
 
-!reviewToken ||
+    }
 
-reviewToken !==
+    if (
 
-order.reviewToken
+      order.paymentStatus !==
 
-) {
+      "paid"
 
-return res
+    ) {
 
-.status(403)
+      return res
 
-.json({
+        .status(403)
 
-error:
+        .json({
 
-"Invalid review link."
+          error:
 
-});
+            "Reviews can be left after payment is confirmed."
 
-}
+        });
 
-if (
+    }
 
-!Number.isInteger(rating) ||
+    if (
 
-rating < 1 ||
+      !reviewToken ||
 
-rating > 5
+      reviewToken !==
 
-) {
+        order.reviewToken
 
-return res
+    ) {
 
-.status(400)
+      return res
 
-.json({
+        .status(403)
 
-error:
+        .json({
 
-"Rating must be between 1 and 5."
+          error:
 
-});
+            "Invalid review link."
 
-}
+        });
 
-if (!reviewText) {
+    }
 
-return res
+    if (
 
-.status(400)
+      !Number.isInteger(
 
-.json({
+        rating
 
-error:
+      ) ||
 
-"Please enter a review."
+      rating <
 
-});
+        1 ||
 
-}
+      rating >
 
-db.prepare(`
+        5
+
+    ) {
+
+      return res
+
+        .status(400)
+
+        .json({
+
+          error:
+
+            "Rating must be between 1 and 5."
+
+        });
+
+    }
+
+    if (
+
+      !reviewText
+
+    ) {
+
+      return res
+
+        .status(400)
+
+        .json({
+
+          error:
+
+            "Please enter a review."
+
+        });
+
+    }
+
+    db
+
+      .prepare(
+
+        `
 
 INSERT INTO reviews (
 
-order_id,
+  order_id,
 
-telegram_id,
+  telegram_id,
 
-display_name,
+  display_name,
 
-rating,
+  rating,
 
-review_text,
+  review_text,
 
-approved,
+  approved,
 
-created_at
+  created_at
 
 )
 
-VALUES (?, ?, ?, ?, ?, 0, ?)
+VALUES (
+
+  ?,
+
+  ?,
+
+  ?,
+
+  ?,
+
+  ?,
+
+  0,
+
+  ?
+
+)
 
 ON CONFLICT(order_id)
 
 DO UPDATE SET
 
-display_name = excluded.display_name,
+  display_name = excluded.display_name,
 
-rating = excluded.rating,
+  rating = excluded.rating,
 
-review_text = excluded.review_text,
+  review_text = excluded.review_text,
 
-approved = 0,
+  approved = 0,
 
-created_at = excluded.created_at
+  created_at = excluded.created_at
 
-`).run(
+`
 
-orderId,
+      )
 
-String(
+      .run(
 
-order.telegramId ||
+        orderId,
 
-""
+        String(
 
-),
+          order.telegramId ||
 
-displayName,
+          ""
 
-rating,
+        ),
 
-reviewText,
+        displayName,
 
-new Date().toISOString()
+        rating,
 
-);
+        reviewText,
 
-const savedReview =
+        new Date().toISOString()
 
-db.prepare(`
+      );
+
+    const savedReview =
+
+      db
+
+        .prepare(
+
+          `
 
 SELECT *
 
@@ -3901,13 +5922,25 @@ FROM reviews
 
 WHERE order_id = ?
 
-`).get(orderId);
+`
 
-if (savedReview) {
+        )
 
-safeSendMessage(
+        .get(
 
-adminTelegramId,
+          orderId
+
+        );
+
+    if (
+
+      savedReview
+
+    ) {
+
+      safeSendMessage(
+
+        adminTelegramId,
 
 `⭐ NEW REVIEW
 
@@ -3933,151 +5966,167 @@ ${reviewText}
 
 Waiting for approval.`,
 
-{
+        {
 
-reply_markup: {
+          reply_markup: {
 
-inline_keyboard: [
+            inline_keyboard: [
 
-[
+              [
 
-{
+                {
 
-text:
+                  text:
 
-"✅ Approve",
+                    "✅ Approve",
 
-callback_data:
+                  callback_data:
 
-`review_approve_${savedReview.id}`
+                    `review_approve_${savedReview.id}`
 
-},
+                },
 
-{
+                {
 
-text:
+                  text:
 
-"❌ Reject",
+                    "❌ Reject",
 
-callback_data:
+                  callback_data:
 
-`review_reject_${savedReview.id}`
+                    `review_reject_${savedReview.id}`
 
-}
+                }
 
-]
+              ]
 
-]
+            ]
 
-}
+          }
 
-}
+        }
+
+      );
+
+    }
+
+    return res.json({
+
+      ok:
+
+        true,
+
+      message:
+
+        "Thank you. Your review has been submitted."
+
+    });
+
+  }
 
 );
 
-}
+/* =========================================================
 
-return res.json({
+   REVIEW PAGE
 
-ok: true,
-
-message:
-
-"Thank you. Your review has been submitted."
-
-});
-
-}
-
-);
+   ========================================================= */
 
 app.get(
 
-"/review/:orderId",
+  "/review/:orderId",
 
-(
+  (
 
-req,
+    req,
 
-res
+    res
 
-) => {
+  ) => {
 
-const orderId =
+    const orderId =
 
-Number(
+      Number(
 
-req.params.orderId
+        req.params.orderId
 
-);
+      );
 
-const reviewToken =
+    const reviewToken =
 
-String(
+      String(
 
-req.query.token ||
+        req.query.token ||
 
-""
+        ""
 
-);
+      );
 
-const order =
+    const order =
 
-orders.get(orderId);
+      orders.get(
 
-if (
+        orderId
 
-!order ||
+      );
 
-reviewToken !==
+    if (
 
-order.reviewToken
+      !order ||
 
-) {
+      reviewToken !==
 
-return res
+        order.reviewToken
 
-.status(404)
+    ) {
 
-.send(
+      return res
 
-"Review link not found."
+        .status(404)
 
-);
+        .send(
 
-}
+          "Review link not found."
 
-if (
+        );
 
-order.paymentStatus !==
+    }
 
-"paid"
+    if (
 
-) {
+      order.paymentStatus !==
 
-return res
+      "paid"
 
-.status(403)
+    ) {
 
-.send(
+      return res
 
-"Payment must be confirmed before leaving a review."
+        .status(403)
 
-);
+        .send(
 
-}
+          "Payment must be confirmed before leaving a review."
 
-const tokenJson =
+        );
 
-JSON.stringify(
+    }
 
-reviewToken
+    const tokenJson =
 
-);
+      JSON.stringify(
 
-res.type("html");
+        reviewToken
 
-return res.send(`
+      );
+
+    res.type(
+
+      "html"
+
+    );
+
+    return res.send(`
 
 <!DOCTYPE html>
 
@@ -4089,71 +6138,75 @@ return res.send(`
 
 <meta
 
-name="viewport"
+  name="viewport"
 
-content="width=device-width, initial-scale=1.0"
+  content="width=device-width, initial-scale=1.0"
 
 >
 
-<title>Leave a Review</title>
+<title>
+
+Leave a Review
+
+</title>
 
 <style>
 
 * {
 
-box-sizing: border-box;
+  box-sizing: border-box;
 
 }
 
 body {
 
-margin: 0;
+  margin: 0;
 
-padding: 24px;
+  padding: 24px;
 
-font-family: Arial, sans-serif;
+  font-family: Arial, sans-serif;
 
-background: #ffffff;
+  background: #ffffff;
 
-color: #111111;
+  color: #111111;
 
 }
 
 .card {
 
-max-width: 520px;
+  max-width: 520px;
 
-margin: 30px auto;
+  margin: 30px auto;
 
-border: 1px solid #d5b04c;
+  border: 1px solid #d5b04c;
 
-border-radius: 18px;
+  border-radius: 18px;
 
-padding: 24px;
+  padding: 24px;
 
 }
 
 h1 {
 
-margin-top: 0;
+  margin-top: 0;
 
 }
 
 .gold {
 
-color: #b58b16;
+  color: #b58b16;
 
 }
 
 label {
 
-display: block;
+  display: block;
 
-font-weight: 700;
+  font-weight: 700;
 
-margin-top: 18px;
+  margin-top: 18px;
 
-margin-bottom: 8px;
+  margin-bottom: 8px;
 
 }
 
@@ -4163,53 +6216,53 @@ select,
 
 textarea {
 
-width: 100%;
+  width: 100%;
 
-font-size: 16px;
+  font-size: 16px;
 
-padding: 13px;
+  padding: 13px;
 
-border: 1px solid #cccccc;
+  border: 1px solid #cccccc;
 
-border-radius: 10px;
+  border-radius: 10px;
 
 }
 
 textarea {
 
-min-height: 130px;
+  min-height: 130px;
 
-resize: vertical;
+  resize: vertical;
 
 }
 
 button {
 
-width: 100%;
+  width: 100%;
 
-margin-top: 22px;
+  margin-top: 22px;
 
-padding: 15px;
+  padding: 15px;
 
-border: 0;
+  border: 0;
 
-border-radius: 12px;
+  border-radius: 12px;
 
-background: #c9a227;
+  background: #c9a227;
 
-color: #ffffff;
+  color: #ffffff;
 
-font-size: 17px;
+  font-size: 17px;
 
-font-weight: 700;
+  font-weight: 700;
 
 }
 
 #message {
 
-margin-top: 18px;
+  margin-top: 18px;
 
-font-weight: 700;
+  font-weight: 700;
 
 }
 
@@ -4223,7 +6276,11 @@ font-weight: 700;
 
 <h1>
 
-<span class="gold">★</span>
+<span class="gold">
+
+★
+
+</span>
 
 Leave a Review
 
@@ -4243,11 +6300,11 @@ Name
 
 <input
 
-id="name"
+  id="name"
 
-maxlength="50"
+  maxlength="50"
 
-placeholder="Your name"
+  placeholder="Your name"
 
 />
 
@@ -4259,15 +6316,35 @@ Rating
 
 <select id="rating">
 
-<option value="5">★★★★★ - 5</option>
+<option value="5">
 
-<option value="4">★★★★☆ - 4</option>
+★★★★★ - 5
 
-<option value="3">★★★☆☆ - 3</option>
+</option>
 
-<option value="2">★★☆☆☆ - 2</option>
+<option value="4">
 
-<option value="1">★☆☆☆☆ - 1</option>
+★★★★☆ - 4
+
+</option>
+
+<option value="3">
+
+★★★☆☆ - 3
+
+</option>
+
+<option value="2">
+
+★★☆☆☆ - 2
+
+</option>
+
+<option value="1">
+
+★☆☆☆☆ - 1
+
+</option>
 
 </select>
 
@@ -4279,11 +6356,11 @@ Review
 
 <textarea
 
-id="review"
+  id="review"
 
-maxlength="1000"
+  maxlength="1000"
 
-placeholder="Tell us about your experience..."
+  placeholder="Tell us about your experience..."
 
 ></textarea>
 
@@ -4293,155 +6370,175 @@ Submit Review
 
 </button>
 
-<div id="message"></div>
+<div id="message">
+
+</div>
 
 </div>
 
 <script>
 
-const orderId = ${orderId};
+const orderId =
 
-const token = ${tokenJson};
+  ${orderId};
 
-document
+const token =
 
-.getElementById("submit")
-
-.addEventListener(
-
-"click",
-
-async () => {
-
-const button =
-
-document.getElementById(
-
-"submit"
-
-);
-
-const message =
-
-document.getElementById(
-
-"message"
-
-);
-
-button.disabled = true;
-
-message.textContent =
-
-"Submitting...";
-
-try {
-
-const response =
-
-await fetch(
-
-"/api/reviews",
-
-{
-
-method: "POST",
-
-headers: {
-
-"Content-Type":
-
-"application/json"
-
-},
-
-body:
-
-JSON.stringify({
-
-orderId,
-
-token,
-
-displayName:
+  ${tokenJson};
 
 document
 
-.getElementById(
+  .getElementById(
 
-"name"
+    "submit"
 
-)
+  )
 
-.value,
+  .addEventListener(
 
-rating:
+    "click",
 
-Number(
+    async () => {
 
-document
+      const button =
 
-.getElementById(
+        document.getElementById(
 
-"rating"
+          "submit"
 
-)
+        );
 
-.value
+      const message =
 
-),
+        document.getElementById(
 
-reviewText:
+          "message"
 
-document
+        );
 
-.getElementById(
+      button.disabled =
 
-"review"
+        true;
 
-)
+      message.textContent =
 
-.value
+        "Submitting...";
 
-})
+      try {
 
-}
+        const response =
 
-);
+          await fetch(
 
-const data =
+            "/api/reviews",
 
-await response.json();
+            {
 
-if (!response.ok) {
+              method:
 
-throw new Error(
+                "POST",
 
-data.error ||
+              headers: {
 
-"Could not submit review."
+                "Content-Type":
 
-);
+                  "application/json"
 
-}
+              },
 
-message.textContent =
+              body:
 
-"⭐ Thank you. Your review has been submitted.";
+                JSON.stringify({
 
-} catch (err) {
+                  orderId,
 
-message.textContent =
+                  token,
 
-err.message;
+                  displayName:
 
-button.disabled = false;
+                    document
 
-}
+                      .getElementById(
 
-}
+                        "name"
 
-);
+                      )
+
+                      .value,
+
+                  rating:
+
+                    Number(
+
+                      document
+
+                        .getElementById(
+
+                          "rating"
+
+                        )
+
+                        .value
+
+                    ),
+
+                  reviewText:
+
+                    document
+
+                      .getElementById(
+
+                        "review"
+
+                      )
+
+                      .value
+
+                })
+
+            }
+
+          );
+
+        const data =
+
+          await response.json();
+
+        if (
+
+          !response.ok
+
+        ) {
+
+          throw new Error(
+
+            data.error ||
+
+            "Could not submit review."
+
+          );
+
+        }
+
+        message.textContent =
+
+          "⭐ Thank you. Your review has been submitted.";
+
+      } catch (err) {
+
+        message.textContent =
+
+          err.message;
+
+        button.disabled =
+
+          false;
+
+      }
+
+    }
+
+  );
 
 </script>
 
@@ -4451,457 +6548,531 @@ button.disabled = false;
 
 `);
 
-}
+  }
 
 );
+
+/* =========================================================
+
+   TELEGRAM STATE
+
+   ========================================================= */
 
 const pendingSupport =
 
-new Set();
+  new Set();
 
 const pendingAdminOrderLookup =
 
-new Set();
+  new Set();
 
 const pendingAdminTracking =
 
-new Map();
+  new Map();
 
 const pendingAdminNote =
 
-new Map();
+  new Map();
 
 const pendingStockAdjustment =
 
-new Map();
+  new Map();
+
+/* =========================================================
+
+   BOT HANDLERS
+
+   ========================================================= */
 
 if (bot) {
 
-function clearAdminInputs(
+  function clearAdminInputs(
 
-chatId
+    chatId
 
-) {
+  ) {
 
-pendingAdminOrderLookup.delete(
+    pendingAdminOrderLookup.delete(
 
-chatId
+      chatId
 
-);
+    );
 
-pendingAdminTracking.delete(
+    pendingAdminTracking.delete(
 
-chatId
+      chatId
 
-);
+    );
 
-pendingAdminNote.delete(
+    pendingAdminNote.delete(
 
-chatId
+      chatId
 
-);
+    );
 
-pendingStockAdjustment.delete(
+    pendingStockAdjustment.delete(
 
-chatId
+      chatId
 
-);
+    );
 
-}
+  }
 
-function getOrderStatusText(
+  function getOrderStatusText(
 
-order
+    order
 
-) {
+  ) {
 
-if (
+    if (
 
-order.paymentStatus ===
+      order.paymentStatus ===
 
-"cancelled" ||
+        "cancelled" ||
 
-order.fulfilmentStatus ===
+      order.fulfilmentStatus ===
 
-"cancelled"
+        "cancelled"
 
-) {
+    ) {
 
-return "Cancelled ❌";
+      return (
 
-}
+        "Cancelled ❌"
 
-if (
+      );
 
-order.fulfilmentStatus ===
+    }
 
-"shipped"
+    if (
 
-) {
+      order.fulfilmentStatus ===
 
-return "Shipped 📦";
+      "shipped"
 
-}
+    ) {
 
-if (
+      return (
 
-order.paymentStatus ===
+        "Shipped 📦"
 
-"paid"
+      );
 
-) {
+    }
 
-return "Paid ✅";
+    if (
 
-}
+      order.paymentStatus ===
 
-if (
+      "paid"
 
-order.paymentStatus ===
+    ) {
 
-"payment_submitted"
+      return (
 
-) {
+        "Paid ✅"
 
-return "Payment submitted ⏳";
+      );
 
-}
+    }
 
-return "Awaiting payment";
+    if (
 
-}
+      order.paymentStatus ===
 
-function getRecentOrders(
+      "payment_submitted"
 
-limit = 10
+    ) {
 
-) {
+      return (
 
-return [
+        "Payment submitted ⏳"
 
-...orders.values()
+      );
 
-]
+    }
 
-.sort(
+    return (
 
-(
+      "Awaiting payment"
 
-a,
+    );
 
-b
+  }
 
-) =>
+  function getRecentOrders(
 
-new Date(
+    limit = 10
 
-b.createdAt ||
+  ) {
 
-0
+    return [
 
-) -
+      ...orders.values()
 
-new Date(
+    ]
 
-a.createdAt ||
+      .sort(
 
-0
+        (
 
-)
+          a,
 
-)
+          b
 
-.slice(0, limit);
+        ) =>
 
-}
+          new Date(
 
-async function sendLongMessage(
+            b.createdAt ||
 
-chatId,
+            0
 
-message
+          ) -
 
-) {
+          new Date(
 
-const maxLength = 3500;
+            a.createdAt ||
 
-if (
+            0
 
-message.length <=
+          )
 
-maxLength
+      )
 
-) {
+      .slice(
 
-return safeSendMessage(
+        0,
 
-chatId,
+        limit
 
-message
+      );
 
-);
+  }
 
-}
+  async function sendLongMessage(
 
-const paragraphs =
+    chatId,
 
-message.split("\n\n");
+    message
 
-let chunk = "";
+  ) {
 
-for (
+    const maxLength =
 
-const paragraph
+      3500;
 
-of paragraphs
+    if (
 
-) {
+      message.length <=
 
-const next =
+      maxLength
 
-chunk
+    ) {
 
-? `${chunk}\n\n${paragraph}`
+      return safeSendMessage(
 
-: paragraph;
+        chatId,
 
-if (
+        message
 
-next.length >
+      );
 
-maxLength
+    }
 
-) {
+    const paragraphs =
 
-if (chunk) {
+      message.split(
 
-await safeSendMessage(
+        "\n\n"
 
-chatId,
+      );
 
-chunk
+    let chunk =
 
-);
+      "";
 
-}
+    for (
 
-chunk = paragraph;
+      const paragraph
 
-} else {
+      of paragraphs
 
-chunk = next;
+    ) {
 
-}
+      const next =
 
-}
+        chunk
 
-if (chunk) {
+          ? `${chunk}\n\n${paragraph}`
 
-await safeSendMessage(
+          : paragraph;
 
-chatId,
+      if (
 
-chunk
+        next.length >
 
-);
+        maxLength
 
-}
+      ) {
 
-}
+        if (
 
-function getAdminDashboardOptions() {
+          chunk
 
-return {
+        ) {
 
-reply_markup: {
+          await safeSendMessage(
 
-inline_keyboard: [
+            chatId,
 
-[
+            chunk
 
-{
+          );
 
-text:
+        }
 
-"📦 Recent Orders",
+        chunk =
 
-callback_data:
+          paragraph;
 
-"admin_recent_orders"
+      } else {
 
-},
+        chunk =
 
-{
+          next;
 
-text:
+      }
 
-"⏳ Payments",
+    }
 
-callback_data:
+    if (
 
-"admin_payments"
+      chunk
 
-}
+    ) {
 
-],
+      await safeSendMessage(
 
-[
+        chatId,
 
-{
+        chunk
 
-text:
+      );
 
-"🚚 Dispatch Queue",
+    }
 
-callback_data:
+  }
 
-"admin_dispatch"
+  function getAdminDashboardOptions() {
 
-},
+    return {
 
-{
+      reply_markup: {
 
-text:
+        inline_keyboard: [
 
-"🔎 Find Order",
+          [
 
-callback_data:
+            {
 
-"admin_find_order"
+              text:
 
-}
+                "📦 Recent Orders",
 
-],
+              callback_data:
 
-[
+                "admin_recent_orders"
 
-{
+            },
 
-text:
+            {
 
-"📊 Sales Reports",
+              text:
 
-callback_data:
+                "⏳ Payments",
 
-"admin_reports"
+              callback_data:
 
-},
+                "admin_payments"
 
-{
+            }
 
-text:
+          ],
 
-"📦 Stock Centre",
+          [
 
-callback_data:
+            {
 
-"admin_stock"
+              text:
 
-}
+                "🚚 Dispatch Queue",
 
-],
+              callback_data:
 
-[
+                "admin_dispatch"
 
-{
+            },
 
-text:
+            {
 
-"⭐ Reviews",
+              text:
 
-callback_data:
+                "🔎 Find Order",
 
-"admin_reviews"
+              callback_data:
 
-},
+                "admin_find_order"
 
-{
+            }
 
-text:
+          ],
 
-"💰 Affiliate Earnings",
+          [
 
-callback_data:
+            {
 
-"admin_earnings"
+              text:
 
-}
+                "📊 Sales Reports",
 
-],
+              callback_data:
 
-[
+                "admin_reports"
 
-{
+            },
 
-text:
+            {
 
-"🎉 Storewide Promo",
+              text:
 
-callback_data:
+                "📦 Stock Centre",
 
-"admin_storewide_promo"
+              callback_data:
 
-}
+                "admin_stock"
 
-]
+            }
 
-]
+          ],
 
-}
+          [
 
-};
+            {
 
-}
+              text:
 
-async function sendAdminDashboard(
+                "⭐ Reviews",
 
-chatId
+              callback_data:
 
-) {
+                "admin_reviews"
 
-clearAdminInputs(chatId);
+            },
 
-const paymentWaiting =
+            {
 
-[...orders.values()]
+              text:
 
-.filter(
+                "💰 Affiliate Earnings",
 
-order =>
+              callback_data:
 
-order.paymentStatus ===
+                "admin_earnings"
 
-"payment_submitted"
+            }
 
-)
+          ],
 
-.length;
+          [
 
-const dispatchWaiting =
+            {
 
-[...orders.values()]
+              text:
 
-.filter(
+                "🎉 Storewide Promo",
 
-order =>
+              callback_data:
 
-order.paymentStatus ===
+                "admin_storewide_promo"
 
-"paid" &&
+            }
 
-order.fulfilmentStatus !==
+          ]
 
-"shipped"
+        ]
 
-)
+      }
 
-.length;
+    };
 
-const pendingReviews =
+  }
 
-Number(
+  async function sendAdminDashboard(
 
-db.prepare(`
+    chatId
+
+  ) {
+
+    clearAdminInputs(
+
+      chatId
+
+    );
+
+    const paymentWaiting =
+
+      [
+
+        ...orders.values()
+
+      ]
+
+        .filter(
+
+          order =>
+
+            order.paymentStatus ===
+
+            "payment_submitted"
+
+        )
+
+        .length;
+
+    const dispatchWaiting =
+
+      [
+
+        ...orders.values()
+
+      ]
+
+        .filter(
+
+          order =>
+
+            order.paymentStatus ===
+
+              "paid" &&
+
+            order.fulfilmentStatus !==
+
+              "shipped"
+
+        )
+
+        .length;
+
+    const pendingReviews =
+
+      Number(
+
+        db
+
+          .prepare(
+
+            `
 
 SELECT COUNT(*) AS count
 
@@ -4909,69 +7080,85 @@ FROM reviews
 
 WHERE approved = 0
 
-`).get()?.count ||
+`
 
-0
+          )
 
-);
+          .get()
 
-const liveProducts =
+          ?.count ||
 
-getLiveProducts();
+        0
 
-const lowStockCount =
+      );
 
-liveProducts
+    const liveProducts =
 
-.filter(
+      getLiveProducts();
 
-product => {
+    const lowStockCount =
 
-const stock =
+      liveProducts
 
-Number(
+        .filter(
 
-product.stock
+          product => {
 
-);
+            const stock =
 
-return (
+              Number(
 
-Number.isFinite(stock) &&
+                product.stock
 
-stock > 0 &&
+              );
 
-stock <=
+            return (
 
-LOW_STOCK_THRESHOLD
+              Number.isFinite(
 
-);
+                stock
 
-}
+              ) &&
 
-)
+              stock >
 
-.length;
+                0 &&
 
-const outOfStockCount =
+              stock <=
 
-liveProducts
+                LOW_STOCK_THRESHOLD
 
-.filter(
+            );
 
-product =>
+          }
 
-Number(product.stock) ===
+        )
 
-0
+        .length;
 
-)
+    const outOfStockCount =
 
-.length;
+      liveProducts
 
-return safeSendMessage(
+        .filter(
 
-chatId,
+          product =>
+
+            Number(
+
+              product.stock
+
+            ) ===
+
+            0
+
+        )
+
+        .length;
+
+    return safeSendMessage(
+
+      chatId,
 
 `🛠 ADMIN DASHBOARD
 
@@ -5001,239 +7188,251 @@ ${outOfStockCount}
 
 Choose an option below.`,
 
-getAdminDashboardOptions()
+      getAdminDashboardOptions()
 
-);
+    );
 
-}
+  }
 
-function getAdminOrderButtons(
+  function getAdminOrderButtons(
 
-order
+    order
 
-) {
+  ) {
 
-const buttons = [];
+    const buttons =
 
-const cancelled =
+      [];
 
-order.paymentStatus ===
+    const cancelled =
 
-"cancelled";
+      order.paymentStatus ===
 
-if (
+      "cancelled";
 
-!cancelled &&
+    if (
 
-order.paymentStatus !==
+      !cancelled &&
 
-"paid"
+      order.paymentStatus !==
 
-) {
+        "paid"
 
-buttons.push([
+    ) {
 
-{
+      buttons.push([
 
-text:
+        {
 
-"✅ Mark Paid",
+          text:
 
-callback_data:
+            "✅ Mark Paid",
 
-`admin_paid_${order.orderId}`
+          callback_data:
 
-}
+            `admin_paid_${order.orderId}`
 
-]);
+        }
 
-}
+      ]);
 
-if (
+    }
 
-order.paymentStatus ===
+    if (
 
-"paid" &&
+      order.paymentStatus ===
 
-order.fulfilmentStatus !==
+        "paid" &&
 
-"shipped"
+      order.fulfilmentStatus !==
 
-) {
+        "shipped"
 
-buttons.push([
+    ) {
 
-{
+      buttons.push([
 
-text:
+        {
 
-"🚚 Add Tracking",
+          text:
 
-callback_data:
+            "🚚 Add Tracking",
 
-`admin_tracking_${order.orderId}`
+          callback_data:
 
-}
+            `admin_tracking_${order.orderId}`
 
-]);
+        }
 
-}
+      ]);
 
-buttons.push([
+    }
 
-{
+    buttons.push([
 
-text:
+      {
 
-"📝 Add Note",
+        text:
 
-callback_data:
+          "📝 Add Note",
 
-`admin_note_${order.orderId}`
+        callback_data:
 
-}
+          `admin_note_${order.orderId}`
 
-]);
+      }
 
-if (
+    ]);
 
-order.paymentStatus ===
+    if (
 
-"paid"
+      order.paymentStatus ===
 
-) {
+      "paid"
 
-buttons.push([
+    ) {
 
-{
+      buttons.push([
 
-text:
+        {
 
-"⭐ Send Review Link",
+          text:
 
-callback_data:
+            "⭐ Send Review Link",
 
-`admin_review_${order.orderId}`
+          callback_data:
 
-}
+            `admin_review_${order.orderId}`
 
-]);
+        }
 
-}
+      ]);
 
-if (
+    }
 
-order.paymentStatus ===
+    if (
 
-"awaiting_payment"
+      order.paymentStatus ===
 
-) {
+      "awaiting_payment"
 
-buttons.push([
+    ) {
 
-{
+      buttons.push([
 
-text:
+        {
 
-"❌ Cancel Order",
+          text:
 
-callback_data:
+            "❌ Cancel Order",
 
-`admin_cancel_${order.orderId}`
+          callback_data:
 
-}
+            `admin_cancel_${order.orderId}`
 
-]);
+        }
 
-}
+      ]);
 
-buttons.push([
+    }
 
-{
+    buttons.push([
 
-text:
+      {
 
-"⬅️ Admin Dashboard",
+        text:
 
-callback_data:
+          "⬅️ Admin Dashboard",
 
-"admin_dashboard"
+        callback_data:
 
-}
+          "admin_dashboard"
 
-]);
+      }
 
-return {
+    ]);
 
-reply_markup: {
+    return {
 
-inline_keyboard:
+      reply_markup: {
 
-buttons
+        inline_keyboard:
 
-}
+          buttons
 
-};
+      }
 
-}
+    };
 
-async function showAdminOrder(
+  }
 
-chatId,
+  async function showAdminOrder(
 
-order
+    chatId,
 
-) {
+    order
 
-const items =
+  ) {
 
-(order.items || [])
+    const items =
 
-.map(
+      (
 
-item =>
+        order.items ||
 
-`${item.quantity} × ${item.name}`
+        []
 
-)
+      )
 
-.join("\n") ||
+        .map(
 
-"No items";
+          item =>
 
-const notes =
+            `${item.quantity} × ${item.name}`
 
-Array.isArray(
+        )
 
-order.adminNotes
+        .join("\n") ||
 
-) &&
+      "No items";
 
-order.adminNotes.length
+    const notes =
 
-? order.adminNotes
+      Array.isArray(
 
-.map(
+        order.adminNotes
 
-note =>
+      ) &&
 
-`• ${note.text}`
+      order.adminNotes.length
 
-)
+        ? order.adminNotes
 
-.join("\n")
+            .map(
 
-: "None";
+              note =>
 
-return safeSendMessage(
+                `• ${note.text}`
 
-chatId,
+            )
+
+            .join("\n")
+
+        : "None";
+
+    return safeSendMessage(
+
+      chatId,
 
 `📦 ORDER #${order.orderId}
 
 Status:
 
-${getOrderStatusText(order)}
+${getOrderStatusText(
+
+  order
+
+)}
 
 Customer:
 
@@ -5243,15 +7442,15 @@ Telegram:
 
 ${
 
-order.telegramUsername
+  order.telegramUsername
 
-? `@${normaliseUsername(
+    ? `@${normaliseUsername(
 
-order.telegramUsername
+        order.telegramUsername
 
-)}`
+      )}`
 
-: "Not supplied"
+    : "Not supplied"
 
 }
 
@@ -5265,405 +7464,503 @@ ${items}
 
 Basket:
 
-${money(order.subtotalPence)}
+${money(
+
+  order.subtotalPence
+
+)}
 
 Discount:
 
--${money(order.discountPence)}
+-${money(
+
+  order.discountPence
+
+)}
 
 Store credit:
 
--${money(order.storeCreditPence)}
+-${money(
+
+  order.storeCreditPence
+
+)}
 
 Shipping:
 
-${money(order.shippingPence)}
+${money(
+
+  order.shippingPence
+
+)}
 
 TOTAL:
 
-${money(order.totalPence)}
+${money(
+
+  order.totalPence
+
+)}
 
 Transaction:
 
-${order.transactionId || "None"}
+${
+
+  order.transactionId ||
+
+  "None"
+
+}
 
 Tracking:
 
-${order.trackingNumber || "None"}
+${
+
+  order.trackingNumber ||
+
+  "None"
+
+}
 
 Admin notes:
 
 ${notes}`,
 
-getAdminOrderButtons(order)
+      getAdminOrderButtons(
 
-);
+        order
 
-}
+      )
 
-async function showOrderList(
+    );
 
-chatId,
+  }
 
-title,
+  async function showOrderList(
 
-list
+    chatId,
 
-) {
+    title,
 
-if (!list.length) {
+    list
 
-return safeSendMessage(
+  ) {
 
-chatId,
+    if (
 
-`${title}\n\nNothing here.`,
+      !list.length
 
-{
+    ) {
 
-reply_markup: {
+      return safeSendMessage(
 
-inline_keyboard: [
+        chatId,
 
-[
+        `${title}
 
-{
+Nothing here.`,
 
-text:
+        {
 
-"⬅️ Admin Dashboard",
+          reply_markup: {
 
-callback_data:
+            inline_keyboard: [
 
-"admin_dashboard"
+              [
 
-}
+                {
 
-]
+                  text:
 
-]
+                    "⬅️ Admin Dashboard",
 
-}
+                  callback_data:
 
-}
+                    "admin_dashboard"
 
-);
+                }
 
-}
+              ]
 
-const buttons =
+            ]
 
-list
+          }
 
-.slice(0, 20)
+        }
 
-.map(
+      );
 
-order => [
+    }
 
-{
+    const buttons =
 
-text:
+      list
 
-`#${order.orderId} • ${order.customerName} • ${money(order.totalPence)}`,
+        .slice(
 
-callback_data:
+          0,
 
-`admin_order_${order.orderId}`
+          20
 
-}
+        )
 
-]
+        .map(
 
-);
+          order => [
 
-buttons.push([
+            {
 
-{
+              text:
 
-text:
+                `#${order.orderId} • ${order.customerName} • ${money(
 
-"⬅️ Admin Dashboard",
+                  order.totalPence
 
-callback_data:
+                )}`,
 
-"admin_dashboard"
+              callback_data:
 
-}
+                `admin_order_${order.orderId}`
 
-]);
+            }
 
-return safeSendMessage(
+          ]
 
-chatId,
+        );
 
-`${title}\n\nTap an order to manage it.`,
+    buttons.push([
 
-{
+      {
 
-reply_markup: {
+        text:
 
-inline_keyboard:
+          "⬅️ Admin Dashboard",
 
-buttons
+        callback_data:
 
-}
+          "admin_dashboard"
 
-}
+      }
 
-);
+    ]);
 
-}
+    return safeSendMessage(
 
-async function sendSalesReport(
+      chatId,
 
-chatId,
+      `${title}
 
-days,
+Tap an order to manage it.`,
 
-title
+      {
 
-) {
+        reply_markup: {
 
-const startTime =
+          inline_keyboard:
 
-Date.now() -
+            buttons
 
-(
+        }
 
-days *
+      }
 
-24 *
+    );
 
-60 *
+  }
 
-60 *
+  async function sendSalesReport(
 
-1000
+    chatId,
 
-);
+    days,
 
-const selected =
+    title
 
-[...orders.values()]
+  ) {
 
-.filter(
+    const startTime =
 
-order => {
+      Date.now() -
 
-const created =
+      (
 
-new Date(
+        days *
 
-order.createdAt ||
+        24 *
 
-0
+        60 *
 
-).getTime();
+        60 *
 
-return (
+        1000
 
-Number.isFinite(
+      );
 
-created
+    const selected =
 
-) &&
+      [
 
-created >= startTime
+        ...orders.values()
 
-);
+      ].filter(
 
-}
+        order => {
 
-);
+          const created =
 
-const paid =
+            new Date(
 
-selected.filter(
+              order.createdAt ||
 
-order =>
+              0
 
-order.paymentStatus ===
+            ).getTime();
 
-"paid"
+          return (
 
-);
+            Number.isFinite(
 
-let revenuePence = 0;
+              created
 
-let shippingPence = 0;
+            ) &&
 
-let discountsPence = 0;
+            created >=
 
-let unitsPaid = 0;
+              startTime
 
-const sales =
+          );
 
-new Map();
+        }
 
-for (const order of paid) {
+      );
 
-revenuePence +=
+    const paid =
 
-Number(
+      selected.filter(
 
-order.totalPence ||
+        order =>
 
-0
+          order.paymentStatus ===
 
-);
+          "paid"
 
-shippingPence +=
+      );
 
-Number(
+    let revenuePence = 0;
 
-order.shippingPence ||
+    let shippingPence = 0;
 
-0
+    let discountsPence = 0;
 
-);
+    let unitsPaid = 0;
 
-discountsPence +=
+    const sales =
 
-Number(
+      new Map();
 
-order.discountPence ||
+    for (
 
-0
+      const order
 
-);
+      of paid
 
-for (
+    ) {
 
-const item
+      revenuePence +=
 
-of order.items || []
+        Number(
 
-) {
+          order.totalPence ||
 
-const qty =
+          0
 
-Number(
+        );
 
-item.quantity ||
+      shippingPence +=
 
-0
+        Number(
 
-);
+          order.shippingPence ||
 
-unitsPaid += qty;
+          0
 
-const key =
+        );
 
-Number(item.id);
+      discountsPence +=
 
-if (
+        Number(
 
-!sales.has(key)
+          order.discountPence ||
 
-) {
+          0
 
-sales.set(
+        );
 
-key,
+      for (
 
-{
+        const item
 
-name:
+        of order.items ||
 
-item.name,
+        []
 
-units: 0,
+      ) {
 
-salesPence: 0
+        const qty =
 
-}
+          Number(
 
-);
+            item.quantity ||
 
-}
+            0
 
-const stat =
+          );
 
-sales.get(key);
+        unitsPaid +=
 
-stat.units += qty;
+          qty;
 
-stat.salesPence +=
+        const key =
 
-Number(
+          Number(
 
-item.lineTotalPence ||
+            item.id
 
-(
+          );
 
-Number(
+        if (
 
-item.pricePence ||
+          !sales.has(
 
-0
+            key
 
-) *
+          )
 
-qty
+        ) {
 
-)
+          sales.set(
 
-);
+            key,
 
-}
+            {
 
-}
+              name:
 
-const average =
+                item.name,
 
-paid.length
+              units:
 
-? Math.round(
+                0,
 
-revenuePence /
+              salesPence:
 
-paid.length
+                0
 
-)
+            }
 
-: 0;
+          );
 
-const productLines =
+        }
 
-[...sales.values()]
+        const stat =
 
-.sort(
+          sales.get(
 
-(
+            key
 
-a,
+          );
 
-b
+        stat.units +=
 
-) =>
+          qty;
 
-b.units -
+        stat.salesPence +=
 
-a.units
+          Number(
 
-)
+            item.lineTotalPence ||
 
-.map(
+            (
 
-product =>
+              Number(
+
+                item.pricePence ||
+
+                0
+
+              ) *
+
+              qty
+
+            )
+
+          );
+
+      }
+
+    }
+
+    const average =
+
+      paid.length
+
+        ? Math.round(
+
+            revenuePence /
+
+            paid.length
+
+          )
+
+        : 0;
+
+    const productLines =
+
+      [
+
+        ...sales.values()
+
+      ]
+
+        .sort(
+
+          (
+
+            a,
+
+            b
+
+          ) =>
+
+            b.units -
+
+            a.units
+
+        )
+
+        .map(
+
+          product =>
 
 `• ${product.name}
 
-${product.units} sold • ${money(product.salesPence)}`
+${product.units} sold • ${money(
 
-)
+  product.salesPence
 
-.join("\n\n");
+)}`
 
-await sendLongMessage(
+        )
 
-chatId,
+        .join(
+
+          "\n\n"
+
+        );
+
+    await sendLongMessage(
+
+      chatId,
 
 `📊 ${title}
 
@@ -5677,19 +7974,35 @@ ${paid.length}
 
 Revenue:
 
-${money(revenuePence)}
+${money(
+
+  revenuePence
+
+)}
 
 Average paid order:
 
-${money(average)}
+${money(
+
+  average
+
+)}
 
 Shipping collected:
 
-${money(shippingPence)}
+${money(
+
+  shippingPence
+
+)}
 
 Discounts:
 
-${money(discountsPence)}
+${money(
+
+  discountsPence
+
+)}
 
 Units sold:
 
@@ -5697,21 +8010,31 @@ ${unitsPaid}
 
 PRODUCT SALES
 
-${productLines || "No paid sales in this period."}`
+${
 
-);
+  productLines ||
 
-}
+  "No paid sales in this period."
 
-async function sendPendingReviews(
+}`
 
-chatId
+    );
 
-) {
+  }
 
-const pending =
+  async function sendPendingReviews(
 
-db.prepare(`
+    chatId
+
+  ) {
+
+    const pending =
+
+      db
+
+        .prepare(
+
+          `
 
 SELECT *
 
@@ -5723,59 +8046,69 @@ ORDER BY id ASC
 
 LIMIT 20
 
-`).all();
+`
 
-if (!pending.length) {
+        )
 
-return safeSendMessage(
+        .all();
 
-chatId,
+    if (
 
-"⭐ Reviews\n\nNo reviews are waiting for approval.",
+      !pending.length
 
-{
+    ) {
 
-reply_markup: {
+      return safeSendMessage(
 
-inline_keyboard: [
+        chatId,
 
-[
+        `⭐ Reviews
 
-{
+No reviews are waiting for approval.`,
 
-text:
+        {
 
-"⬅️ Admin Dashboard",
+          reply_markup: {
 
-callback_data:
+            inline_keyboard: [
 
-"admin_dashboard"
+              [
 
-}
+                {
 
-]
+                  text:
 
-]
+                    "⬅️ Admin Dashboard",
 
-}
+                  callback_data:
 
-}
+                    "admin_dashboard"
 
-);
+                }
 
-}
+              ]
 
-for (
+            ]
 
-const review
+          }
 
-of pending
+        }
 
-) {
+      );
 
-await safeSendMessage(
+    }
 
-chatId,
+    for (
+
+      const review
+
+      of pending
+
+    ) {
+
+      await safeSendMessage(
+
+        chatId,
 
 `⭐ REVIEW #${review.id}
 
@@ -5795,119 +8128,133 @@ Review:
 
 ${review.review_text}`,
 
-{
+        {
 
-reply_markup: {
+          reply_markup: {
 
-inline_keyboard: [
+            inline_keyboard: [
 
-[
+              [
 
-{
+                {
 
-text:
+                  text:
 
-"✅ Approve",
+                    "✅ Approve",
 
-callback_data:
+                  callback_data:
 
-`review_approve_${review.id}`
+                    `review_approve_${review.id}`
 
-},
+                },
 
-{
+                {
 
-text:
+                  text:
 
-"❌ Reject",
+                    "❌ Reject",
 
-callback_data:
+                  callback_data:
 
-`review_reject_${review.id}`
+                    `review_reject_${review.id}`
 
-}
+                }
 
-],
+              ],
 
-[
+              [
 
-{
+                {
 
-text:
+                  text:
 
-"⬅️ Admin Dashboard",
+                    "⬅️ Admin Dashboard",
 
-callback_data:
+                  callback_data:
 
-"admin_dashboard"
+                    "admin_dashboard"
 
-}
+                }
 
-]
+              ]
 
-]
+            ]
 
-}
+          }
 
-}
+        }
 
-);
+      );
 
-}
+    }
 
-}
+  }
 
-async function showStockCentre(
+  async function showStockCentre(
 
-chatId
+    chatId
 
-) {
+  ) {
 
-const live =
+    const live =
 
-getLiveProducts();
+      getLiveProducts();
 
-const low =
+    const low =
 
-live.filter(
+      live.filter(
 
-product => {
+        product => {
 
-const stock =
+          const stock =
 
-Number(product.stock);
+            Number(
 
-return (
+              product.stock
 
-Number.isFinite(stock) &&
+            );
 
-stock > 0 &&
+          return (
 
-stock <=
+            Number.isFinite(
 
-LOW_STOCK_THRESHOLD
+              stock
 
-);
+            ) &&
 
-}
+            stock >
 
-);
+              0 &&
 
-const out =
+            stock <=
 
-live.filter(
+              LOW_STOCK_THRESHOLD
 
-product =>
+          );
 
-Number(product.stock) ===
+        }
 
-0
+      );
 
-);
+    const out =
 
-return safeSendMessage(
+      live.filter(
 
-chatId,
+        product =>
+
+          Number(
+
+            product.stock
+
+          ) ===
+
+          0
+
+      );
+
+    return safeSendMessage(
+
+      chatId,
 
 `📦 STOCK CENTRE
 
@@ -5925,235 +8272,249 @@ ${out.length}
 
 Choose an option.`,
 
-{
+      {
 
-reply_markup: {
+        reply_markup: {
 
-inline_keyboard: [
+          inline_keyboard: [
 
-[
+            [
 
-{
+              {
 
-text:
+                text:
 
-"📋 All Stock",
+                  "📋 All Stock",
 
-callback_data:
+                callback_data:
 
-"admin_stock_all"
+                  "admin_stock_all"
 
-},
+              },
 
-{
+              {
 
-text:
+                text:
 
-"📉 Low Stock",
+                  "📉 Low Stock",
 
-callback_data:
+                callback_data:
 
-"admin_stock_low"
+                  "admin_stock_low"
 
-}
+              }
 
-],
+            ],
 
-[
+            [
 
-{
+              {
 
-text:
+                text:
 
-"❌ Out of Stock",
+                  "❌ Out of Stock",
 
-callback_data:
+                callback_data:
 
-"admin_stock_out"
+                  "admin_stock_out"
 
-},
+              },
 
-{
+              {
 
-text:
+                text:
 
-"✏️ Adjust Stock",
+                  "✏️ Adjust Stock",
 
-callback_data:
+                callback_data:
 
-"admin_stock_adjust"
+                  "admin_stock_adjust"
 
-}
+              }
 
-],
+            ],
 
-[
+            [
 
-{
+              {
 
-text:
+                text:
 
-"⬅️ Admin Dashboard",
+                  "⬅️ Admin Dashboard",
 
-callback_data:
+                callback_data:
 
-"admin_dashboard"
+                  "admin_dashboard"
 
-}
+              }
 
-]
+            ]
 
-]
+          ]
 
-}
+        }
 
-}
+      }
 
-);
+    );
 
-}
+  }
 
-async function sendStockList(
+  async function sendStockList(
 
-chatId,
+    chatId,
 
-title,
+    title,
 
-list
+    list
 
-) {
+  ) {
 
-const lines =
+    const lines =
 
-list
+      list
 
-.map(
+        .map(
 
-product =>
+          product =>
 
-`#${product.id} • ${product.name}: ${product.stock}`
+            `#${product.id} • ${product.name}: ${product.stock}`
 
-)
+        )
 
-.join("\n");
+        .join("\n");
 
-await sendLongMessage(
+    await sendLongMessage(
 
-chatId,
+      chatId,
 
-`${title}\n\n${lines || "Nothing here."}`
+      `${title}
 
-);
+${lines || "Nothing here."}`
 
-}
+    );
 
-bot.onText(
+  }
 
-/^\/start(?:@\w+)?(?:\s.*)?$/i,
+  /* =======================================================
 
-async msg => {
+     START
 
-const buttons = [];
+     ======================================================= */
 
-if (webAppUrl) {
+  bot.onText(
 
-buttons.push([
+    /^\/start(?:@\w+)?(?:\s.*)?$/i,
 
-{
+    async msg => {
 
-text:
+      const buttons =
 
-"🛍 OPEN SHOP — TAP HERE",
+        [];
 
-web_app: {
+      if (
 
-url:
+        webAppUrl
 
-webAppUrl
+      ) {
 
-}
+        buttons.push([
 
-}
+          {
 
-]);
+            text:
 
-}
+              "🛍 OPEN SHOP — TAP HERE",
 
-buttons.push([
+            web_app: {
 
-{
+              url:
 
-text:
+                webAppUrl
 
-"📦 My Orders",
+            }
 
-callback_data:
+          }
 
-"orders"
+        ]);
 
-},
+      }
 
-{
+      buttons.push([
 
-text:
+        {
 
-"💬 Support",
+          text:
 
-callback_data:
+            "📦 My Orders",
 
-"support"
+          callback_data:
 
-}
+            "orders"
 
-]);
+        },
 
-buttons.push([
+        {
 
-{
+          text:
 
-text:
+            "💬 Support",
 
-"ℹ️ Info",
+          callback_data:
 
-callback_data:
+            "support"
 
-"info"
+        }
 
-}
+      ]);
 
-]);
+      buttons.push([
 
-if (
+        {
 
-isAdmin(
+          text:
 
-msg.from?.id
+            "ℹ️ Info",
 
-)
+          callback_data:
 
-) {
+            "info"
 
-buttons.push([
+        }
 
-{
+      ]);
 
-text:
+      if (
 
-"🛠 Admin Dashboard",
+        isAdmin(
 
-callback_data:
+          msg.from?.id
 
-"admin_dashboard"
+        )
 
-}
+      ) {
 
-]);
+        buttons.push([
 
-}
+          {
 
-await safeSendMessage(
+            text:
 
-msg.chat.id,
+              "🛠 Admin Dashboard",
+
+            callback_data:
+
+              "admin_dashboard"
+
+          }
+
+        ]);
+
+      }
+
+      await safeSendMessage(
+
+        msg.chat.id,
 
 `⚡️ Welcome
 
@@ -6165,395 +8526,531 @@ msg.chat.id,
 
 ℹ️ Info${
 
-isAdmin(msg.from?.id)
+  isAdmin(
 
-? "\n🛠 Admin Dashboard"
+    msg.from?.id
 
-: ""
+  )
+
+    ? "\n🛠 Admin Dashboard"
+
+    : ""
 
 }`,
 
-{
+        {
 
-reply_markup: {
+          reply_markup: {
 
-inline_keyboard:
+            inline_keyboard:
 
-buttons
+              buttons
 
-}
+          }
 
-}
+        }
 
-);
+      );
 
-}
+    }
 
-);
+  );
 
-bot.onText(
+  /* =======================================================
 
-/^\/admin(?:@\w+)?$/i,
+     ADMIN COMMAND
 
-async msg => {
+     ======================================================= */
 
-if (
+  bot.onText(
 
-!isAdmin(
+    /^\/admin(?:@\w+)?$/i,
 
-msg.from?.id
+    async msg => {
 
-)
+      if (
 
-) {
+        !isAdmin(
 
-return safeSendMessage(
+          msg.from?.id
 
-msg.chat.id,
+        )
 
-"This command is admin-only."
+      ) {
 
-);
+        return safeSendMessage(
 
-}
+          msg.chat.id,
 
-return sendAdminDashboard(
+          "This command is admin-only."
 
-msg.chat.id
+        );
 
-);
+      }
 
-}
+      return sendAdminDashboard(
 
-);
+        msg.chat.id
 
-bot.onText(
+      );
 
-/^\/myid(?:@\w+)?$/i,
+    }
 
-async msg => {
+  );
 
-await safeSendMessage(
+  /* =======================================================
 
-msg.chat.id,
+     MY ID
 
-`Your Telegram ID: ${msg.from.id}`
+     ======================================================= */
 
-);
+  bot.onText(
 
-}
+    /^\/myid(?:@\w+)?$/i,
 
-);
+    async msg => {
 
-bot.onText(
+      await safeSendMessage(
 
-/^\/earnings(?:@\w+)?$/i,
+        msg.chat.id,
 
-async msg => {
+        `Your Telegram ID: ${msg.from.id}`
 
-if (
+      );
 
-!isAdmin(
+    }
 
-msg.from?.id
+  );
 
-)
+  /* =======================================================
 
-) {
+     EARNINGS COMMAND
 
-return safeSendMessage(
+     ======================================================= */
 
-msg.chat.id,
+  bot.onText(
 
-"This command is admin-only."
+    /^\/earnings(?:@\w+)?$/i,
 
-);
+    async msg => {
 
-}
+      if (
 
-return sendLongMessage(
+        !isAdmin(
 
-msg.chat.id,
+          msg.from?.id
 
-getAffiliateEarningsText()
+        )
 
-);
+      ) {
 
-}
+        return safeSendMessage(
 
-);
+          msg.chat.id,
 
-bot.onText(
+          "This command is admin-only."
 
-/^\/paid\s+(\d+)$/i,
+        );
 
-async (
+      }
 
-msg,
+      return sendLongMessage(
 
-match
+        msg.chat.id,
 
-) => {
+        getAffiliateEarningsText()
 
-if (
+      );
 
-!isAdmin(
+    }
 
-msg.from?.id
+  );
 
-)
+  /* =======================================================
 
-) {
+     PAID COMMAND
 
-return safeSendMessage(
+     ======================================================= */
 
-msg.chat.id,
+  bot.onText(
 
-"This command is admin-only."
+    /^\/paid\s+(\d+)$/i,
 
-);
+    async (
 
-}
+      msg,
 
-const orderId =
+      match
 
-Number(match[1]);
+    ) => {
 
-const order =
+      if (
 
-orders.get(orderId);
+        !isAdmin(
 
-if (!order) {
+          msg.from?.id
 
-return safeSendMessage(
+        )
 
-msg.chat.id,
+      ) {
 
-`❌ Order #${orderId} not found.`
+        return safeSendMessage(
 
-);
+          msg.chat.id,
 
-}
+          "This command is admin-only."
 
-const result =
+        );
 
-await markOrderPaid(
+      }
 
-order
+      const orderId =
 
-);
+        Number(
 
-if (!result.ok) {
+          match[1]
 
-return safeSendMessage(
+        );
 
-msg.chat.id,
+      const order =
+
+        orders.get(
+
+          orderId
+
+        );
+
+      if (
+
+        !order
+
+      ) {
+
+        return safeSendMessage(
+
+          msg.chat.id,
+
+          `❌ Order #${orderId} not found.`
+
+        );
+
+      }
+
+      const result =
+
+        await markOrderPaid(
+
+          order
+
+        );
+
+      if (
+
+        !result.ok
+
+      ) {
+
+        return safeSendMessage(
+
+          msg.chat.id,
 
 `❌ Could not mark order paid.
 
 ${result.error}`
 
-);
+        );
 
-}
+      }
 
-if (
+      if (
 
-result.alreadyPaid
+        result.alreadyPaid
 
-) {
+      ) {
 
-return safeSendMessage(
+        return safeSendMessage(
 
-msg.chat.id,
+          msg.chat.id,
 
 `ℹ️ Order #${orderId} was already paid.
 
 Stock has NOT been deducted again.`
 
-);
+        );
 
-}
+      }
 
-return safeSendMessage(
+      return safeSendMessage(
 
-msg.chat.id,
+        msg.chat.id,
 
 `✅ Order #${orderId} marked paid.
 
 Reserved stock is now committed to the order.`
 
-);
+      );
 
-}
+    }
 
-);
+  );
 
-bot.onText(
+  /* =======================================================
 
-/^\/setstock(?:@\w+)?\s+(\d+)\s+(\d+)$/i,
+     SET STOCK COMMAND
 
-async (msg, match) => {
+     ======================================================= */
 
-if (!isAdmin(msg.from?.id)) {
+  bot.onText(
 
-return safeSendMessage(
+    /^\/setstock(?:@\w+)?\s+(\d+)\s+(\d+)$/i,
 
-msg.chat.id,
+    async (
 
-"This command is admin-only."
+      msg,
 
-);
+      match
 
-}
+    ) => {
 
-const productId = Number(match[1]);
+      if (
 
-const newStock = Number(match[2]);
+        !isAdmin(
 
-const product = productsById.get(productId);
+          msg.from?.id
 
-if (!product) {
+        )
 
-return safeSendMessage(
+      ) {
 
-msg.chat.id,
+        return safeSendMessage(
 
-`❌ Product #${productId} not found.`
+          msg.chat.id,
 
-);
+          "This command is admin-only."
 
-}
+        );
 
-if (!Number.isInteger(newStock) || newStock < 0) {
+      }
 
-return safeSendMessage(
+      const productId =
 
-msg.chat.id,
+        Number(
 
-"Stock must be a whole number of 0 or more."
+          match[1]
 
-);
+        );
 
-}
+      const newStock =
 
-const oldStock = getLiveStock(productId);
+        Number(
 
-setInventoryStmt.run(
+          match[2]
 
-newStock,
+        );
 
-productId
+      const product =
 
-);
+        productsById.get(
 
-return safeSendMessage(
+          productId
 
-msg.chat.id,
+        );
 
-`✅ STOCK UPDATED\n\n${product.name}\n\nOld stock: ${oldStock}\nNew stock: ${newStock}`
+      if (
 
-);
+        !product
 
-}
+      ) {
 
-);
+        return safeSendMessage(
 
-bot.onText(
+          msg.chat.id,
 
-/^\/tracking\s+(\d+)\s+(.+)$/i,
+          `❌ Product #${productId} not found.`
 
-async (
+        );
 
-msg,
+      }
 
-match
+      if (
 
-) => {
+        !Number.isInteger(
 
-if (
+          newStock
 
-!isAdmin(
+        ) ||
 
-msg.from?.id
+        newStock <
 
-)
+          0
 
-) {
+      ) {
 
-return safeSendMessage(
+        return safeSendMessage(
 
-msg.chat.id,
+          msg.chat.id,
 
-"This command is admin-only."
+          "Stock must be a whole number of 0 or more."
 
-);
+        );
 
-}
+      }
 
-const orderId =
+      const oldStock =
 
-Number(match[1]);
+        getLiveStock(
 
-const trackingNumber =
+          productId
 
-String(
+        );
 
-match[2]
+      setInventoryStmt.run(
 
-).trim();
+        newStock,
 
-const order =
+        productId
 
-orders.get(orderId);
+      );
 
-if (!order) {
+      return safeSendMessage(
 
-return safeSendMessage(
+        msg.chat.id,
 
-msg.chat.id,
+`✅ STOCK UPDATED
 
-`❌ Order #${orderId} not found.`
+${product.name}
 
-);
+Old stock:
 
-}
+${oldStock}
 
-if (
+New stock:
 
-order.paymentStatus !==
+${newStock}`
 
-"paid"
+      );
 
-) {
+    }
 
-return safeSendMessage(
+  );
 
-msg.chat.id,
+  /* =======================================================
 
-`❌ Order #${orderId} has not been marked paid.`
+     TRACKING COMMAND
 
-);
+     ======================================================= */
 
-}
+  bot.onText(
 
-order.trackingNumber =
+    /^\/tracking\s+(\d+)\s+(.+)$/i,
 
-trackingNumber;
+    async (
 
-order.fulfilmentStatus =
+      msg,
 
-"shipped";
+      match
 
-order.shippedAt =
+    ) => {
 
-new Date().toISOString();
+      if (
 
-saveOrder(order);
+        !isAdmin(
 
-await safeSendMessage(
+          msg.from?.id
 
-msg.chat.id,
+        )
+
+      ) {
+
+        return safeSendMessage(
+
+          msg.chat.id,
+
+          "This command is admin-only."
+
+        );
+
+      }
+
+      const orderId =
+
+        Number(
+
+          match[1]
+
+        );
+
+      const trackingNumber =
+
+        String(
+
+          match[2]
+
+        ).trim();
+
+      const order =
+
+        orders.get(
+
+          orderId
+
+        );
+
+      if (
+
+        !order
+
+      ) {
+
+        return safeSendMessage(
+
+          msg.chat.id,
+
+          `❌ Order #${orderId} not found.`
+
+        );
+
+      }
+
+      if (
+
+        order.paymentStatus !==
+
+        "paid"
+
+      ) {
+
+        return safeSendMessage(
+
+          msg.chat.id,
+
+          `❌ Order #${orderId} has not been marked paid.`
+
+        );
+
+      }
+
+      order.trackingNumber =
+
+        trackingNumber;
+
+      order.fulfilmentStatus =
+
+        "shipped";
+
+      order.shippedAt =
+
+        new Date().toISOString();
+
+      saveOrder(
+
+        order
+
+      );
+
+      await safeSendMessage(
+
+        msg.chat.id,
 
 `✅ Tracking saved
 
@@ -6565,13 +9062,17 @@ Tracking:
 
 ${trackingNumber}`
 
-);
+      );
 
-if (order.telegramId) {
+      if (
 
-await safeSendMessage(
+        order.telegramId
 
-order.telegramId,
+      ) {
+
+        await safeSendMessage(
+
+          order.telegramId,
 
 `📦 Your order has been dispatched
 
@@ -6583,467 +9084,535 @@ Tracking:
 
 ${trackingNumber}`
 
-);
+        );
 
-}
+      }
 
-}
+    }
 
-);
+  );
 
-bot.onText(
+  /* =======================================================
 
-/^\/reviews(?:@\w+)?$/i,
+     REVIEWS COMMAND
 
-async msg => {
+     ======================================================= */
 
-if (
+  bot.onText(
 
-!isAdmin(
+    /^\/reviews(?:@\w+)?$/i,
 
-msg.from?.id
+    async msg => {
 
-)
+      if (
 
-) {
+        !isAdmin(
 
-return safeSendMessage(
+          msg.from?.id
 
-msg.chat.id,
+        )
 
-"This command is admin-only."
+      ) {
 
-);
+        return safeSendMessage(
 
-}
+          msg.chat.id,
 
-return sendPendingReviews(
+          "This command is admin-only."
 
-msg.chat.id
+        );
 
-);
+      }
 
-}
+      return sendPendingReviews(
 
-);
+        msg.chat.id
 
-bot.onText(
+      );
 
-/^\/summary(?:@\w+)?$/i,
+    }
 
-async msg => {
+  );
 
-if (
+  /* =======================================================
 
-!isAdmin(
+     SUMMARY COMMAND
 
-msg.from?.id
+     ======================================================= */
 
-)
+  bot.onText(
 
-) {
+    /^\/summary(?:@\w+)?$/i,
 
-return safeSendMessage(
+    async msg => {
 
-msg.chat.id,
+      if (
 
-"This command is admin-only."
+        !isAdmin(
 
-);
+          msg.from?.id
 
-}
+        )
 
-const sevenDaysAgo =
+      ) {
 
-Date.now() -
+        return safeSendMessage(
 
-(
+          msg.chat.id,
 
-7 *
+          "This command is admin-only."
 
-24 *
+        );
 
-60 *
+      }
 
-60 *
+      const sevenDaysAgo =
 
-1000
+        Date.now() -
 
-);
+        (
 
-const sinceIso =
+          7 *
 
-new Date(
+          24 *
 
-sevenDaysAgo
+          60 *
 
-).toISOString();
+          60 *
 
-const recentOrders =
+          1000
 
-[...orders.values()]
+        );
 
-.filter(
+      const sinceIso =
 
-order => {
+        new Date(
 
-const created =
+          sevenDaysAgo
 
-new Date(
+        ).toISOString();
 
-order.createdAt ||
+      const recentOrders =
 
-0
+        [
 
-).getTime();
+          ...orders.values()
 
-return (
+        ].filter(
 
-Number.isFinite(
+          order => {
 
-created
+            const created =
 
-) &&
+              new Date(
 
-created >=
+                order.createdAt ||
 
-sevenDaysAgo
+                0
 
-);
+              ).getTime();
 
-}
+            return (
 
-);
+              Number.isFinite(
 
-const paidOrders =
+                created
 
-recentOrders.filter(
+              ) &&
 
-order =>
+              created >=
 
-order.paymentStatus ===
+                sevenDaysAgo
 
-"paid"
+            );
 
-);
+          }
 
-let revenuePence = 0;
+        );
 
-let shippingPence = 0;
+      const paidOrders =
 
-let discountsPence = 0;
+        recentOrders.filter(
 
-let storeCreditPence = 0;
+          order =>
 
-let unitsOrdered = 0;
+            order.paymentStatus ===
 
-let unitsPaid = 0;
+            "paid"
 
-const productStats =
+        );
 
-new Map();
+      let revenuePence = 0;
 
-function statFor(
+      let shippingPence = 0;
 
-id,
+      let discountsPence = 0;
 
-name
+      let storeCreditPence = 0;
 
-) {
+      let unitsOrdered = 0;
 
-const key =
+      let unitsPaid = 0;
 
-Number(id);
+      const productStats =
 
-if (
+        new Map();
 
-!productStats.has(key)
+      function statFor(
 
-) {
+        id,
 
-productStats.set(
+        name
 
-key,
+      ) {
 
-{
+        const key =
 
-name:
+          Number(
 
-name ||
+            id
 
-`Product ${key}`,
+          );
 
-ordered: 0,
+        if (
 
-paid: 0,
+          !productStats.has(
 
-revenuePence: 0,
+            key
 
-basketAdds: 0,
+          )
 
-basketRemoves: 0
+        ) {
 
-}
+          productStats.set(
 
-);
+            key,
 
-}
+            {
 
-return productStats.get(
+              name:
 
-key
+                name ||
 
-);
+                `Product ${key}`,
 
-}
+              ordered:
 
-for (
+                0,
 
-const order
+              paid:
 
-of recentOrders
+                0,
 
-) {
+              revenuePence:
 
-discountsPence +=
+                0,
 
-Number(
+              basketAdds:
 
-order.discountPence ||
+                0,
 
-0
+              basketRemoves:
 
-);
+                0
 
-storeCreditPence +=
+            }
 
-Number(
+          );
 
-order.storeCreditPence ||
+        }
 
-0
+        return productStats.get(
 
-);
+          key
 
-for (
+        );
 
-const item
+      }
 
-of order.items || []
+      for (
 
-) {
+        const order
 
-const qty =
+        of recentOrders
 
-Number(
+      ) {
 
-item.quantity ||
+        discountsPence +=
 
-0
+          Number(
 
-);
+            order.discountPence ||
 
-statFor(
+            0
 
-item.id,
+          );
 
-item.name
+        storeCreditPence +=
 
-).ordered += qty;
+          Number(
 
-unitsOrdered += qty;
+            order.storeCreditPence ||
 
-}
+            0
 
-if (
+          );
 
-order.paymentStatus ===
+        for (
 
-"paid"
+          const item
 
-) {
+          of order.items ||
 
-revenuePence +=
+          []
 
-Number(
+        ) {
 
-order.totalPence ||
+          const qty =
 
-0
+            Number(
 
-);
+              item.quantity ||
 
-shippingPence +=
+              0
 
-Number(
+            );
 
-order.shippingPence ||
+          statFor(
 
-0
+            item.id,
 
-);
+            item.name
 
-for (
+          ).ordered +=
 
-const item
+            qty;
 
-of order.items || []
+          unitsOrdered +=
 
-) {
+            qty;
 
-const qty =
+        }
 
-Number(
+        if (
 
-item.quantity ||
+          order.paymentStatus ===
 
-0
+          "paid"
 
-);
+        ) {
 
-const stat =
+          revenuePence +=
 
-statFor(
+            Number(
 
-item.id,
+              order.totalPence ||
 
-item.name
+              0
 
-);
+            );
 
-stat.paid += qty;
+          shippingPence +=
 
-stat.revenuePence +=
+            Number(
 
-Number(
+              order.shippingPence ||
 
-item.lineTotalPence ||
+              0
 
-(
+            );
 
-Number(
+          for (
 
-item.pricePence ||
+            const item
 
-0
+            of order.items ||
 
-) *
+            []
 
-qty
+          ) {
 
-)
+            const qty =
 
-);
+              Number(
 
-unitsPaid += qty;
+                item.quantity ||
 
-}
+                0
 
-}
+              );
 
-}
+            const stat =
 
-const cartRows =
+              statFor(
 
-db.prepare(`
+                item.id,
+
+                item.name
+
+              );
+
+            stat.paid +=
+
+              qty;
+
+            stat.revenuePence +=
+
+              Number(
+
+                item.lineTotalPence ||
+
+                (
+
+                  Number(
+
+                    item.pricePence ||
+
+                    0
+
+                  ) *
+
+                  qty
+
+                )
+
+              );
+
+            unitsPaid +=
+
+              qty;
+
+          }
+
+        }
+
+      }
+
+      const cartRows =
+
+        db
+
+          .prepare(
+
+            `
 
 SELECT
 
-productId,
+  productId,
 
-action,
+  action,
 
-COUNT(*) AS count
+  COUNT(*) AS count
 
 FROM cart_events
 
 WHERE createdAt >= ?
 
-GROUP BY productId, action
+GROUP BY
 
-`).all(sinceIso);
+  productId,
 
-let basketAdds = 0;
+  action
 
-let basketRemoves = 0;
+`
 
-for (
+          )
 
-const row
+          .all(
 
-of cartRows
+            sinceIso
 
-) {
+          );
 
-const product =
+      let basketAdds = 0;
 
-productsById.get(
+      let basketRemoves = 0;
 
-Number(row.productId)
+      for (
 
-);
+        const row
 
-const stat =
+        of cartRows
 
-statFor(
+      ) {
 
-row.productId,
+        const product =
 
-product?.name
+          productsById.get(
 
-);
+            Number(
 
-const count =
+              row.productId
 
-Number(
+            )
 
-row.count ||
+          );
 
-0
+        const stat =
 
-);
+          statFor(
 
-if (
+            row.productId,
 
-row.action ===
+            product?.name
 
-"add"
+          );
 
-) {
+        const count =
 
-stat.basketAdds +=
+          Number(
 
-count;
+            row.count ||
 
-basketAdds +=
+            0
 
-count;
+          );
 
-} else if (
+        if (
 
-row.action ===
+          row.action ===
 
-"remove"
+          "add"
 
-) {
+        ) {
 
-stat.basketRemoves +=
+          stat.basketAdds +=
 
-count;
+            count;
 
-basketRemoves +=
+          basketAdds +=
 
-count;
+            count;
 
-}
+        } else if (
 
-}
+          row.action ===
 
-const pendingReviews =
+          "remove"
 
-Number(
+        ) {
 
-db.prepare(`
+          stat.basketRemoves +=
+
+            count;
+
+          basketRemoves +=
+
+            count;
+
+        }
+
+      }
+
+      const pendingReviews =
+
+        Number(
+
+          db
+
+            .prepare(
+
+              `
 
 SELECT COUNT(*) AS count
 
@@ -7051,17 +9620,27 @@ FROM reviews
 
 WHERE approved = 0
 
-`).get()?.count ||
+`
 
-0
+            )
 
-);
+            .get()
 
-const approvedReviews =
+            ?.count ||
 
-Number(
+          0
 
-db.prepare(`
+        );
+
+      const approvedReviews =
+
+        Number(
+
+          db
+
+            .prepare(
+
+              `
 
 SELECT COUNT(*) AS count
 
@@ -7069,7672 +9648,796 @@ FROM reviews
 
 WHERE approved = 1
 
-`).get()?.count ||
+`
 
-0
-
-);
-
-const productLines =
-
-[...productStats.values()]
-
-.filter(
-
-p =>
-
-p.ordered ||
-
-p.paid ||
-
-p.basketAdds ||
-
-p.basketRemoves
-
-)
-
-.sort(
-
-(
-
-a,
-
-b
-
-) =>
-
-b.paid -
-
-a.paid ||
-
-b.ordered -
-
-a.ordered
-
-)
-
-.map(
-
-p =>
-
-`• ${p.name}
-
-Ordered: ${p.ordered}
-
-Paid: ${p.paid}
-
-Sales: ${money(p.revenuePence)}
-
-Basket +: ${p.basketAdds}
-
-Basket -: ${p.basketRemoves}`
-
-)
-
-.join("\n\n");
-
-return sendLongMessage(
-
-msg.chat.id,
-
-`📊 7 DAY SUMMARY
-
-Orders created:
-
-${recentOrders.length}
-
-Paid orders:
-
-${paidOrders.length}
-
-Paid revenue:
-
-${money(revenuePence)}
-
-Shipping collected:
-
-${money(shippingPence)}
-
-Discounts:
-
-${money(discountsPence)}
-
-Store credit used:
-
-${money(storeCreditPence)}
-
-Units ordered:
-
-${unitsOrdered}
-
-Units paid:
-
-${unitsPaid}
-
-Basket adds:
-
-${basketAdds}
-
-Basket removals:
-
-${basketRemoves}
-
-Reviews waiting:
-
-${pendingReviews}
-
-Reviews approved:
-
-${approvedReviews}
-
-PRODUCTS
-
-${productLines || "No activity in the last 7 days."}`
-
-);
-
-}
-
-);
-
-bot.on(
-
-"callback_query",
-
-async q => {
-
-const chatId =
-
-q.message?.chat?.id;
-
-if (!chatId) {
-
-return;
-
-}
-
-const data =
-
-String(
-
-q.data ||
-
-""
-
-);
-
-if (
-
-data.startsWith(
-
-"review_approve_"
-
-)
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-try {
-
-await bot.answerCallbackQuery(
-
-q.id,
-
-{
-
-text:
-
-"Admin only."
-
-}
-
-);
-
-} catch {}
-
-return;
-
-}
-
-const reviewId =
-
-Number(
-
-data.replace(
-
-"review_approve_",
-
-""
-
-)
-
-);
-
-const review =
-
-db.prepare(
-
-"SELECT * FROM reviews WHERE id = ?"
-
-).get(reviewId);
-
-if (!review) {
-
-try {
-
-await bot.answerCallbackQuery(
-
-q.id,
-
-{
-
-text:
-
-"Review not found."
-
-}
-
-);
-
-} catch {}
-
-return;
-
-}
-
-db.prepare(
-
-"UPDATE reviews SET approved = 1 WHERE id = ?"
-
-).run(reviewId);
-
-try {
-
-await bot.answerCallbackQuery(
-
-q.id,
-
-{
-
-text:
-
-"Review approved ✅"
-
-}
-
-);
-
-} catch {}
-
-try {
-
-await bot.editMessageText(
-
-`✅ REVIEW APPROVED
-
-Review:
-
-#${review.id}
-
-Order:
-
-#${review.order_id}
-
-Customer:
-
-${review.display_name}
-
-Rating:
-
-${review.rating}/5
-
-${review.review_text}`,
-
-{
-
-chat_id:
-
-chatId,
-
-message_id:
-
-q.message.message_id
-
-}
-
-);
-
-} catch {}
-
-return;
-
-}
-
-if (
-
-data.startsWith(
-
-"review_reject_"
-
-)
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-try {
-
-await bot.answerCallbackQuery(
-
-q.id,
-
-{
-
-text:
-
-"Admin only."
-
-}
-
-);
-
-} catch {}
-
-return;
-
-}
-
-const reviewId =
-
-Number(
-
-data.replace(
-
-"review_reject_",
-
-""
-
-)
-
-);
-
-const review =
-
-db.prepare(
-
-"SELECT * FROM reviews WHERE id = ?"
-
-).get(reviewId);
-
-if (!review) {
-
-try {
-
-await bot.answerCallbackQuery(
-
-q.id,
-
-{
-
-text:
-
-"Review not found."
-
-}
-
-);
-
-} catch {}
-
-return;
-
-}
-
-db.prepare(
-
-"DELETE FROM reviews WHERE id = ?"
-
-).run(reviewId);
-
-try {
-
-await bot.answerCallbackQuery(
-
-q.id,
-
-{
-
-text:
-
-"Review rejected ❌"
-
-}
-
-);
-
-} catch {}
-
-try {
-
-await bot.editMessageText(
-
-`❌ REVIEW REJECTED
-
-Review:
-
-#${review.id}
-
-Order:
-
-#${review.order_id}
-
-Customer:
-
-${review.display_name}
-
-The review has been removed.`,
-
-{
-
-chat_id:
-
-chatId,
-
-message_id:
-
-q.message.message_id
-
-}
-
-);
-
-} catch {}
-
-return;
-
-}
-
-try {
-
-await bot.answerCallbackQuery(
-
-q.id
-
-);
-
-} catch {}
-
-if (
-
-data ===
-
-"admin_dashboard"
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return safeSendMessage(
-
-chatId,
-
-"Admin only."
-
-);
-
-}
-
-return sendAdminDashboard(
-
-chatId
-
-);
-
-}
-
-if (
-
-data ===
-
-"admin_recent_orders"
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-return showOrderList(
-
-chatId,
-
-"📦 RECENT ORDERS",
-
-getRecentOrders(15)
-
-);
-
-}
-
-if (
-
-data ===
-
-"admin_payments"
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-const list =
-
-getRecentOrders(100)
-
-.filter(
-
-order =>
-
-order.paymentStatus ===
-
-"payment_submitted"
-
-);
-
-return showOrderList(
-
-chatId,
-
-"⏳ PAYMENTS TO CHECK",
-
-list
-
-);
-
-}
-
-if (
-
-data ===
-
-"admin_dispatch"
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-const list =
-
-getRecentOrders(100)
-
-.filter(
-
-order =>
-
-order.paymentStatus ===
-
-"paid" &&
-
-order.fulfilmentStatus !==
-
-"shipped"
-
-);
-
-return showOrderList(
-
-chatId,
-
-"🚚 DISPATCH QUEUE",
-
-list
-
-);
-
-}
-
-if (
-
-data ===
-
-"admin_find_order"
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-clearAdminInputs(chatId);
-
-pendingAdminOrderLookup.add(
-
-chatId
-
-);
-
-return safeSendMessage(
-
-chatId,
-
-`🔎 FIND ORDER
-
-Send the order number.
-
-Example:
-
-1030`
-
-);
-
-}
-
-if (
-
-data ===
-
-"admin_reports"
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-return safeSendMessage(
-
-chatId,
-
-`📊 SALES REPORTS
-
-Choose a period.`,
-
-{
-
-reply_markup: {
-
-inline_keyboard: [
-
-[
-
-{
-
-text:
-
-"Today",
-
-callback_data:
-
-"admin_report_1"
-
-},
-
-{
-
-text:
-
-"7 Days",
-
-callback_data:
-
-"admin_report_7"
-
-},
-
-{
-
-text:
-
-"30 Days",
-
-callback_data:
-
-"admin_report_30"
-
-}
-
-],
-
-[
-
-{
-
-text:
-
-"⬅️ Admin Dashboard",
-
-callback_data:
-
-"admin_dashboard"
-
-}
-
-]
-
-]
-
-}
-
-}
-
-);
-
-}
-
-if (
-
-data ===
-
-"admin_report_1"
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-return sendSalesReport(
-
-chatId,
-
-1,
-
-"TODAY / LAST 24 HOURS"
-
-);
-
-}
-
-if (
-
-data ===
-
-"admin_report_7"
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-return sendSalesReport(
-
-chatId,
-
-7,
-
-"7 DAY REPORT"
-
-);
-
-}
-
-if (
-
-data ===
-
-"admin_report_30"
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-return sendSalesReport(
-
-chatId,
-
-30,
-
-"30 DAY REPORT"
-
-);
-
-}
-
-if (
-
-data ===
-
-"admin_stock"
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-return showStockCentre(
-
-chatId
-
-);
-
-}
-
-if (
-
-data ===
-
-"admin_stock_all"
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-return sendStockList(
-
-chatId,
-
-"📋 ALL STOCK",
-
-getLiveProducts()
-
-);
-
-}
-
-if (
-
-data ===
-
-"admin_stock_low"
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-const list =
-
-getLiveProducts()
-
-.filter(
-
-product => {
-
-const stock =
-
-Number(
-
-product.stock
-
-);
-
-return (
-
-Number.isFinite(stock) &&
-
-stock > 0 &&
-
-stock <=
-
-LOW_STOCK_THRESHOLD
-
-);
-
-}
-
-);
-
-return sendStockList(
-
-chatId,
-
-"📉 LOW STOCK",
-
-list
-
-);
-
-}
-
-if (
-
-data ===
-
-"admin_stock_out"
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-const list =
-
-getLiveProducts()
-
-.filter(
-
-product =>
-
-Number(
-
-product.stock
-
-) === 0
-
-);
-
-return sendStockList(
-
-chatId,
-
-"❌ OUT OF STOCK",
-
-list
-
-);
-
-}
-
-if (
-
-data ===
-
-"admin_stock_adjust"
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-clearAdminInputs(chatId);
-
-pendingStockAdjustment.set(
-
-chatId,
-
-{
-
-stage:
-
-"product"
-
-}
-
-);
-
-return safeSendMessage(
-
-chatId,
-
-`✏️ ADJUST STOCK
-
-Send the product ID.
-
-You can find IDs in:
-
-Stock Centre → All Stock`
-
-);
-
-}
-
-if (
-
-data ===
-
-"admin_reviews"
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-return sendPendingReviews(
-
-chatId
-
-);
-
-}
-
-if (
-
-data ===
-
-"admin_earnings"
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-return sendLongMessage(
-
-chatId,
-
-getAffiliateEarningsText()
-
-);
-
-}
-
-if (
-
-data ===
-
-"admin_storewide_promo"
-
-) {
-
-if (!isAdmin(q.from?.id)) return;
-
-const promo = getStorewidePromo();
-
-const live = isStorewidePromoLive(promo);
-
-return safeSendMessage(
-
-chatId,
-
-`🎉 STORE-WIDE PROMO
-
-Code:
-
-${promo.code}
-
-Discount:
-
-${promo.discountPercent}%
-
-Stacks with affiliate codes:
-
-YES
-
-Status:
-
-${live ? "🟢 ACTIVE" : "🔴 OFF"}
-
-${
-
-live
-
-? "Customers can use the promo code now."
-
-: "The promo code is currently disabled."
-
-}`,
-
-{
-
-reply_markup: {
-
-inline_keyboard: [
-
-[
-
-{
-
-text: live
-
-? "⏸ Turn Promo Off"
-
-: "▶️ Turn Promo On",
-
-callback_data:
-
-"admin_storewide_toggle"
-
-}
-
-],
-
-[
-
-{
-
-text:
-
-"⬅️ Admin Dashboard",
-
-callback_data:
-
-"admin_dashboard"
-
-}
-
-]
-
-]
-
-}
-
-}
-
-);
-
-}
-
-if (
-
-data ===
-
-"admin_storewide_toggle"
-
-) {
-
-if (!isAdmin(q.from?.id)) return;
-
-const promo = getStorewidePromo();
-
-const newState = !promo.active;
-
-setMetaValue(
-
-"storewidePromo:active",
-
-newState ? "true" : "false"
-
-);
-
-const updated = getStorewidePromo();
-
-return safeSendMessage(
-
-chatId,
-
-updated.active
-
-? `✅ ${updated.code} is now LIVE.
-
-Customers can now use the code for ${updated.discountPercent}% off.
-
-It will stay active until you manually turn it off.`
-
-: `⏸ ${updated.code} has been switched OFF.
-
-Customers can no longer use the store-wide promo code.`,
-
-{
-
-reply_markup: {
-
-inline_keyboard: [
-
-[
-
-{
-
-text:
-
-"🎉 Promo Settings",
-
-callback_data:
-
-"admin_storewide_promo"
-
-}
-
-],
-
-[
-
-{
-
-text:
-
-"⬅️ Admin Dashboard",
-
-callback_data:
-
-"admin_dashboard"
-
-}
-
-]
-
-]
-
-}
-
-}
-
-);
-
-}
-
-if (
-
-data.startsWith(
-
-"admin_order_"
-
-)
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-const orderId =
-
-Number(
-
-data.replace(
-
-"admin_order_",
-
-""
-
-)
-
-);
-
-const order =
-
-orders.get(orderId);
-
-if (!order) {
-
-return safeSendMessage(
-
-chatId,
-
-"Order not found."
-
-);
-
-}
-
-return showAdminOrder(
-
-chatId,
-
-order
-
-);
-
-}
-
-if (
-
-data.startsWith(
-
-"admin_paid_"
-
-)
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-const orderId =
-
-Number(
-
-data.replace(
-
-"admin_paid_",
-
-""
-
-)
-
-);
-
-const order =
-
-orders.get(orderId);
-
-if (!order) {
-
-return safeSendMessage(
-
-chatId,
-
-"Order not found."
-
-);
-
-}
-
-const result =
-
-await markOrderPaid(
-
-order
-
-);
-
-if (!result.ok) {
-
-return safeSendMessage(
-
-chatId,
-
-`❌ ${result.error}`
-
-);
-
-}
-
-await safeSendMessage(
-
-chatId,
-
-result.alreadyPaid
-
-? `ℹ️ Order #${orderId} was already paid.`
-
-: `✅ Order #${orderId} marked paid. Reserved stock committed.`
-
-);
-
-return showAdminOrder(
-
-chatId,
-
-order
-
-);
-
-}
-
-if (
-
-data.startsWith(
-
-"admin_tracking_"
-
-)
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-const orderId =
-
-Number(
-
-data.replace(
-
-"admin_tracking_",
-
-""
-
-)
-
-);
-
-const order =
-
-orders.get(orderId);
-
-if (
-
-!order ||
-
-order.paymentStatus !==
-
-"paid"
-
-) {
-
-return safeSendMessage(
-
-chatId,
-
-"Paid order not found."
-
-);
-
-}
-
-clearAdminInputs(chatId);
-
-pendingAdminTracking.set(
-
-chatId,
-
-orderId
-
-);
-
-return safeSendMessage(
-
-chatId,
-
-`🚚 ADD TRACKING
-
-Order:
-
-#${orderId}
-
-Send the tracking number.`
-
-);
-
-}
-
-if (
-
-data.startsWith(
-
-"admin_note_"
-
-)
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-const orderId =
-
-Number(
-
-data.replace(
-
-"admin_note_",
-
-""
-
-)
-
-);
-
-if (
-
-!orders.has(orderId)
-
-) {
-
-return safeSendMessage(
-
-chatId,
-
-"Order not found."
-
-);
-
-}
-
-clearAdminInputs(chatId);
-
-pendingAdminNote.set(
-
-chatId,
-
-orderId
-
-);
-
-return safeSendMessage(
-
-chatId,
-
-`📝 ADD ADMIN NOTE
-
-Order:
-
-#${orderId}
-
-Send the note below.`
-
-);
-
-}
-
-if (
-
-data.startsWith(
-
-"admin_review_"
-
-)
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-const orderId =
-
-Number(
-
-data.replace(
-
-"admin_review_",
-
-""
-
-)
-
-);
-
-const order =
-
-orders.get(orderId);
-
-if (
-
-!order ||
-
-order.paymentStatus !==
-
-"paid"
-
-) {
-
-return safeSendMessage(
-
-chatId,
-
-"Paid order not found."
-
-);
-
-}
-
-if (!order.telegramId) {
-
-return safeSendMessage(
-
-chatId,
-
-"This order has no Telegram ID."
-
-);
-
-}
-
-const reviewUrl =
-
-getReviewUrl(order);
-
-if (!reviewUrl) {
-
-return safeSendMessage(
-
-chatId,
-
-"Review link could not be generated."
-
-);
-
-}
-
-await safeSendMessage(
-
-order.telegramId,
-
-`⭐ We'd love your feedback
-
-Order:
-
-#${orderId}
-
-Tap below to leave your review.`,
-
-{
-
-reply_markup: {
-
-inline_keyboard: [
-
-[
-
-{
-
-text:
-
-"⭐ Leave a Review",
-
-url:
-
-reviewUrl
-
-}
-
-]
-
-]
-
-}
-
-}
-
-);
-
-return safeSendMessage(
-
-chatId,
-
-`✅ Review link sent for order #${orderId}.`
-
-);
-
-}
-
-if (
-
-data.startsWith(
-
-"admin_cancel_"
-
-)
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-const orderId =
-
-Number(
-
-data.replace(
-
-"admin_cancel_",
-
-""
-
-)
-
-);
-
-const order =
-
-orders.get(orderId);
-
-if (!order) {
-
-return safeSendMessage(
-
-chatId,
-
-"Order not found."
-
-);
-
-}
-
-if (
-
-order.paymentStatus !==
-
-"awaiting_payment"
-
-) {
-
-return safeSendMessage(
-
-chatId,
-
-"Only unpaid orders with no submitted payment can be cancelled here."
-
-);
-
-}
-
-return safeSendMessage(
-
-chatId,
-
-`⚠️ CANCEL ORDER #${orderId}?
-
-This will mark the order as cancelled.`,
-
-{
-
-reply_markup: {
-
-inline_keyboard: [
-
-[
-
-{
-
-text:
-
-"❌ Yes, Cancel",
-
-callback_data:
-
-`admin_cancel_confirm_${orderId}`
-
-},
-
-{
-
-text:
-
-"Keep Order",
-
-callback_data:
-
-`admin_order_${orderId}`
-
-}
-
-]
-
-]
-
-}
-
-}
-
-);
-
-}
-
-if (
-
-data.startsWith(
-
-"admin_cancel_confirm_"
-
-)
-
-) {
-
-if (
-
-!isAdmin(
-
-q.from?.id
-
-)
-
-) {
-
-return;
-
-}
-
-const orderId =
-
-Number(
-
-data.replace(
-
-"admin_cancel_confirm_",
-
-""
-
-)
-
-);
-
-const order =
-
-orders.get(orderId);
-
-if (!order) {
-
-return safeSendMessage(
-
-chatId,
-
-"Order not found."
-
-);
-
-}
-
-if (
-
-order.paymentStatus !==
-
-"awaiting_payment"
-
-) {
-
-return safeSendMessage(
-
-chatId,
-
-"This order can no longer be cancelled from the dashboard."
-
-);
-
-}
-
-restoreReservedStock(order);
-
-restoreStoreCreditForOrder(order);
-
-order.paymentStatus =
-
-"cancelled";
-
-order.fulfilmentStatus =
-
-"cancelled";
-
-order.cancelledAt =
-
-new Date().toISOString();
-
-saveOrder(order);
-
-if (order.telegramId) {
-
-await safeSendMessage(
-
-order.telegramId,
-
-`❌ Order cancelled
-
-Order:
-
-#${orderId}
-
-If you believe this was a mistake, please contact support.`
-
-);
-
-}
-
-await safeSendMessage(
-
-chatId,
-
-`❌ Order #${orderId} cancelled.`
-
-);
-
-return showAdminOrder(
-
-chatId,
-
-order
-
-);
-
-}
-
-if (
-
-data ===
-
-"orders"
-
-) {
-
-const viewer = {
-
-telegramId:
-
-q.from?.id,
-
-telegramUsername:
-
-q.from?.username
-
-};
-
-const matches =
-
-[...orders.values()]
-
-.filter(
-
-order =>
-
-orderBelongsToViewer(
-
-order,
-
-viewer
-
-)
-
-)
-
-.sort(
-
-(
-
-a,
-
-b
-
-) =>
-
-new Date(
-
-b.createdAt ||
-
-0
-
-) -
-
-new Date(
-
-a.createdAt ||
-
-0
-
-)
-
-)
-
-.slice(0, 10);
-
-if (!matches.length) {
-
-return safeSendMessage(
-
-chatId,
-
-`📦 My Orders
-
-No orders found yet.`
-
-);
-
-}
-
-const lines =
-
-matches.map(
-
-order => {
-
-const tracking =
-
-order.trackingNumber
-
-? `\nTracking: ${order.trackingNumber}`
-
-: "";
-
-return (
-
-`#${order.orderId} — ` +
-
-`${money(order.totalPence)} — ` +
-
-`${getOrderStatusText(order)}` +
-
-tracking
-
-);
-
-}
-
-);
-
-return safeSendMessage(
-
-chatId,
-
-`📦 My Orders
-
-${lines.join("\n\n")}`
-
-);
-
-}
-
-if (
-
-data ===
-
-"support"
-
-) {
-
-if (
-
-!supportTelegramIds.length
-
-) {
-
-return safeSendMessage(
-
-chatId,
-
-`💬 Support
-
-Support isn't configured yet.`
-
-);
-
-}
-
-pendingSupport.add(chatId);
-
-return safeSendMessage(
-
-chatId,
-
-`💬 Support
-
-Send your message below.`
-
-);
-
-}
-
-if (
-
-data ===
-
-"info"
-
-) {
-
-return safeSendMessage(
-
-chatId,
-
-`ℹ️ Info
-
-Minimum basket:
-
-£50 before discount
-
-Delivery:
-
-£5
-
-Tap Open Shop to launch the Mini App.`
-
-);
-
-}
-
-}
-
-);
-
-bot.on(
-
-"message",
-
-async msg => {
-
-const chatId =
-
-msg.chat?.id;
-
-if (
-
-!chatId ||
-
-!msg.text ||
-
-msg.text.startsWith("/")
-
-) {
-
-return;
-
-}
-
-const text =
-
-String(msg.text).trim();
-
-if (
-
-pendingAdminOrderLookup.has(
-
-chatId
-
-) &&
-
-isAdmin(msg.from?.id)
-
-) {
-
-pendingAdminOrderLookup.delete(
-
-chatId
-
-);
-
-const orderId =
-
-Number(
-
-text.replace(
-
-/^#/,
-
-""
-
-)
-
-);
-
-const order =
-
-orders.get(orderId);
-
-if (!order) {
-
-return safeSendMessage(
-
-chatId,
-
-"❌ Order not found."
-
-);
-
-}
-
-return showAdminOrder(
-
-chatId,
-
-order
-
-);
-
-}
-
-if (
-
-pendingAdminTracking.has(
-
-chatId
-
-) &&
-
-isAdmin(msg.from?.id)
-
-) {
-
-const orderId =
-
-pendingAdminTracking.get(
-
-chatId
-
-);
-
-pendingAdminTracking.delete(
-
-chatId
-
-);
-
-const order =
-
-orders.get(orderId);
-
-if (!order) {
-
-return safeSendMessage(
-
-chatId,
-
-"Order not found."
-
-);
-
-}
-
-order.trackingNumber =
-
-text;
-
-order.fulfilmentStatus =
-
-"shipped";
-
-order.shippedAt =
-
-new Date().toISOString();
-
-saveOrder(order);
-
-await safeSendMessage(
-
-chatId,
-
-`✅ Tracking saved
-
-Order:
-
-#${orderId}
-
-Tracking:
-
-${text}`
-
-);
-
-if (order.telegramId) {
-
-await safeSendMessage(
-
-order.telegramId,
-
-`📦 Your order has been dispatched
-
-Order:
-
-#${orderId}
-
-Tracking:
-
-${text}`
-
-);
-
-}
-
-return;
-
-}
-
-if (
-
-pendingAdminNote.has(
-
-chatId
-
-) &&
-
-isAdmin(msg.from?.id)
-
-) {
-
-const orderId =
-
-pendingAdminNote.get(
-
-chatId
-
-);
-
-pendingAdminNote.delete(
-
-chatId
-
-);
-
-const order =
-
-orders.get(orderId);
-
-if (!order) {
-
-return safeSendMessage(
-
-chatId,
-
-"Order not found."
-
-);
-
-}
-
-if (
-
-!Array.isArray(
-
-order.adminNotes
-
-)
-
-) {
-
-order.adminNotes = [];
-
-}
-
-order.adminNotes.push({
-
-text:
-
-text.slice(
-
-0,
-
-1000
-
-),
-
-createdAt:
-
-new Date().toISOString()
-
-});
-
-saveOrder(order);
-
-await safeSendMessage(
-
-chatId,
-
-`✅ Note added to order #${orderId}.`
-
-);
-
-return showAdminOrder(
-
-chatId,
-
-order
-
-);
-
-}
-
-if (
-
-pendingStockAdjustment.has(
-
-chatId
-
-) &&
-
-isAdmin(msg.from?.id)
-
-) {
-
-const state =
-
-pendingStockAdjustment.get(
-
-chatId
-
-);
-
-if (
-
-state.stage ===
-
-"product"
-
-) {
-
-const productId =
-
-Number(
-
-text.replace(
-
-/^#/,
-
-""
-
-)
-
-);
-
-const product =
-
-productsById.get(
-
-productId
-
-);
-
-if (!product) {
-
-return safeSendMessage(
-
-chatId,
-
-`❌ Product not found.
-
-Send a valid product ID or use /admin to start again.`
-
-);
-
-}
-
-state.stage =
-
-"amount";
-
-state.productId =
-
-productId;
-
-pendingStockAdjustment.set(
-
-chatId,
-
-state
-
-);
-
-return safeSendMessage(
-
-chatId,
-
-`✏️ ${product.name}
-
-Current stock:
-
-${getLiveStock(productId)}
-
-Send the NEW total stock number.
-
-Example:
-
-25`
-
-);
-
-}
-
-if (
-
-state.stage ===
-
-"amount"
-
-) {
-
-const newStock =
-
-Number(text);
-
-if (
-
-!Number.isInteger(
-
-newStock
-
-) ||
-
-newStock < 0
-
-) {
-
-return safeSendMessage(
-
-chatId,
-
-`❌ Send a whole number of 0 or more.
-
-Example:
-
-25`
-
-);
-
-}
-
-const product =
-
-productsById.get(
-
-state.productId
-
-);
-
-setInventoryStmt.run(
-
-newStock,
-
-state.productId
-
-);
-
-pendingStockAdjustment.delete(
-
-chatId
-
-);
-
-return safeSendMessage(
-
-chatId,
-
-`✅ STOCK UPDATED
-
-${product?.name || `Product #${state.productId}`}
-
-New stock:
-
-${newStock}`,
-
-{
-
-reply_markup: {
-
-inline_keyboard: [
-
-[
-
-{
-
-text:
-
-"📦 Stock Centre",
-
-callback_data:
-
-"admin_stock"
-
-},
-
-{
-
-text:
-
-"⬅️ Dashboard",
-
-callback_data:
-
-"admin_dashboard"
-
-}
-
-]
-
-]
-
-}
-
-}
-
-);
-
-}
-
-}
-
-if (
-
-pendingSupport.has(
-
-chatId
-
-)
-
-) {
-
-pendingSupport.delete(
-
-chatId
-
-);
-
-const from =
-
-msg.from?.username
-
-? `@${msg.from.username}`
-
-: `Telegram ID ${msg.from?.id}`;
-
-for (
-
-const supportId
-
-of supportTelegramIds
-
-) {
-
-await safeSendMessage(
-
-supportId,
-
-`💬 New Support Message
-
-From:
-
-${from}
-
-Message:
-
-${text}`
-
-);
-
-}
-
-return safeSendMessage(
-
-chatId,
-
-"Thanks — your message has been sent."
-
-);
-
-}
-
-}
-
-);
-
-}
-
-app.use(
-
-(
-
-err,
-
-req,
-
-res,
-
-next
-
-) => {
-
-console.error(
-
-"SERVER ERROR:",
-
-err
-
-);
-
-if (res.headersSent) {
-
-return next(err);
-
-}
-
-return res
-
-.status(500)
-
-.json({
-
-error:
-
-"Internal server error"
-
-});
-
-}
-
-);
-
-app.listen(
-
-port,
-
-() => {
-
-console.log(
-
-`Storefront running on port ${port}`
-
-);
-
-console.log(
-
-`Products: ${products.length}`
-
-);
-
-console.log(
-
-`Minimum basket: ${money(
-
-MINIMUM_ORDER_PENCE
-
-)} before discount`
-
-);
-
-console.log(
-
-`Shipping: ${money(
-
-SHIPPING_PENCE
-
-)}`
-
-);
-
-console.log(
-
-`Affiliate discount: ${AFFILIATE_DISCOUNT_PERCENT}%`
-
-);
-
-console.log(
-
-`Affiliate commission: ${AFFILIATE_COMMISSION_PERCENT}%`
-
-);
-
-console.log(
-
-`Affiliate codes: ${affiliateCodes.length}`
-
-);
-
-}
-
-);
-  String(
-    process.env.ADMIN_TELEGRAM_ID ||
-    ""
-  ).trim();
-
-const adminIdsFromEnv =
-  String(
-    process.env.ADMIN_TELEGRAM_IDS ||
-    ""
-  )
-    .split(",")
-    .map(id => id.trim())
-    .filter(Boolean);
-
-const configuredAdminIds =
-  new Set(
-    [
-      ownerTelegramId,
-      singleAdminId,
-      ...adminIdsFromEnv
-    ].filter(Boolean)
-  );
-
-const adminTelegramId =
-  ownerTelegramId ||
-  singleAdminId ||
-  adminIdsFromEnv[0] ||
-  "";
-
-const DATA_DIR =
-  process.env.DATA_DIR || ".";
-
-const supportTelegramIds =
-  (process.env.SUPPORT_TELEGRAM_IDS || "")
-    .split(",")
-    .map(x => x.trim())
-    .filter(Boolean);
-
-/* =========================================================
-   SHOP SETTINGS
-   ========================================================= */
-
-const MINIMUM_ORDER_PENCE = 5000;
-const SHIPPING_PENCE = 500;
-const LOW_STOCK_THRESHOLD = 5;
-const STOCK_RESERVATION_MINUTES = 30;
-const STOCK_RESERVATION_MS = STOCK_RESERVATION_MINUTES * 60 * 1000;
-
-/* =========================================================
-   AFFILIATE CODES
-   ========================================================= */
-
-const AFFILIATE_DISCOUNT_PERCENT = 10;
-const AFFILIATE_COMMISSION_PERCENT = 5;
-
-const affiliateCodes = [
-  { code: "Y8", owner: "@Y8_JKO" },
-  { code: "TWARD", owner: "@tward1994" },
-  { code: "CHODE10", owner: "@Hex_case" },
-  { code: "DOMINATE", owner: "@dom_harriss" },
-  { code: "STEVIEWONDER", owner: "@Steviewonder987" },
-  { code: "KITTYSJ10", owner: "@Sjobje" },
-  { code: "DABBLE", owner: "@Peachy001" },
-  { code: "JAM97", owner: "@Jam97" }
-];
-
-/* =========================================================
-   STORE-WIDE PROMO
-   ========================================================= */
-
-// The promo has no start/end date. It is controlled manually
-// from the Telegram admin dashboard and stays in its saved state
-// across restarts/redeploys.
-const STOREWIDE_PROMO_DEFAULTS = {
-  code: "WEEKEND10",
-  discountPercent: 10,
-  active: false
-};
-
-/* =========================================================
-   EXPRESS
-   ========================================================= */
-
-app.use(express.json({ limit: "1mb" }));
-
-/* =========================================================
-   DATABASE
-   ========================================================= */
-
-mkdirSync(DATA_DIR, { recursive: true });
-
-const db = new DatabaseSync(
-  path.join(DATA_DIR, "kage.sqlite")
-);
-
-db.exec(`
-CREATE TABLE IF NOT EXISTS orders (
-  id INTEGER PRIMARY KEY,
-  json TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS discount_codes (
-  code TEXT PRIMARY KEY,
-  json TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS referral_earnings (
-  code TEXT PRIMARY KEY,
-  json TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS meta (
-  key TEXT PRIMARY KEY,
-  value TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS cart_events (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  productId INTEGER NOT NULL,
-  action TEXT NOT NULL,
-  createdAt TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS inventory (
-  product_id INTEGER PRIMARY KEY,
-  stock INTEGER
-);
-
-CREATE TABLE IF NOT EXISTS reviews (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  order_id INTEGER NOT NULL UNIQUE,
-  telegram_id TEXT,
-  display_name TEXT NOT NULL,
-  rating INTEGER NOT NULL,
-  review_text TEXT NOT NULL,
-  approved INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL
-);
-`);
-
-/* =========================================================
-   DATABASE STATEMENTS
-   ========================================================= */
-
-const upsertOrderStmt = db.prepare(`
-  INSERT INTO orders (id, json)
-  VALUES (?, ?)
-  ON CONFLICT(id)
-  DO UPDATE SET json = excluded.json
-`);
-
-const upsertDiscountStmt = db.prepare(`
-  INSERT INTO discount_codes (code, json)
-  VALUES (?, ?)
-  ON CONFLICT(code)
-  DO UPDATE SET json = excluded.json
-`);
-
-const upsertReferralStmt = db.prepare(`
-  INSERT INTO referral_earnings (code, json)
-  VALUES (?, ?)
-  ON CONFLICT(code)
-  DO UPDATE SET json = excluded.json
-`);
-
-const upsertMetaStmt = db.prepare(`
-  INSERT INTO meta (key, value)
-  VALUES (?, ?)
-  ON CONFLICT(key)
-  DO UPDATE SET value = excluded.value
-`);
-
-const insertCartEventStmt = db.prepare(`
-  INSERT INTO cart_events (productId, action, createdAt)
-  VALUES (?, ?, ?)
-`);
-
-const insertInventoryStmt = db.prepare(`
-  INSERT OR IGNORE INTO inventory (product_id, stock)
-  VALUES (?, ?)
-`);
-
-const getInventoryStmt = db.prepare(`
-  SELECT stock
-  FROM inventory
-  WHERE product_id = ?
-`);
-
-const setInventoryStmt = db.prepare(`
-  UPDATE inventory
-  SET stock = ?
-  WHERE product_id = ?
-`);
-
-const reserveInventoryStmt = db.prepare(`
-  UPDATE inventory
-  SET stock = stock - ?
-  WHERE product_id = ?
-    AND stock >= ?
-`);
-
-const restoreInventoryStmt = db.prepare(`
-  UPDATE inventory
-  SET stock = stock + ?
-  WHERE product_id = ?
-`);
-
-/* =========================================================
-   PRODUCT CATALOGUE
-   ========================================================= */
-
-let products = [];
-
-try {
-  products = JSON.parse(
-    readFileSync(
-      path.join(__dirname, "public", "products.json"),
-      "utf8"
-    )
-  );
-
-  if (!Array.isArray(products)) {
-    throw new Error("products.json must contain an array.");
-  }
-} catch (err) {
-  console.error("PRODUCT LOAD ERROR:", err);
-  process.exit(1);
-}
-
-const productsById = new Map(
-  products.map(product => [
-    Number(product.id),
-    product
-  ])
-);
-
-/* =========================================================
-   INITIALISE LIVE INVENTORY
-   ========================================================= */
-
-for (const product of products) {
-  const id = Number(product.id);
-  const originalStock = Number(product.stock);
-
-  if (!Number.isInteger(id)) {
-    continue;
-  }
-
-  if (Number.isFinite(originalStock)) {
-    insertInventoryStmt.run(
-      id,
-      Math.max(0, Math.floor(originalStock))
-    );
-  }
-}
-
-/* =========================================================
-   LIVE PRODUCT HELPERS
-   ========================================================= */
-
-function getLiveStock(productId) {
-  const row = getInventoryStmt.get(
-    Number(productId)
-  );
-
-  if (!row) {
-    return null;
-  }
-
-  return Number(row.stock);
-}
-
-function getLiveProducts() {
-  return products.map(product => {
-    const liveStock = getLiveStock(
-      product.id
-    );
-
-    return {
-      ...product,
-      stock:
-        liveStock !== null
-          ? liveStock
-          : product.stock
-    };
-  });
-}
-
-/* =========================================================
-   LIVE PRODUCTS
-   ========================================================= */
-
-app.get("/products.json", (_req, res) => {
-  res.json(getLiveProducts());
-});
-
-app.get("/api/products", (_req, res) => {
-  res.json(getLiveProducts());
-});
-
-app.use(
-  express.static(
-    path.join(__dirname, "public")
-  )
-);
-
-/* =========================================================
-   MEMORY
-   ========================================================= */
-
-const orders = new Map();
-const discountCodes = new Map();
-const referralEarnings = new Map();
-
-let nextOrderId = 1001;
-
-/* =========================================================
-   LOAD SAVED DATA
-   ========================================================= */
-
-for (
-  const row of db
-    .prepare("SELECT id, json FROM orders")
-    .all()
-) {
-  try {
-    orders.set(
-      Number(row.id),
-      JSON.parse(row.json)
-    );
-  } catch {}
-}
-
-for (
-  const row of db
-    .prepare("SELECT code, json FROM discount_codes")
-    .all()
-) {
-  try {
-    discountCodes.set(
-      String(row.code).toUpperCase(),
-      JSON.parse(row.json)
-    );
-  } catch {}
-}
-
-for (
-  const row of db
-    .prepare("SELECT code, json FROM referral_earnings")
-    .all()
-) {
-  try {
-    referralEarnings.set(
-      String(row.code).toUpperCase(),
-      JSON.parse(row.json)
-    );
-  } catch {}
-}
-
-const savedNextOrderId = db
-  .prepare(
-    "SELECT value FROM meta WHERE key = ?"
-  )
-  .get("nextOrderId");
-
-if (savedNextOrderId) {
-  nextOrderId =
-    Number(savedNextOrderId.value) ||
-    1001;
-}
-
-/* =========================================================
-   HELPERS
-   ========================================================= */
-
-function money(pence) {
-  return `£${(
-    Number(pence || 0) / 100
-  ).toFixed(2)}`;
-}
-
-function normaliseCode(value) {
-  return String(value || "")
-    .trim()
-    .toUpperCase();
-}
-
-function normaliseUsername(value) {
-  return String(value || "")
-    .replace(/^@/, "")
-    .trim()
-    .toLowerCase();
-}
-
-function saveOrder(order) {
-  orders.set(
-    Number(order.orderId),
-    order
-  );
-
-  upsertOrderStmt.run(
-    Number(order.orderId),
-    JSON.stringify(order)
-  );
-}
-
-function saveNextOrderId(value) {
-  nextOrderId = value;
-
-  upsertMetaStmt.run(
-    "nextOrderId",
-    String(value)
-  );
-}
-
-function getMetaValue(key, fallback = null) {
-  const row = db
-    .prepare("SELECT value FROM meta WHERE key = ?")
-    .get(key);
-
-  return row ? row.value : fallback;
-}
-
-function setMetaValue(key, value) {
-  upsertMetaStmt.run(
-    key,
-    String(value)
-  );
-}
-
-function getStorewidePromo() {
-  return {
-    code: normaliseCode(
-      getMetaValue(
-        "storewidePromo:code",
-        STOREWIDE_PROMO_DEFAULTS.code
-      )
-    ),
-    discountPercent: Number(
-      getMetaValue(
-        "storewidePromo:discountPercent",
-        STOREWIDE_PROMO_DEFAULTS.discountPercent
-      )
-    ) || STOREWIDE_PROMO_DEFAULTS.discountPercent,
-    active: String(
-      getMetaValue(
-        "storewidePromo:active",
-        STOREWIDE_PROMO_DEFAULTS.active ? "true" : "false"
-      )
-    ) === "true"
-  };
-}
-
-function isStorewidePromoLive(promo = getStorewidePromo()) {
-  return Boolean(
-    promo &&
-    promo.active
-  );
-}
-
-function storewideDiscountForSubtotal(subtotalPence, promo = getStorewidePromo()) {
-  if (!promo || !isStorewidePromoLive(promo)) return 0;
-
-  const discountPercent = Number(
-    promo.discountPercent || 0
-  );
-
-  if (!Number.isFinite(discountPercent) || discountPercent <= 0) {
-    return 0;
-  }
-
-  const discount = Math.round(
-    Number(subtotalPence) *
-    (discountPercent / 100)
-  );
-
-  return Math.min(
-    Number(subtotalPence),
-    Math.max(0, discount)
-  );
-}
-
-function getAffiliateEarningsText() {
-  let totalBalancePence = 0;
-  let totalEarnedPence = 0;
-  let totalPaidOutPence = 0;
-
-  const sections = affiliateCodes.map(affiliate => {
-    const record = referralEarnings.get(affiliate.code);
-    const balancePence = Number(record?.balancePence || 0);
-    const totalEarnedPenceForCode = Number(record?.totalEarnedPence || 0);
-    const paidOutPence = Number(record?.paidOutPence || 0);
-
-    totalBalancePence += balancePence;
-    totalEarnedPence += totalEarnedPenceForCode;
-    totalPaidOutPence += paidOutPence;
-
-    return `👤 ${affiliate.owner}
-Code: ${affiliate.code}
-
-Currently owed:
-${money(balancePence)}
-
-Lifetime earned:
-${money(totalEarnedPenceForCode)}
-
-Paid out:
-${money(paidOutPence)}`;
-  });
-
-  return `💰 AFFILIATE EARNINGS
-
-${sections.join("\n\n")}
-
-━━━━━━━━━━━━━━
-
-TOTAL CURRENTLY OWED:
-${money(totalBalancePence)}
-
-TOTAL AFFILIATE EARNINGS:
-${money(totalEarnedPence)}
-
-TOTAL PAID OUT:
-${money(totalPaidOutPence)}`;
-}
-
-function saveDiscountCode(
-  code,
-  record
-) {
-  const clean = normaliseCode(code);
-
-  discountCodes.set(
-    clean,
-    record
-  );
-
-  upsertDiscountStmt.run(
-    clean,
-    JSON.stringify(record)
-  );
-}
-
-function saveReferralEarnings(
-  code,
-  record
-) {
-  const clean = normaliseCode(code);
-
-  referralEarnings.set(
-    clean,
-    record
-  );
-
-  upsertReferralStmt.run(
-    clean,
-    JSON.stringify(record)
-  );
-}
-
-function calculateDiscount(
-  subtotalPence,
-  record
-) {
-  if (!record) {
-    return 0;
-  }
-
-  if (
-    record.discountType ===
-    "percent"
-  ) {
-    return Math.min(
-      subtotalPence,
-      Math.round(
-        subtotalPence *
-        (
-          Number(record.discountValue) /
-          100
-        )
-      )
-    );
-  }
-
-  return Math.min(
-    subtotalPence,
-    Number(
-      record.discountValue ||
-      0
-    )
-  );
-}
-
-function orderBelongsToViewer(
-  order,
-  viewer
-) {
-  if (
-    viewer.telegramId &&
-    order.telegramId &&
-    String(viewer.telegramId) ===
-      String(order.telegramId)
-  ) {
-    return true;
-  }
-
-  const a = normaliseUsername(
-    order.telegramUsername
-  );
-
-  const b = normaliseUsername(
-    viewer.telegramUsername
-  );
-
-  return Boolean(
-    a &&
-    b &&
-    a === b
-  );
-}
-
-function isAdmin(userId) {
-  if (
-    userId === undefined ||
-    userId === null
-  ) {
-    return false;
-  }
-
-  return configuredAdminIds.has(
-    String(userId)
-  );
-}
-
-/* =========================================================
-   AFFILIATE CODE SETUP
-   Existing earnings are preserved.
-   ========================================================= */
-
-for (const affiliate of affiliateCodes) {
-  saveDiscountCode(
-    affiliate.code,
-    {
-      code: affiliate.code,
-      discountType: "percent",
-      discountValue: AFFILIATE_DISCOUNT_PERCENT,
-      referralOwner: affiliate.owner,
-      commissionPercent: AFFILIATE_COMMISSION_PERCENT,
-      cashOnly: true,
-      active: true,
-      protected: true
-    }
-  );
-
-  if (!referralEarnings.has(affiliate.code)) {
-    saveReferralEarnings(
-      affiliate.code,
-      {
-        code: affiliate.code,
-        owner: affiliate.owner,
-        balancePence: 0,
-        totalEarnedPence: 0,
-        paidOutPence: 0,
-        cashOnly: true
-      }
-    );
-  } else {
-    const existing = referralEarnings.get(affiliate.code);
-    existing.owner = affiliate.owner;
-    existing.cashOnly = true;
-    existing.balancePence = Number(existing.balancePence || 0);
-    existing.totalEarnedPence = Number(existing.totalEarnedPence || 0);
-    existing.paidOutPence = Number(existing.paidOutPence || 0);
-
-    saveReferralEarnings(
-      affiliate.code,
-      existing
-    );
-  }
-}
-
-// Seed the store-wide promo only when no saved value exists.
-// Old startsAt/endsAt values can remain in SQLite; they are ignored.
-if (getMetaValue("storewidePromo:code") === null) {
-  setMetaValue("storewidePromo:code", STOREWIDE_PROMO_DEFAULTS.code);
-}
-if (getMetaValue("storewidePromo:discountPercent") === null) {
-  setMetaValue("storewidePromo:discountPercent", STOREWIDE_PROMO_DEFAULTS.discountPercent);
-}
-if (getMetaValue("storewidePromo:active") === null) {
-  setMetaValue("storewidePromo:active", STOREWIDE_PROMO_DEFAULTS.active);
-}
-
-/* =========================================================
-   REFERRAL COMMISSION
-   ========================================================= */
-
-function creditReferralForOrder(
-  order
-) {
-  if (
-    !order ||
-    order.referralCredited ||
-    !order.discountCode ||
-    !order.referralCommissionPence
-  ) {
-    return;
-  }
-
-  const code = normaliseCode(
-    order.discountCode
-  );
-
-  const record =
-    referralEarnings.get(code) ||
-    {
-      code,
-      owner:
-        order.referralOwner ||
-        null,
-      balancePence: 0,
-      totalEarnedPence: 0,
-      paidOutPence: 0,
-      cashOnly: false
-    };
-
-  record.owner =
-    record.owner ||
-    order.referralOwner ||
-    null;
-
-  record.balancePence =
-    Number(record.balancePence || 0) +
-    Number(
-      order.referralCommissionPence ||
-      0
-    );
-
-  record.totalEarnedPence =
-    Number(
-      record.totalEarnedPence ||
-      0
-    ) +
-    Number(
-      order.referralCommissionPence ||
-      0
-    );
-
-  saveReferralEarnings(
-    code,
-    record
-  );
-
-  order.referralCredited = true;
-  saveOrder(order);
-}
-
-/* =========================================================
-   STOCK RESERVATION + LEGACY DEDUCTION
-   ========================================================= */
-
-function reserveStockForOrder(order) {
-  if (order.stockReserved || order.stockDeducted) {
-    return { ok: true, alreadyDone: true };
-  }
-
-  db.exec("BEGIN IMMEDIATE");
-
-  try {
-    for (const item of order.items || []) {
-      const liveStock = getLiveStock(item.id);
-
-      if (liveStock === null) {
-        continue;
-      }
-
-      const qty = Number(item.quantity || 0);
-
-      const result = reserveInventoryStmt.run(
-        qty,
-        Number(item.id),
-        qty
-      );
-
-      if (Number(result.changes || 0) !== 1) {
-        throw new Error(
-          `Not enough stock remaining for ${item.name}. Available: ${getLiveStock(item.id) ?? 0}.`
-        );
-      }
-    }
-
-    db.exec("COMMIT");
-  } catch (err) {
-    db.exec("ROLLBACK");
-
-    return {
-      ok: false,
-      error: err?.message || "Could not reserve stock."
-    };
-  }
-
-  const now = Date.now();
-
-  order.stockReserved = true;
-  order.stockReservationReleased = false;
-  order.stockReservedAt = new Date(now).toISOString();
-  order.reservationExpiresAt = new Date(
-    now + STOCK_RESERVATION_MS
-  ).toISOString();
-
-  return { ok: true };
-}
-
-function restoreReservedStock(order) {
-  if (!order?.stockReserved || order.stockReservationReleased) {
-    return { ok: true, alreadyDone: true };
-  }
-
-  db.exec("BEGIN IMMEDIATE");
-
-  try {
-    for (const item of order.items || []) {
-      const liveStock = getLiveStock(item.id);
-
-      if (liveStock === null) {
-        continue;
-      }
-
-      restoreInventoryStmt.run(
-        Number(item.quantity || 0),
-        Number(item.id)
-      );
-    }
-
-    db.exec("COMMIT");
-  } catch (err) {
-    db.exec("ROLLBACK");
-    throw err;
-  }
-
-  order.stockReserved = false;
-  order.stockReservationReleased = true;
-  order.stockReleasedAt = new Date().toISOString();
-
-  return { ok: true };
-}
-
-function restoreStoreCreditForOrder(order) {
-  if (
-    !order ||
-    order.storeCreditRestored ||
-    !order.storeCreditCode ||
-    Number(order.storeCreditPence || 0) <= 0
-  ) {
-    return;
-  }
-
-  const code = normaliseCode(order.storeCreditCode);
-  const record = referralEarnings.get(code);
-
-  if (!record || record.cashOnly === true) {
-    return;
-  }
-
-  record.balancePence =
-    Number(record.balancePence || 0) +
-    Number(order.storeCreditPence || 0);
-
-  saveReferralEarnings(code, record);
-
-  order.storeCreditRestored = true;
-  order.storeCreditRestoredAt = new Date().toISOString();
-}
-
-function reservationHasExpired(order) {
-  if (!order?.reservationExpiresAt) {
-    return false;
-  }
-
-  const expires = new Date(order.reservationExpiresAt).getTime();
-
-  return Number.isFinite(expires) && Date.now() >= expires;
-}
-
-function expireOrderReservation(order) {
-  if (
-    !order ||
-    order.paymentStatus !== "awaiting_payment" ||
-    !order.stockReserved ||
-    !reservationHasExpired(order)
-  ) {
-    return false;
-  }
-
-  restoreReservedStock(order);
-  restoreStoreCreditForOrder(order);
-
-  order.paymentStatus = "cancelled";
-  order.fulfilmentStatus = "cancelled";
-  order.cancelledAt = new Date().toISOString();
-  order.cancellationReason =
-    `Payment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes.`;
-
-  saveOrder(order);
-
-  return true;
-}
-
-function expireOldReservations() {
-  const expired = [];
-
-  for (const order of orders.values()) {
-    if (expireOrderReservation(order)) {
-      expired.push(order);
-    }
-  }
-
-  return expired;
-}
-
-function deductStockForOrder(order) {
-  if (order.stockDeducted) {
-    return { ok: true, alreadyDone: true };
-  }
-
-  db.exec("BEGIN IMMEDIATE");
-
-  try {
-    for (const item of order.items || []) {
-      const liveStock = getLiveStock(item.id);
-
-      if (liveStock === null) {
-        continue;
-      }
-
-      const qty = Number(item.quantity || 0);
-      const result = reserveInventoryStmt.run(
-        qty,
-        Number(item.id),
-        qty
-      );
-
-      if (Number(result.changes || 0) !== 1) {
-        throw new Error(
-          `Not enough stock remaining for ${item.name}. Available: ${getLiveStock(item.id) ?? 0}.`
-        );
-      }
-    }
-
-    db.exec("COMMIT");
-  } catch (err) {
-    db.exec("ROLLBACK");
-
-    return {
-      ok: false,
-      error: err?.message || "Could not deduct stock."
-    };
-  }
-
-  order.stockDeducted = true;
-  order.stockDeductedAt = new Date().toISOString();
-
-  saveOrder(order);
-
-  return { ok: true };
-}
-
-/* =========================================================
-   USDT QUOTE
-   ========================================================= */
-
-async function getUsdtQuote(
-  totalPence
-) {
-  try {
-    const response =
-      await fetch(
-        "https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=gbp"
-      );
-
-    if (!response.ok) {
-      throw new Error(
-        `CoinGecko HTTP ${response.status}`
-      );
-    }
-
-    const data =
-      await response.json();
-
-    const gbpPerUsdt =
-      Number(
-        data?.tether?.gbp
-      );
-
-    if (
-      !Number.isFinite(gbpPerUsdt) ||
-      gbpPerUsdt <= 0
-    ) {
-      throw new Error(
-        "Invalid GBP/USDT rate"
-      );
-    }
-
-    const pounds =
-      Number(totalPence) /
-      100;
-
-    return (
-      pounds /
-      gbpPerUsdt
-    ).toFixed(2);
-  } catch (err) {
-    console.error(
-      "USDT QUOTE ERROR:",
-      err?.message || err
-    );
-
-    return null;
-  }
-}
-
-/* =========================================================
-   TELEGRAM
-   ========================================================= */
-
-let bot = null;
-
-if (token) {
-  try {
-    bot =
-      new TelegramBot(
-        token,
-        {
-          polling: true
-        }
-      );
-
-    bot.on(
-      "polling_error",
-      err => {
-        console.error(
-          "TELEGRAM POLLING ERROR:",
-          err?.response?.body ||
-          err?.message ||
-          err
-        );
-      }
-    );
-
-    bot.on(
-      "error",
-      err => {
-        console.error(
-          "TELEGRAM ERROR:",
-          err?.message ||
-          err
-        );
-      }
-    );
-
-    console.log(
-      "Telegram bot started."
-    );
-  } catch (err) {
-    console.error(
-      "Telegram startup failed:",
-      err
-    );
-  }
-} else {
-  console.warn(
-    "Telegram token missing."
-  );
-}
-
-async function safeSendMessage(
-  chatId,
-  message,
-  options
-) {
-  if (
-    !bot ||
-    !chatId
-  ) {
-    return null;
-  }
-
-  try {
-    return await bot.sendMessage(
-      chatId,
-      message,
-      options
-    );
-  } catch (err) {
-    console.error(
-      "TELEGRAM SEND ERROR:",
-      err?.response?.body ||
-      err?.message ||
-      err
-    );
-
-    return null;
-  }
-}
-
-async function runReservationCleanup() {
-  const expired = expireOldReservations();
-
-  for (const order of expired) {
-    await safeSendMessage(
-      adminTelegramId,
-      `⌛ ORDER EXPIRED\n\nOrder: #${order.orderId}\nCustomer: ${order.customerName}\n\nPayment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes.\nReserved stock has been returned to circulation.`
-    );
-
-    if (order.telegramId) {
-      await safeSendMessage(
-        order.telegramId,
-        `⌛ Order #${order.orderId} expired because payment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes. The reserved stock has been released.`
-      );
-    }
-  }
-}
-
-runReservationCleanup().catch(err =>
-  console.error("RESERVATION CLEANUP ERROR:", err)
-);
-
-const reservationCleanupTimer = setInterval(() => {
-  runReservationCleanup().catch(err =>
-    console.error("RESERVATION CLEANUP ERROR:", err)
-  );
-}, 60 * 1000);
-
-reservationCleanupTimer.unref?.();
-
-/* =========================================================
-   REVIEW URL
-   ========================================================= */
-
-function getReviewUrl(order) {
-  if (
-    !webAppUrl ||
-    !order.reviewToken
-  ) {
-    return null;
-  }
-
-  const base =
-    webAppUrl.replace(
-      /\/+$/,
-      ""
-    );
-
-  return (
-    `${base}/review/${order.orderId}` +
-    `?token=${encodeURIComponent(
-      order.reviewToken
-    )}`
-  );
-}
-
-/* =========================================================
-   MARK ORDER PAID
-   ========================================================= */
-
-async function markOrderPaid(
-  order
-) {
-  if (
-    order.paymentStatus ===
-    "paid"
-  ) {
-    return {
-      ok: true,
-      alreadyPaid: true
-    };
-  }
-
-  if (
-    order.paymentStatus ===
-    "cancelled"
-  ) {
-    return {
-      ok: false,
-      error:
-        "This order has been cancelled."
-    };
-  }
-
-  if (order.stockReserved) {
-    order.stockReserved = false;
-    order.stockReservationReleased = false;
-    order.stockCommitted = true;
-    order.stockCommittedAt = new Date().toISOString();
-    order.reservationExpiresAt = null;
-    order.stockDeducted = true;
-    order.stockDeductedAt = order.stockReservedAt || new Date().toISOString();
-  } else if (!order.stockDeducted) {
-    // Legacy order created before stock reservations were introduced.
-    const stockResult = deductStockForOrder(order);
-
-    if (!stockResult.ok) {
-      return stockResult;
-    }
-  }
-
-  order.paymentStatus = "paid";
-  order.paidAt =
-    new Date().toISOString();
-
-  saveOrder(order);
-
-  if (
-    order.referralCommissionPence >
-      0 &&
-    !order.referralCredited
-  ) {
-    creditReferralForOrder(order);
-  }
-
-  const itemLines =
-    order.items
-      .map(
-        item =>
-          `${item.quantity} × ${item.name}`
-      )
-      .join("\n");
-
-  await safeSendMessage(
-    adminTelegramId,
-
-`✅ PAYMENT CONFIRMED
-
-Order:
-#${order.orderId}
-
-Customer:
-${order.customerName}
-
-Telegram:
-${
-  order.telegramUsername
-    ? `@${normaliseUsername(
-        order.telegramUsername
-      )}`
-    : "Not supplied"
-}
-
-📍 DELIVERY ADDRESS:
-${order.address}
-
-Items:
-${itemLines}
-
-Basket:
-${money(order.subtotalPence)}
-
-Discount:
--${money(order.discountPence)}
-
-Store credit:
--${money(order.storeCreditPence)}
-
-Shipping:
-${money(order.shippingPence)}
-
-TOTAL:
-${money(order.totalPence)}
-
-Transaction:
-${
-  order.transactionId ||
-  "Marked paid manually"
-}
-
-Stock updated:
-✅`
-  );
-
-  if (order.telegramId) {
-    const reviewUrl =
-      getReviewUrl(order);
-
-    const options =
-      reviewUrl
-        ? {
-            reply_markup: {
-              inline_keyboard: [
-                [
-                  {
-                    text:
-                      "⭐ Leave a Review",
-                    url:
-                      reviewUrl
-                  }
-                ]
-              ]
-            }
-          }
-        : undefined;
-
-    await safeSendMessage(
-      order.telegramId,
-
-`✅ Payment confirmed
-
-Order:
-#${order.orderId}
-
-Total:
-${money(order.totalPence)}
-
-Your order is now being processed.
-
-Thank you for your order. ⭐`,
-
-      options
-    );
-  }
-
-  return {
-    ok: true
-  };
-}
-
-/* =========================================================
-   HEALTH
-   ========================================================= */
-
-app.get(
-  "/health",
-  (_req, res) => {
-    res.json({
-      ok: true,
-      products:
-        products.length,
-      minimumOrderPence:
-        MINIMUM_ORDER_PENCE,
-      shippingPence:
-        SHIPPING_PENCE,
-      y8Loaded:
-        discountCodes.has(
-          Y8_CODE
-        ),
-      y8Owner:
-        Y8_OWNER,
-      telegramConfigured:
-        Boolean(token),
-      receivingAddressConfigured:
-        Boolean(receivingAddress),
-      etherscanConfigured:
-        Boolean(etherscanApiKey)
-    });
-  }
-);
-
-/* =========================================================
-   CART EVENTS
-   ========================================================= */
-
-app.post(
-  "/api/cart-events",
-  (req, res) => {
-    const productId =
-      Number(
-        req.body?.productId
-      );
-
-    const action =
-      req.body?.action;
-
-    if (
-      !productsById.has(productId) ||
-      !["add", "remove"].includes(
-        action
-      )
-    ) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "Invalid cart event"
-        });
-    }
-
-    insertCartEventStmt.run(
-      productId,
-      action,
-      new Date().toISOString()
-    );
-
-    res.json({
-      ok: true
-    });
-  }
-);
-
-/* =========================================================
-   DISCOUNT LOOKUP
-   ========================================================= */
-
-app.get(
-  "/api/discount-codes/:code",
-  (req, res) => {
-    const code =
-      normaliseCode(
-        req.params.code
-      );
-
-    const record =
-      discountCodes.get(code);
-
-    if (
-      !record ||
-      record.active === false
-    ) {
-      return res
-        .status(404)
-        .json({
-          valid: false,
-          error:
-            "That code isn't valid."
-        });
-    }
-
-    return res.json({
-      valid: true,
-      code,
-      discountType:
-        record.discountType,
-      discountValue:
-        record.discountValue
-    });
-  }
-);
-
-/* =========================================================
-   STORE-WIDE PROMO LOOKUP
-   ========================================================= */
-
-app.get(
-  "/api/storewide-promo/:code",
-  (req, res) => {
-    const submittedCode = normaliseCode(req.params.code);
-    const promo = getStorewidePromo();
-
-    if (submittedCode !== promo.code) {
-      return res
-        .status(404)
-        .json({
-          valid: false,
-          error: "That store promo code isn't valid."
-        });
-    }
-
-    if (!isStorewidePromoLive(promo)) {
-      return res
-        .status(400)
-        .json({
-          valid: false,
-          error: "That store promo isn't currently active."
-        });
-    }
-
-    return res.json({
-      valid: true,
-      code: promo.code,
-      discountPercent: promo.discountPercent,
-      active: true,
-      stackWithAffiliate: true
-    });
-  }
-);
-
-/* =========================================================
-   REFERRAL EARNINGS
-   ========================================================= */
-
-app.get(
-  "/api/referral-codes/:code/earnings",
-  (req, res) => {
-    const code =
-      normaliseCode(
-        req.params.code
-      );
-
-    const record =
-      referralEarnings.get(code);
-
-    if (!record) {
-      return res
-        .status(404)
-        .json({
-          error:
-            "Referral code not found."
-        });
-    }
-
-    return res.json({
-      code,
-      owner:
-        record.owner ||
-        null,
-      balancePence:
-        Number(
-          record.balancePence ||
-          0
-        ),
-      totalEarnedPence:
-        Number(
-          record.totalEarnedPence ||
-          0
-        ),
-      paidOutPence:
-        Number(
-          record.paidOutPence ||
-          0
-        )
-    });
-  }
-);
-
-/* =========================================================
-   CREATE ORDER
-   ========================================================= */
-
-app.post(
-  "/api/orders",
-
-  async (
-    req,
-    res
-  ) => {
-    try {
-      const {
-        customerName,
-        telegramUsername,
-        telegramId,
-        address,
-        items,
-        discountCode,
-        storewideCode,
-        storeCreditCode
-      } =
-        req.body || {};
-
-      if (
-        !customerName ||
-        !address ||
-        !Array.isArray(items) ||
-        items.length === 0
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              "Missing order details"
-          });
-      }
-
-      const lineItems = [];
-      let subtotalPence = 0;
-
-      for (const rawItem of items) {
-        const id =
-          Number(rawItem?.id);
-
-        const quantity =
-          Number(
-            rawItem?.quantity
-          );
-
-        const product =
-          productsById.get(id);
-
-        if (
-          !product ||
-          !Number.isInteger(quantity) ||
-          quantity <= 0
-        ) {
-          return res
-            .status(400)
-            .json({
-              error:
-                "Invalid item in basket"
-            });
-        }
-
-        const liveStock =
-          getLiveStock(id);
-
-        if (
-          liveStock !== null &&
-          quantity > liveStock
-        ) {
-          return res
-            .status(400)
-            .json({
-              error:
-                `Not enough stock for ${product.name}. Available: ${liveStock}.`
-            });
-        }
-
-        const pricePence =
-          Number(
-            product.pricePence
-          );
-
-        if (
-          !Number.isInteger(
-            pricePence
-          ) ||
-          pricePence < 0
-        ) {
-          return res
-            .status(400)
-            .json({
-              error:
-                `${product.name} has an invalid price.`
-            });
-        }
-
-        const lineTotalPence =
-          pricePence *
-          quantity;
-
-        subtotalPence +=
-          lineTotalPence;
-
-        lineItems.push({
-          id:
-            Number(product.id),
-          name:
-            product.name,
-          quantity,
-          pricePence,
-          lineTotalPence
-        });
-      }
-
-      if (
-        subtotalPence <
-        MINIMUM_ORDER_PENCE
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              "Minimum basket is £50 before discount and shipping."
-          });
-      }
-
-      let discountPence = 0;
-      let appliedDiscountCode =
-        null;
-      let referralOwner = null;
-      let referralCommissionPence =
-        0;
-
-      if (discountCode) {
-        const code =
-          normaliseCode(
-            discountCode
-          );
-
-        const record =
-          discountCodes.get(code);
-
-        if (
-          record &&
-          record.active !== false
-        ) {
-          discountPence =
-            calculateDiscount(
-              subtotalPence,
-              record
-            );
-
-          appliedDiscountCode =
-            code;
-
-          if (
-            record.referralOwner &&
-            Number(
-              record.commissionPercent
-            ) > 0
-          ) {
-            referralOwner =
-              record.referralOwner;
-
-            referralCommissionPence =
-              Math.round(
-                subtotalPence *
-                (
-                  Number(
-                    record.commissionPercent
-                  ) /
-                  100
-                )
-              );
-          }
-        }
-      }
-
-      let storewideDiscountPence = 0;
-      let appliedStorewideCode = null;
-
-      if (storewideCode) {
-        const promo = getStorewidePromo();
-        const code = normaliseCode(storewideCode);
-
-        if (
-          code === promo.code &&
-          isStorewidePromoLive(promo)
-        ) {
-          storewideDiscountPence =
-            storewideDiscountForSubtotal(
-              subtotalPence,
-              promo
-            );
-
-          appliedStorewideCode = promo.code;
-        }
-      }
-
-      const totalSavingsPence =
-        discountPence +
-        storewideDiscountPence;
-
-      let storeCreditPence = 0;
-      let appliedCreditCode = null;
-
-      if (storeCreditCode) {
-        const code =
-          normaliseCode(
-            storeCreditCode
-          );
-
-        const credit =
-          referralEarnings.get(code);
-
-        if (
-          credit &&
-          credit.cashOnly !== true
-        ) {
-          const remaining =
-            Math.max(
-              0,
-              subtotalPence -
-              discountPence -
-              storewideDiscountPence
-            );
-
-          storeCreditPence =
-            Math.min(
-              remaining,
-              Number(
-                credit.balancePence ||
-                0
-              )
-            );
-
-          if (
-            storeCreditPence > 0
-          ) {
-            appliedCreditCode =
-              code;
-
-            credit.balancePence =
-              Math.max(
-                0,
-                Number(
-                  credit.balancePence ||
-                  0
-                ) -
-                storeCreditPence
-              );
-
-            saveReferralEarnings(
-              code,
-              credit
-            );
-          }
-        }
-      }
-
-      const productsAfterDiscount =
-        Math.max(
-          0,
-          subtotalPence -
-          discountPence -
-          storewideDiscountPence -
-          storeCreditPence
-        );
-
-      const shippingPence =
-        SHIPPING_PENCE;
-
-      const totalPence =
-        productsAfterDiscount +
-        shippingPence;
-
-      const usdtQuote =
-        await getUsdtQuote(
-          totalPence
-        );
-
-      const orderId =
-        nextOrderId;
-
-      saveNextOrderId(
-        nextOrderId + 1
-      );
-
-      const order = {
-        orderId,
-        customerName:
-          String(
-            customerName
-          ).trim(),
-        telegramUsername:
-          telegramUsername ||
-          "",
-        telegramId:
-          telegramId ||
-          null,
-        address:
-          String(
-            address
-          ).trim(),
-        items:
-          lineItems,
-        subtotalPence,
-        discountPence,
-        affiliateDiscountPence: discountPence,
-        storewideDiscountPence,
-        totalSavingsPence,
-        storeCreditPence,
-        shippingPence,
-        totalPence,
-        discountCode:
-          appliedDiscountCode,
-        storewideCode:
-          appliedStorewideCode,
-        storeCreditCode:
-          appliedCreditCode,
-        referralOwner,
-        referralCommissionPence,
-        referralCredited:
-          false,
-        stockDeducted:
-          false,
-        stockReserved:
-          false,
-        stockReservationReleased:
-          false,
-        reservationExpiresAt:
-          null,
-        paymentStatus:
-          "awaiting_payment",
-        fulfilmentStatus:
-          "not_shipped",
-        quotedUsdt:
-          usdtQuote,
-        transactionId:
-          null,
-        trackingNumber:
-          null,
-        adminNotes: [],
-        reviewToken:
-          randomUUID(),
-        createdAt:
-          new Date().toISOString()
-      };
-
-      const reservationResult =
-        reserveStockForOrder(order);
-
-      if (!reservationResult.ok) {
-        restoreStoreCreditForOrder(order);
-
-        return res
-          .status(409)
-          .json({
-            error:
-              reservationResult.error ||
-              "One or more products are no longer available."
-          });
-      }
-
-      saveOrder(order);
-
-      const itemLines =
-        lineItems
-          .map(
-            item =>
-              `${item.quantity} × ${item.name}`
-          )
-          .join("\n");
-
-      await safeSendMessage(
-        adminTelegramId,
-
-`🧾 NEW ORDER
-
-Order:
-#${orderId}
-
-Customer:
-${order.customerName}
-
-Telegram:
-${
-  order.telegramUsername
-    ? `@${normaliseUsername(
-        order.telegramUsername
-      )}`
-    : "Not supplied"
-}
-
-📍 DELIVERY ADDRESS:
-${order.address}
-
-Items:
-${itemLines}
-
-Basket:
-${money(subtotalPence)}
-
-Affiliate saving:
--${money(discountPence)}
-
-Store promo saving:
--${money(storewideDiscountPence)}
-
-TOTAL SAVINGS:
-${money(totalSavingsPence)}
-
-Store credit:
--${money(storeCreditPence)}
-
-Shipping:
-${money(shippingPence)}
-
-TOTAL:
-${money(totalPence)}
-
-${
-  appliedDiscountCode
-    ? `Affiliate code: ${appliedDiscountCode}`
-    : "Affiliate code: None"
-}
-
-${
-  appliedStorewideCode
-    ? `Store promo: ${appliedStorewideCode}`
-    : "Store promo: None"
-}
-
-${
-  referralCommissionPence
-    ? `Referral owner: ${referralOwner}
-Commission once paid: ${money(
-        referralCommissionPence
-      )}`
-    : ""
-}
-
-Status:
-Awaiting payment
-
-Stock reserved for:
-${STOCK_RESERVATION_MINUTES} minutes
-
-Reservation expires:
-${order.reservationExpiresAt}`
-      );
-
-      return res.json({
-        ok: true,
-        orderId,
-        subtotalPence,
-        discountPence,
-        affiliateDiscountPence: discountPence,
-        storewideDiscountPence,
-        totalSavingsPence,
-        storeCreditPence,
-        shippingPence,
-        totalPence,
-        status:
-          order.paymentStatus,
-        reservationExpiresAt:
-          order.reservationExpiresAt,
-        reservationMinutes:
-          STOCK_RESERVATION_MINUTES,
-
-        payment: {
-          method: "crypto",
-          network: "ERC-20",
-          address:
-            receivingAddress,
-          quote: {
-            USDT:
-              usdtQuote ||
-              "QUOTE_PENDING"
-          },
-          instructions:
-            receivingAddress
-              ? (
-                  usdtQuote
-                    ? `Send ${usdtQuote} USDT using Ethereum ERC-20 only, then submit the transaction hash.`
-                    : "Payment quote is temporarily unavailable."
-                )
-              : "Payment address is not configured."
-        }
-      });
-    } catch (err) {
-      console.error(
-        "CREATE ORDER ERROR:",
-        err
-      );
-
-      return res
-        .status(500)
-        .json({
-          error:
-            "Server error while creating order."
-        });
-    }
-  }
-);
-
-/* =========================================================
-   ORDER STATUS
-   ========================================================= */
-
-app.get(
-  "/api/orders/:id",
-  (
-    req,
-    res
-  ) => {
-    const order =
-      orders.get(
-        Number(req.params.id)
-      );
-
-    if (!order) {
-      return res
-        .status(404)
-        .json({
-          error:
-            "Order not found"
-        });
-    }
-
-    return res.json({
-      orderId:
-        order.orderId,
-      paymentStatus:
-        order.paymentStatus,
-      fulfilmentStatus:
-        order.fulfilmentStatus,
-      subtotalPence:
-        order.subtotalPence,
-      discountPence:
-        order.discountPence,
-      storeCreditPence:
-        order.storeCreditPence,
-      shippingPence:
-        order.shippingPence,
-      totalPence:
-        order.totalPence,
-      quotedUsdt:
-        order.quotedUsdt,
-      trackingNumber:
-        order.trackingNumber ||
-        null
-    });
-  }
-);
-
-/* =========================================================
-   SUBMIT PAYMENT HASH
-   ========================================================= */
-
-app.post(
-  "/api/orders/:id/confirm-payment",
-
-  async (
-    req,
-    res
-  ) => {
-    const order =
-      orders.get(
-        Number(req.params.id)
-      );
-
-    if (!order) {
-      return res
-        .status(404)
-        .json({
-          error:
-            "Order not found"
-        });
-    }
-
-    if (
-      order.paymentStatus ===
-      "paid"
-    ) {
-      return res.json({
-        ok: true,
-        alreadyPaid: true
-      });
-    }
-
-    if (
-      order.paymentStatus ===
-      "cancelled"
-    ) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "This order has been cancelled."
-        });
-    }
-
-    if (
-      order.paymentStatus === "awaiting_payment" &&
-      reservationHasExpired(order)
-    ) {
-      expireOrderReservation(order);
-
-      return res
-        .status(410)
-        .json({
-          error:
-            "This order expired because payment was not submitted within 30 minutes. The reserved stock has been returned."
-        });
-    }
-
-    const transactionId =
-      String(
-        req.body?.transactionId ||
-        ""
-      ).trim();
-
-    if (
-      !/^0x[a-fA-F0-9]{64}$/.test(
-        transactionId
-      )
-    ) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "Enter a valid Ethereum transaction hash."
-        });
-    }
-
-    const alreadyUsed =
-      [...orders.values()]
-        .some(
-          existing =>
-            existing.orderId !==
-              order.orderId &&
-            existing.transactionId
-              ?.toLowerCase() ===
-            transactionId.toLowerCase()
-        );
-
-    if (alreadyUsed) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "That transaction has already been used."
-        });
-    }
-
-    order.transactionId =
-      transactionId;
-
-    order.paymentStatus =
-      "payment_submitted";
-
-    order.paymentSubmittedAt =
-      new Date().toISOString();
-
-    // Once a transaction hash is submitted, keep the stock reserved
-    // while the admin verifies payment.
-    order.reservationExpiresAt = null;
-    order.stockReservationHeldForPayment = true;
-
-    saveOrder(order);
-
-    await safeSendMessage(
-      adminTelegramId,
-
-`💳 PAYMENT SUBMITTED
-
-Order:
-#${order.orderId}
-
-Customer:
-${order.customerName}
-
-📍 Delivery Address:
-${order.address}
-
-Expected total:
-${money(order.totalPence)}
-
-Transaction:
-${transactionId}
-
-Use:
-/paid ${order.orderId}
-
-once payment has been confirmed.`
-    );
-
-    return res.json({
-      ok: true,
-      orderId:
-        order.orderId,
-      status:
-        "payment_submitted",
-      message:
-        "Payment submitted for confirmation."
-    });
-  }
-);
-
-/* =========================================================
-   REVIEWS API
-   ========================================================= */
-
-app.get(
-  "/api/reviews",
-  (_req, res) => {
-    const rows =
-      db.prepare(`
-        SELECT
-          id,
-          display_name,
-          rating,
-          review_text,
-          created_at
-        FROM reviews
-        WHERE approved = 1
-        ORDER BY id DESC
-        LIMIT 100
-      `).all();
-
-    return res.json(rows);
-  }
-);
-
-app.post(
-  "/api/reviews",
-  (req, res) => {
-    const orderId =
-      Number(
-        req.body?.orderId
-      );
-
-    const reviewToken =
-      String(
-        req.body?.token ||
-        ""
-      );
-
-    const rating =
-      Number(
-        req.body?.rating
-      );
-
-    const displayName =
-      String(
-        req.body?.displayName ||
-        "Customer"
-      )
-        .trim()
-        .slice(0, 50);
-
-    const reviewText =
-      String(
-        req.body?.reviewText ||
-        ""
-      )
-        .trim()
-        .slice(0, 1000);
-
-    const order =
-      orders.get(orderId);
-
-    if (!order) {
-      return res
-        .status(404)
-        .json({
-          error:
-            "Order not found."
-        });
-    }
-
-    if (
-      order.paymentStatus !==
-      "paid"
-    ) {
-      return res
-        .status(403)
-        .json({
-          error:
-            "Reviews can be left after payment is confirmed."
-        });
-    }
-
-    if (
-      !reviewToken ||
-      reviewToken !==
-        order.reviewToken
-    ) {
-      return res
-        .status(403)
-        .json({
-          error:
-            "Invalid review link."
-        });
-    }
-
-    if (
-      !Number.isInteger(rating) ||
-      rating < 1 ||
-      rating > 5
-    ) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "Rating must be between 1 and 5."
-        });
-    }
-
-    if (!reviewText) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "Please enter a review."
-        });
-    }
-
-    db.prepare(`
-      INSERT INTO reviews (
-        order_id,
-        telegram_id,
-        display_name,
-        rating,
-        review_text,
-        approved,
-        created_at
-      )
-      VALUES (?, ?, ?, ?, ?, 0, ?)
-
-      ON CONFLICT(order_id)
-      DO UPDATE SET
-        display_name = excluded.display_name,
-        rating = excluded.rating,
-        review_text = excluded.review_text,
-        approved = 0,
-        created_at = excluded.created_at
-    `).run(
-      orderId,
-      String(
-        order.telegramId ||
-        ""
-      ),
-      displayName,
-      rating,
-      reviewText,
-      new Date().toISOString()
-    );
-
-    const savedReview =
-      db.prepare(`
-        SELECT *
-        FROM reviews
-        WHERE order_id = ?
-      `).get(orderId);
-
-    if (savedReview) {
-      safeSendMessage(
-        adminTelegramId,
-
-`⭐ NEW REVIEW
-
-Review:
-#${savedReview.id}
-
-Order:
-#${orderId}
-
-Customer:
-${displayName}
-
-Rating:
-${rating}/5
-
-Review:
-${reviewText}
-
-Waiting for approval.`,
-
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text:
-                    "✅ Approve",
-                  callback_data:
-                    `review_approve_${savedReview.id}`
-                },
-                {
-                  text:
-                    "❌ Reject",
-                  callback_data:
-                    `review_reject_${savedReview.id}`
-                }
-              ]
-            ]
-          }
-        }
-      );
-    }
-
-    return res.json({
-      ok: true,
-      message:
-        "Thank you. Your review has been submitted."
-    });
-  }
-);
-
-/* =========================================================
-   REVIEW PAGE
-   ========================================================= */
-
-app.get(
-  "/review/:orderId",
-
-  (
-    req,
-    res
-  ) => {
-    const orderId =
-      Number(
-        req.params.orderId
-      );
-
-    const reviewToken =
-      String(
-        req.query.token ||
-        ""
-      );
-
-    const order =
-      orders.get(orderId);
-
-    if (
-      !order ||
-      reviewToken !==
-        order.reviewToken
-    ) {
-      return res
-        .status(404)
-        .send(
-          "Review link not found."
-        );
-    }
-
-    if (
-      order.paymentStatus !==
-      "paid"
-    ) {
-      return res
-        .status(403)
-        .send(
-          "Payment must be confirmed before leaving a review."
-        );
-    }
-
-    const tokenJson =
-      JSON.stringify(
-        reviewToken
-      );
-
-    res.type("html");
-
-    return res.send(`
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta
-  name="viewport"
-  content="width=device-width, initial-scale=1.0"
->
-<title>Leave a Review</title>
-
-<style>
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  padding: 24px;
-  font-family: Arial, sans-serif;
-  background: #ffffff;
-  color: #111111;
-}
-
-.card {
-  max-width: 520px;
-  margin: 30px auto;
-  border: 1px solid #d5b04c;
-  border-radius: 18px;
-  padding: 24px;
-}
-
-h1 {
-  margin-top: 0;
-}
-
-.gold {
-  color: #b58b16;
-}
-
-label {
-  display: block;
-  font-weight: 700;
-  margin-top: 18px;
-  margin-bottom: 8px;
-}
-
-input,
-select,
-textarea {
-  width: 100%;
-  font-size: 16px;
-  padding: 13px;
-  border: 1px solid #cccccc;
-  border-radius: 10px;
-}
-
-textarea {
-  min-height: 130px;
-  resize: vertical;
-}
-
-button {
-  width: 100%;
-  margin-top: 22px;
-  padding: 15px;
-  border: 0;
-  border-radius: 12px;
-  background: #c9a227;
-  color: #ffffff;
-  font-size: 17px;
-  font-weight: 700;
-}
-
-#message {
-  margin-top: 18px;
-  font-weight: 700;
-}
-</style>
-</head>
-
-<body>
-
-<div class="card">
-
-<h1>
-  <span class="gold">★</span>
-  Leave a Review
-</h1>
-
-<p>
-Order #${orderId}
-</p>
-
-<label>
-Name
-</label>
-
-<input
-  id="name"
-  maxlength="50"
-  placeholder="Your name"
-/>
-
-<label>
-Rating
-</label>
-
-<select id="rating">
-  <option value="5">★★★★★ - 5</option>
-  <option value="4">★★★★☆ - 4</option>
-  <option value="3">★★★☆☆ - 3</option>
-  <option value="2">★★☆☆☆ - 2</option>
-  <option value="1">★☆☆☆☆ - 1</option>
-</select>
-
-<label>
-Review
-</label>
-
-<textarea
-  id="review"
-  maxlength="1000"
-  placeholder="Tell us about your experience..."
-></textarea>
-
-<button id="submit">
-Submit Review
-</button>
-
-<div id="message"></div>
-
-</div>
-
-<script>
-const orderId = ${orderId};
-const token = ${tokenJson};
-
-document
-  .getElementById("submit")
-  .addEventListener(
-    "click",
-    async () => {
-      const button =
-        document.getElementById(
-          "submit"
-        );
-
-      const message =
-        document.getElementById(
-          "message"
-        );
-
-      button.disabled = true;
-      message.textContent =
-        "Submitting...";
-
-      try {
-        const response =
-          await fetch(
-            "/api/reviews",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type":
-                  "application/json"
-              },
-              body:
-                JSON.stringify({
-                  orderId,
-                  token,
-                  displayName:
-                    document
-                      .getElementById(
-                        "name"
-                      )
-                      .value,
-                  rating:
-                    Number(
-                      document
-                        .getElementById(
-                          "rating"
-                        )
-                        .value
-                    ),
-                  reviewText:
-                    document
-                      .getElementById(
-                        "review"
-                      )
-                      .value
-                })
-            }
-          );
-
-        const data =
-          await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            data.error ||
-            "Could not submit review."
-          );
-        }
-
-        message.textContent =
-          "⭐ Thank you. Your review has been submitted.";
-      } catch (err) {
-        message.textContent =
-          err.message;
-
-        button.disabled = false;
-      }
-    }
-  );
-</script>
-
-</body>
-</html>
-    `);
-  }
-);
-
-/* =========================================================
-   TELEGRAM ADMIN + CUSTOMER CONTROLS
-   ========================================================= */
-
-const pendingSupport =
-  new Set();
-
-const pendingAdminOrderLookup =
-  new Set();
-
-const pendingAdminTracking =
-  new Map();
-
-const pendingAdminNote =
-  new Map();
-
-const pendingStockAdjustment =
-  new Map();
-
-if (bot) {
-
-  function clearAdminInputs(
-    chatId
-  ) {
-    pendingAdminOrderLookup.delete(
-      chatId
-    );
-
-    pendingAdminTracking.delete(
-      chatId
-    );
-
-    pendingAdminNote.delete(
-      chatId
-    );
-
-    pendingStockAdjustment.delete(
-      chatId
-    );
-  }
-
-  function getOrderStatusText(
-    order
-  ) {
-    if (
-      order.paymentStatus ===
-        "cancelled" ||
-      order.fulfilmentStatus ===
-        "cancelled"
-    ) {
-      return "Cancelled ❌";
-    }
-
-    if (
-      order.fulfilmentStatus ===
-      "shipped"
-    ) {
-      return "Shipped 📦";
-    }
-
-    if (
-      order.paymentStatus ===
-      "paid"
-    ) {
-      return "Paid ✅";
-    }
-
-    if (
-      order.paymentStatus ===
-      "payment_submitted"
-    ) {
-      return "Payment submitted ⏳";
-    }
-
-    return "Awaiting payment";
-  }
-
-  function getRecentOrders(
-    limit = 10
-  ) {
-    return [
-      ...orders.values()
-    ]
-      .sort(
-        (
-          a,
-          b
-        ) =>
-          new Date(
-            b.createdAt ||
-            0
-          ) -
-          new Date(
-            a.createdAt ||
-            0
-          )
-      )
-      .slice(0, limit);
-  }
-
-  async function sendLongMessage(
-    chatId,
-    message
-  ) {
-    const maxLength = 3500;
-
-    if (
-      message.length <=
-      maxLength
-    ) {
-      return safeSendMessage(
-        chatId,
-        message
-      );
-    }
-
-    const paragraphs =
-      message.split("\n\n");
-
-    let chunk = "";
-
-    for (
-      const paragraph
-      of paragraphs
-    ) {
-      const next =
-        chunk
-          ? `${chunk}\n\n${paragraph}`
-          : paragraph;
-
-      if (
-        next.length >
-        maxLength
-      ) {
-        if (chunk) {
-          await safeSendMessage(
-            chatId,
-            chunk
-          );
-        }
-
-        chunk = paragraph;
-      } else {
-        chunk = next;
-      }
-    }
-
-    if (chunk) {
-      await safeSendMessage(
-        chatId,
-        chunk
-      );
-    }
-  }
-
-  function getAdminDashboardOptions() {
-    return {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text:
-                "📦 Recent Orders",
-              callback_data:
-                "admin_recent_orders"
-            },
-            {
-              text:
-                "⏳ Payments",
-              callback_data:
-                "admin_payments"
-            }
-          ],
-          [
-            {
-              text:
-                "🚚 Dispatch Queue",
-              callback_data:
-                "admin_dispatch"
-            },
-            {
-              text:
-                "🔎 Find Order",
-              callback_data:
-                "admin_find_order"
-            }
-          ],
-          [
-            {
-              text:
-                "📊 Sales Reports",
-              callback_data:
-                "admin_reports"
-            },
-            {
-              text:
-                "📦 Stock Centre",
-              callback_data:
-                "admin_stock"
-            }
-          ],
-          [
-            {
-              text:
-                "⭐ Reviews",
-              callback_data:
-                "admin_reviews"
-            },
-            {
-              text:
-                "💰 Affiliate Earnings",
-              callback_data:
-                "admin_earnings"
-            }
-          ],
-          [
-            {
-              text:
-                "🎉 Storewide Promo",
-              callback_data:
-                "admin_storewide_promo"
-            }
-          ]
-        ]
-      }
-    };
-  }
-
-  async function sendAdminDashboard(
-    chatId
-  ) {
-    clearAdminInputs(chatId);
-
-    const paymentWaiting =
-      [...orders.values()]
-        .filter(
-          order =>
-            order.paymentStatus ===
-            "payment_submitted"
-        )
-        .length;
-
-    const dispatchWaiting =
-      [...orders.values()]
-        .filter(
-          order =>
-            order.paymentStatus ===
-              "paid" &&
-            order.fulfilmentStatus !==
-              "shipped"
-        )
-        .length;
-
-    const pendingReviews =
-      Number(
-        db.prepare(`
-          SELECT COUNT(*) AS count
-          FROM reviews
-          WHERE approved = 0
-        `).get()?.count ||
-        0
-      );
-
-    const liveProducts =
-      getLiveProducts();
-
-    const lowStockCount =
-      liveProducts
-        .filter(
-          product => {
-            const stock =
-              Number(
-                product.stock
-              );
-
-            return (
-              Number.isFinite(stock) &&
-              stock > 0 &&
-              stock <=
-                LOW_STOCK_THRESHOLD
-            );
-          }
-        )
-        .length;
-
-    const outOfStockCount =
-      liveProducts
-        .filter(
-          product =>
-            Number(product.stock) ===
-            0
-        )
-        .length;
-
-    return safeSendMessage(
-      chatId,
-
-`🛠 ADMIN DASHBOARD
-
-📦 Orders:
-${orders.size}
-
-⏳ Payments waiting:
-${paymentWaiting}
-
-🚚 Ready to dispatch:
-${dispatchWaiting}
-
-⭐ Reviews waiting:
-${pendingReviews}
-
-📉 Low stock:
-${lowStockCount}
-
-❌ Out of stock:
-${outOfStockCount}
-
-Choose an option below.`,
-
-      getAdminDashboardOptions()
-    );
-  }
-
-  function getAdminOrderButtons(
-    order
-  ) {
-    const buttons = [];
-
-    const cancelled =
-      order.paymentStatus ===
-      "cancelled";
-
-    if (
-      !cancelled &&
-      order.paymentStatus !==
-      "paid"
-    ) {
-      buttons.push([
-        {
-          text:
-            "✅ Mark Paid",
-          callback_data:
-            `admin_paid_${order.orderId}`
-        }
-      ]);
-    }
-
-    if (
-      order.paymentStatus ===
-        "paid" &&
-      order.fulfilmentStatus !==
-        "shipped"
-    ) {
-      buttons.push([
-        {
-          text:
-            "🚚 Add Tracking",
-          callback_data:
-            `admin_tracking_${order.orderId}`
-        }
-      ]);
-    }
-
-    buttons.push([
-      {
-        text:
-          "📝 Add Note",
-        callback_data:
-          `admin_note_${order.orderId}`
-      }
-    ]);
-
-    if (
-      order.paymentStatus ===
-      "paid"
-    ) {
-      buttons.push([
-        {
-          text:
-            "⭐ Send Review Link",
-          callback_data:
-            `admin_review_${order.orderId}`
-        }
-      ]);
-    }
-
-    if (
-      order.paymentStatus ===
-      "awaiting_payment"
-    ) {
-      buttons.push([
-        {
-          text:
-            "❌ Cancel Order",
-          callback_data:
-            `admin_cancel_${order.orderId}`
-        }
-      ]);
-    }
-
-    buttons.push([
-      {
-        text:
-          "⬅️ Admin Dashboard",
-        callback_data:
-          "admin_dashboard"
-      }
-    ]);
-
-    return {
-      reply_markup: {
-        inline_keyboard:
-          buttons
-      }
-    };
-  }
-
-  async function showAdminOrder(
-    chatId,
-    order
-  ) {
-    const items =
-      (order.items || [])
-        .map(
-          item =>
-            `${item.quantity} × ${item.name}`
-        )
-        .join("\n") ||
-      "No items";
-
-    const notes =
-      Array.isArray(
-        order.adminNotes
-      ) &&
-      order.adminNotes.length
-        ? order.adminNotes
-            .map(
-              note =>
-                `• ${note.text}`
             )
-            .join("\n")
-        : "None";
 
-    return safeSendMessage(
-      chatId,
+            .get()
 
-`📦 ORDER #${order.orderId}
+            ?.count ||
 
-Status:
-${getOrderStatusText(order)}
-
-Customer:
-${order.customerName}
-
-Telegram:
-${
-  order.telegramUsername
-    ? `@${normaliseUsername(
-        order.telegramUsername
-      )}`
-    : "Not supplied"
-}
-
-📍 Address:
-${order.address}
-
-Items:
-${items}
-
-Basket:
-${money(order.subtotalPence)}
-
-Discount:
--${money(order.discountPence)}
-
-Store credit:
--${money(order.storeCreditPence)}
-
-Shipping:
-${money(order.shippingPence)}
-
-TOTAL:
-${money(order.totalPence)}
-
-Transaction:
-${order.transactionId || "None"}
-
-Tracking:
-${order.trackingNumber || "None"}
-
-Admin notes:
-${notes}`,
-
-      getAdminOrderButtons(order)
-    );
-  }
-
-  async function showOrderList(
-    chatId,
-    title,
-    list
-  ) {
-    if (!list.length) {
-      return safeSendMessage(
-        chatId,
-        `${title}\n\nNothing here.`,
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text:
-                    "⬅️ Admin Dashboard",
-                  callback_data:
-                    "admin_dashboard"
-                }
-              ]
-            ]
-          }
-        }
-      );
-    }
-
-    const buttons =
-      list
-        .slice(0, 20)
-        .map(
-          order => [
-            {
-              text:
-                `#${order.orderId} • ${order.customerName} • ${money(order.totalPence)}`,
-              callback_data:
-                `admin_order_${order.orderId}`
-            }
-          ]
-        );
-
-    buttons.push([
-      {
-        text:
-          "⬅️ Admin Dashboard",
-        callback_data:
-          "admin_dashboard"
-      }
-    ]);
-
-    return safeSendMessage(
-      chatId,
-      `${title}\n\nTap an order to manage it.`,
-      {
-        reply_markup: {
-          inline_keyboard:
-            buttons
-        }
-      }
-    );
-  }
-
-  async function sendSalesReport(
-    chatId,
-    days,
-    title
-  ) {
-    const startTime =
-      Date.now() -
-      (
-        days *
-        24 *
-        60 *
-        60 *
-        1000
-      );
-
-    const selected =
-      [...orders.values()]
-        .filter(
-          order => {
-            const created =
-              new Date(
-                order.createdAt ||
-                0
-              ).getTime();
-
-            return (
-              Number.isFinite(
-                created
-              ) &&
-              created >= startTime
-            );
-          }
-        );
-
-    const paid =
-      selected.filter(
-        order =>
-          order.paymentStatus ===
-          "paid"
-      );
-
-    let revenuePence = 0;
-    let shippingPence = 0;
-    let discountsPence = 0;
-    let unitsPaid = 0;
-
-    const sales =
-      new Map();
-
-    for (const order of paid) {
-      revenuePence +=
-        Number(
-          order.totalPence ||
           0
-        );
 
-      shippingPence +=
-        Number(
-          order.shippingPence ||
-          0
-        );
-
-      discountsPence +=
-        Number(
-          order.discountPence ||
-          0
-        );
-
-      for (
-        const item
-        of order.items || []
-      ) {
-        const qty =
-          Number(
-            item.quantity ||
-            0
-          );
-
-        unitsPaid += qty;
-
-        const key =
-          Number(item.id);
-
-        if (
-          !sales.has(key)
-        ) {
-          sales.set(
-            key,
-            {
-              name:
-                item.name,
-              units: 0,
-              salesPence: 0
-            }
-          );
-        }
-
-        const stat =
-          sales.get(key);
-
-        stat.units += qty;
-
-        stat.salesPence +=
-          Number(
-            item.lineTotalPence ||
-            (
-              Number(
-                item.pricePence ||
-                0
-              ) *
-              qty
-            )
-          );
-      }
-    }
-
-    const average =
-      paid.length
-        ? Math.round(
-            revenuePence /
-            paid.length
-          )
-        : 0;
-
-    const productLines =
-      [...sales.values()]
-        .sort(
-          (
-            a,
-            b
-          ) =>
-            b.units -
-            a.units
-        )
-        .map(
-          product =>
-`• ${product.name}
-${product.units} sold • ${money(product.salesPence)}`
-        )
-        .join("\n\n");
-
-    await sendLongMessage(
-      chatId,
-
-`📊 ${title}
-
-Orders created:
-${selected.length}
-
-Paid orders:
-${paid.length}
-
-Revenue:
-${money(revenuePence)}
-
-Average paid order:
-${money(average)}
-
-Shipping collected:
-${money(shippingPence)}
-
-Discounts:
-${money(discountsPence)}
-
-Units sold:
-${unitsPaid}
-
-PRODUCT SALES
-
-${productLines || "No paid sales in this period."}`
-    );
-  }
-
-  async function sendPendingReviews(
-    chatId
-  ) {
-    const pending =
-      db.prepare(`
-        SELECT *
-        FROM reviews
-        WHERE approved = 0
-        ORDER BY id ASC
-        LIMIT 20
-      `).all();
-
-    if (!pending.length) {
-      return safeSendMessage(
-        chatId,
-        "⭐ Reviews\n\nNo reviews are waiting for approval.",
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text:
-                    "⬅️ Admin Dashboard",
-                  callback_data:
-                    "admin_dashboard"
-                }
-              ]
-            ]
-          }
-        }
-      );
-    }
-
-    for (
-      const review
-      of pending
-    ) {
-      await safeSendMessage(
-        chatId,
-
-`⭐ REVIEW #${review.id}
-
-Order:
-#${review.order_id}
-
-Customer:
-${review.display_name}
-
-Rating:
-${review.rating}/5
-
-Review:
-${review.review_text}`,
-
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text:
-                    "✅ Approve",
-                  callback_data:
-                    `review_approve_${review.id}`
-                },
-                {
-                  text:
-                    "❌ Reject",
-                  callback_data:
-                    `review_reject_${review.id}`
-                }
-              ],
-              [
-                {
-                  text:
-                    "⬅️ Admin Dashboard",
-                  callback_data:
-                    "admin_dashboard"
-                }
-              ]
-            ]
-          }
-        }
-      );
-    }
-  }
-
-  async function showStockCentre(
-    chatId
-  ) {
-    const live =
-      getLiveProducts();
-
-    const low =
-      live.filter(
-        product => {
-          const stock =
-            Number(product.stock);
-
-          return (
-            Number.isFinite(stock) &&
-            stock > 0 &&
-            stock <=
-              LOW_STOCK_THRESHOLD
-          );
-        }
-      );
-
-    const out =
-      live.filter(
-        product =>
-          Number(product.stock) ===
-          0
-      );
-
-    return safeSendMessage(
-      chatId,
-
-`📦 STOCK CENTRE
-
-Products:
-${live.length}
-
-Low stock:
-${low.length}
-
-Out of stock:
-${out.length}
-
-Choose an option.`,
-
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text:
-                  "📋 All Stock",
-                callback_data:
-                  "admin_stock_all"
-              },
-              {
-                text:
-                  "📉 Low Stock",
-                callback_data:
-                  "admin_stock_low"
-              }
-            ],
-            [
-              {
-                text:
-                  "❌ Out of Stock",
-                callback_data:
-                  "admin_stock_out"
-              },
-              {
-                text:
-                  "✏️ Adjust Stock",
-                callback_data:
-                  "admin_stock_adjust"
-              }
-            ],
-            [
-              {
-                text:
-                  "⬅️ Admin Dashboard",
-                callback_data:
-                  "admin_dashboard"
-              }
-            ]
-          ]
-        }
-      }
-    );
-  }
-
-  async function sendStockList(
-    chatId,
-    title,
-    list
-  ) {
-    const lines =
-      list
-        .map(
-          product =>
-            `#${product.id} • ${product.name}: ${product.stock}`
-        )
-        .join("\n");
-
-    await sendLongMessage(
-      chatId,
-      `${title}\n\n${lines || "Nothing here."}`
-    );
-  }
-
-  /* =======================================================
-     /START
-     ======================================================= */
-
-  bot.onText(
-    /^\/start(?:@\w+)?(?:\s.*)?$/i,
-
-    async msg => {
-      const buttons = [];
-
-      if (webAppUrl) {
-        buttons.push([
-          {
-            text:
-              "🛍 OPEN SHOP — TAP HERE",
-            web_app: {
-              url:
-                webAppUrl
-            }
-          }
-        ]);
-      }
-
-      buttons.push([
-        {
-          text:
-            "📦 My Orders",
-          callback_data:
-            "orders"
-        },
-        {
-          text:
-            "💬 Support",
-          callback_data:
-            "support"
-        }
-      ]);
-
-      buttons.push([
-        {
-          text:
-            "ℹ️ Info",
-          callback_data:
-            "info"
-        }
-      ]);
-
-      if (
-        isAdmin(
-          msg.from?.id
-        )
-      ) {
-        buttons.push([
-          {
-            text:
-              "🛠 Admin Dashboard",
-            callback_data:
-              "admin_dashboard"
-          }
-        ]);
-      }
-
-      await safeSendMessage(
-        msg.chat.id,
-
-`⚡️ Welcome
-
-🛍 Open Shop
-📦 My Orders
-💬 Support
-ℹ️ Info${
-  isAdmin(msg.from?.id)
-    ? "\n🛠 Admin Dashboard"
-    : ""
-}`,
-
-        {
-          reply_markup: {
-            inline_keyboard:
-              buttons
-          }
-        }
-      );
-    }
-  );
-
-  /* =======================================================
-     /ADMIN
-     ======================================================= */
-
-  bot.onText(
-    /^\/admin(?:@\w+)?$/i,
-
-    async msg => {
-      if (
-        !isAdmin(
-          msg.from?.id
-        )
-      ) {
-        return safeSendMessage(
-          msg.chat.id,
-          "This command is admin-only."
-        );
-      }
-
-      return sendAdminDashboard(
-        msg.chat.id
-      );
-    }
-  );
-
-  /* =======================================================
-     /MYID
-     ======================================================= */
-
-  bot.onText(
-    /^\/myid(?:@\w+)?$/i,
-
-    async msg => {
-      await safeSendMessage(
-        msg.chat.id,
-        `Your Telegram ID: ${msg.from.id}`
-      );
-    }
-  );
-
-  /* =======================================================
-     /EARNINGS
-     ======================================================= */
-
-  bot.onText(
-    /^\/earnings(?:@\w+)?$/i,
-
-    async msg => {
-      if (
-        !isAdmin(
-          msg.from?.id
-        )
-      ) {
-        return safeSendMessage(
-          msg.chat.id,
-          "This command is admin-only."
-        );
-      }
-
-      return sendLongMessage(
-        msg.chat.id,
-        getAffiliateEarningsText()
-      );
-    }
-  );
-
-  /* =======================================================
-     /PAID
-     ======================================================= */
-
-  bot.onText(
-    /^\/paid\s+(\d+)$/i,
-
-    async (
-      msg,
-      match
-    ) => {
-      if (
-        !isAdmin(
-          msg.from?.id
-        )
-      ) {
-        return safeSendMessage(
-          msg.chat.id,
-          "This command is admin-only."
-        );
-      }
-
-      const orderId =
-        Number(match[1]);
-
-      const order =
-        orders.get(orderId);
-
-      if (!order) {
-        return safeSendMessage(
-          msg.chat.id,
-          `❌ Order #${orderId} not found.`
-        );
-      }
-
-      const result =
-        await markOrderPaid(
-          order
-        );
-
-      if (!result.ok) {
-        return safeSendMessage(
-          msg.chat.id,
-
-`❌ Could not mark order paid.
-
-${result.error}`
-        );
-      }
-
-      if (
-        result.alreadyPaid
-      ) {
-        return safeSendMessage(
-          msg.chat.id,
-
-`ℹ️ Order #${orderId} was already paid.
-
-Stock has NOT been deducted again.`
-        );
-      }
-
-      return safeSendMessage(
-        msg.chat.id,
-
-`✅ Order #${orderId} marked paid.
-
-Reserved stock is now committed to the order.`
-      );
-    }
-  );
-
-  /* =======================================================
-     /SETSTOCK
-     Usage: /setstock PRODUCT_ID NEW_STOCK
-     Example: /setstock 123 0
-     ======================================================= */
-
-  bot.onText(
-    /^\/setstock(?:@\w+)?\s+(\d+)\s+(\d+)$/i,
-
-    async (msg, match) => {
-      if (!isAdmin(msg.from?.id)) {
-        return safeSendMessage(
-          msg.chat.id,
-          "This command is admin-only."
-        );
-      }
-
-      const productId = Number(match[1]);
-      const newStock = Number(match[2]);
-      const product = productsById.get(productId);
-
-      if (!product) {
-        return safeSendMessage(
-          msg.chat.id,
-          `❌ Product #${productId} not found.`
-        );
-      }
-
-      if (!Number.isInteger(newStock) || newStock < 0) {
-        return safeSendMessage(
-          msg.chat.id,
-          "Stock must be a whole number of 0 or more."
-        );
-      }
-
-      const oldStock = getLiveStock(productId);
-
-      setInventoryStmt.run(
-        newStock,
-        productId
-      );
-
-      return safeSendMessage(
-        msg.chat.id,
-        `✅ STOCK UPDATED\n\n${product.name}\n\nOld stock: ${oldStock}\nNew stock: ${newStock}`
-      );
-    }
-  );
-
-  /* =======================================================
-     /TRACKING
-     ======================================================= */
-
-  bot.onText(
-    /^\/tracking\s+(\d+)\s+(.+)$/i,
-
-    async (
-      msg,
-      match
-    ) => {
-      if (
-        !isAdmin(
-          msg.from?.id
-        )
-      ) {
-        return safeSendMessage(
-          msg.chat.id,
-          "This command is admin-only."
-        );
-      }
-
-      const orderId =
-        Number(match[1]);
-
-      const trackingNumber =
-        String(
-          match[2]
-        ).trim();
-
-      const order =
-        orders.get(orderId);
-
-      if (!order) {
-        return safeSendMessage(
-          msg.chat.id,
-          `❌ Order #${orderId} not found.`
-        );
-      }
-
-      if (
-        order.paymentStatus !==
-        "paid"
-      ) {
-        return safeSendMessage(
-          msg.chat.id,
-          `❌ Order #${orderId} has not been marked paid.`
-        );
-      }
-
-      order.trackingNumber =
-        trackingNumber;
-
-      order.fulfilmentStatus =
-        "shipped";
-
-      order.shippedAt =
-        new Date().toISOString();
-
-      saveOrder(order);
-
-      await safeSendMessage(
-        msg.chat.id,
-
-`✅ Tracking saved
-
-Order:
-#${orderId}
-
-Tracking:
-${trackingNumber}`
-      );
-
-      if (order.telegramId) {
-        await safeSendMessage(
-          order.telegramId,
-
-`📦 Your order has been dispatched
-
-Order:
-#${orderId}
-
-Tracking:
-${trackingNumber}`
-        );
-      }
-    }
-  );
-
-  /* =======================================================
-     /REVIEWS
-     ======================================================= */
-
-  bot.onText(
-    /^\/reviews(?:@\w+)?$/i,
-
-    async msg => {
-      if (
-        !isAdmin(
-          msg.from?.id
-        )
-      ) {
-        return safeSendMessage(
-          msg.chat.id,
-          "This command is admin-only."
-        );
-      }
-
-      return sendPendingReviews(
-        msg.chat.id
-      );
-    }
-  );
-
-  /* =======================================================
-     /SUMMARY
-     ======================================================= */
-
-  bot.onText(
-    /^\/summary(?:@\w+)?$/i,
-
-    async msg => {
-      if (
-        !isAdmin(
-          msg.from?.id
-        )
-      ) {
-        return safeSendMessage(
-          msg.chat.id,
-          "This command is admin-only."
-        );
-      }
-
-      const sevenDaysAgo =
-        Date.now() -
-        (
-          7 *
-          24 *
-          60 *
-          60 *
-          1000
-        );
-
-      const sinceIso =
-        new Date(
-          sevenDaysAgo
-        ).toISOString();
-
-      const recentOrders =
-        [...orders.values()]
-          .filter(
-            order => {
-              const created =
-                new Date(
-                  order.createdAt ||
-                  0
-                ).getTime();
-
-              return (
-                Number.isFinite(
-                  created
-                ) &&
-                created >=
-                  sevenDaysAgo
-              );
-            }
-          );
-
-      const paidOrders =
-        recentOrders.filter(
-          order =>
-            order.paymentStatus ===
-            "paid"
-        );
-
-      let revenuePence = 0;
-      let shippingPence = 0;
-      let discountsPence = 0;
-      let storeCreditPence = 0;
-      let unitsOrdered = 0;
-      let unitsPaid = 0;
-
-      const productStats =
-        new Map();
-
-      function statFor(
-        id,
-        name
-      ) {
-        const key =
-          Number(id);
-
-        if (
-          !productStats.has(key)
-        ) {
-          productStats.set(
-            key,
-            {
-              name:
-                name ||
-                `Product ${key}`,
-              ordered: 0,
-              paid: 0,
-              revenuePence: 0,
-              basketAdds: 0,
-              basketRemoves: 0
-            }
-          );
-        }
-
-        return productStats.get(
-          key
-        );
-      }
-
-      for (
-        const order
-        of recentOrders
-      ) {
-        discountsPence +=
-          Number(
-            order.discountPence ||
-            0
-          );
-
-        storeCreditPence +=
-          Number(
-            order.storeCreditPence ||
-            0
-          );
-
-        for (
-          const item
-          of order.items || []
-        ) {
-          const qty =
-            Number(
-              item.quantity ||
-              0
-            );
-
-          statFor(
-            item.id,
-            item.name
-          ).ordered += qty;
-
-          unitsOrdered += qty;
-        }
-
-        if (
-          order.paymentStatus ===
-          "paid"
-        ) {
-          revenuePence +=
-            Number(
-              order.totalPence ||
-              0
-            );
-
-          shippingPence +=
-            Number(
-              order.shippingPence ||
-              0
-            );
-
-          for (
-            const item
-            of order.items || []
-          ) {
-            const qty =
-              Number(
-                item.quantity ||
-                0
-              );
-
-            const stat =
-              statFor(
-                item.id,
-                item.name
-              );
-
-            stat.paid += qty;
-
-            stat.revenuePence +=
-              Number(
-                item.lineTotalPence ||
-                (
-                  Number(
-                    item.pricePence ||
-                    0
-                  ) *
-                  qty
-                )
-              );
-
-            unitsPaid += qty;
-          }
-        }
-      }
-
-      const cartRows =
-        db.prepare(`
-          SELECT
-            productId,
-            action,
-            COUNT(*) AS count
-          FROM cart_events
-          WHERE createdAt >= ?
-          GROUP BY productId, action
-        `).all(sinceIso);
-
-      let basketAdds = 0;
-      let basketRemoves = 0;
-
-      for (
-        const row
-        of cartRows
-      ) {
-        const product =
-          productsById.get(
-            Number(row.productId)
-          );
-
-        const stat =
-          statFor(
-            row.productId,
-            product?.name
-          );
-
-        const count =
-          Number(
-            row.count ||
-            0
-          );
-
-        if (
-          row.action ===
-          "add"
-        ) {
-          stat.basketAdds +=
-            count;
-
-          basketAdds +=
-            count;
-        } else if (
-          row.action ===
-          "remove"
-        ) {
-          stat.basketRemoves +=
-            count;
-
-          basketRemoves +=
-            count;
-        }
-      }
-
-      const pendingReviews =
-        Number(
-          db.prepare(`
-            SELECT COUNT(*) AS count
-            FROM reviews
-            WHERE approved = 0
-          `).get()?.count ||
-          0
-        );
-
-      const approvedReviews =
-        Number(
-          db.prepare(`
-            SELECT COUNT(*) AS count
-            FROM reviews
-            WHERE approved = 1
-          `).get()?.count ||
-          0
         );
 
       const productLines =
-        [...productStats.values()]
+
+        [
+
+          ...productStats.values()
+
+        ]
+
           .filter(
+
             p =>
+
               p.ordered ||
+
               p.paid ||
+
               p.basketAdds ||
+
               p.basketRemoves
+
           )
+
           .sort(
+
             (
+
               a,
+
               b
+
             ) =>
+
               b.paid -
-                a.paid ||
+
+              a.paid ||
+
               b.ordered -
-                a.ordered
+
+              a.ordered
+
           )
+
           .map(
+
             p =>
+
 `• ${p.name}
-Ordered: ${p.ordered}
-Paid: ${p.paid}
-Sales: ${money(p.revenuePence)}
-Basket +: ${p.basketAdds}
-Basket -: ${p.basketRemoves}`
+
+Ordered:
+
+${p.ordered}
+
+Paid:
+
+${p.paid}
+
+Sales:
+
+${money(
+
+  p.revenuePence
+
+)}
+
+Basket +:
+
+${p.basketAdds}
+
+Basket -:
+
+${p.basketRemoves}`
+
           )
-          .join("\n\n");
+
+          .join(
+
+            "\n\n"
+
+          );
 
       return sendLongMessage(
+
         msg.chat.id,
 
 `📊 7 DAY SUMMARY
 
 Orders created:
+
 ${recentOrders.length}
 
 Paid orders:
+
 ${paidOrders.length}
 
 Paid revenue:
-${money(revenuePence)}
+
+${money(
+
+  revenuePence
+
+)}
 
 Shipping collected:
-${money(shippingPence)}
+
+${money(
+
+  shippingPence
+
+)}
 
 Discounts:
-${money(discountsPence)}
+
+${money(
+
+  discountsPence
+
+)}
 
 Store credit used:
-${money(storeCreditPence)}
+
+${money(
+
+  storeCreditPence
+
+)}
 
 Units ordered:
+
 ${unitsOrdered}
 
 Units paid:
+
 ${unitsPaid}
 
 Basket adds:
+
 ${basketAdds}
 
 Basket removals:
+
 ${basketRemoves}
 
 Reviews waiting:
+
 ${pendingReviews}
 
 Reviews approved:
+
 ${approvedReviews}
 
 PRODUCTS
 
-${productLines || "No activity in the last 7 days."}`
+${
+
+  productLines ||
+
+  "No activity in the last 7 days."
+
+}`
+
       );
+
     }
+
   );
 
   /* =======================================================
+
      CALLBACKS
+
      ======================================================= */
 
   bot.on(
+
     "callback_query",
 
     async q => {
+
       const chatId =
+
         q.message?.chat?.id;
 
-      if (!chatId) {
+      if (
+
+        !chatId
+
+      ) {
+
         return;
+
       }
 
       const data =
+
         String(
+
           q.data ||
+
           ""
+
         );
 
-      /* REVIEW APPROVE */
-
       if (
+
         data.startsWith(
+
           "review_approve_"
+
         )
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           try {
+
             await bot.answerCallbackQuery(
+
               q.id,
+
               {
+
                 text:
+
                   "Admin only."
+
               }
+
             );
+
           } catch {}
 
           return;
+
         }
 
         const reviewId =
+
           Number(
+
             data.replace(
+
               "review_approve_",
+
               ""
+
             )
+
           );
 
         const review =
-          db.prepare(
-            "SELECT * FROM reviews WHERE id = ?"
-          ).get(reviewId);
 
-        if (!review) {
-          try {
-            await bot.answerCallbackQuery(
-              q.id,
-              {
-                text:
-                  "Review not found."
-              }
+          db
+
+            .prepare(
+
+              "SELECT * FROM reviews WHERE id = ?"
+
+            )
+
+            .get(
+
+              reviewId
+
             );
+
+        if (
+
+          !review
+
+        ) {
+
+          try {
+
+            await bot.answerCallbackQuery(
+
+              q.id,
+
+              {
+
+                text:
+
+                  "Review not found."
+
+              }
+
+            );
+
           } catch {}
 
           return;
+
         }
 
-        db.prepare(
-          "UPDATE reviews SET approved = 1 WHERE id = ?"
-        ).run(reviewId);
+        db
+
+          .prepare(
+
+            "UPDATE reviews SET approved = 1 WHERE id = ?"
+
+          )
+
+          .run(
+
+            reviewId
+
+          );
 
         try {
+
           await bot.answerCallbackQuery(
+
             q.id,
+
             {
+
               text:
+
                 "Review approved ✅"
+
             }
+
           );
+
         } catch {}
 
         try {
+
           await bot.editMessageText(
+
 `✅ REVIEW APPROVED
 
 Review:
+
 #${review.id}
 
 Order:
+
 #${review.order_id}
 
 Customer:
+
 ${review.display_name}
 
 Rating:
+
 ${review.rating}/5
 
 ${review.review_text}`,
+
             {
+
               chat_id:
+
                 chatId,
+
               message_id:
+
                 q.message.message_id
+
             }
+
           );
+
         } catch {}
 
         return;
+
       }
 
-      /* REVIEW REJECT */
-
       if (
+
         data.startsWith(
+
           "review_reject_"
+
         )
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           try {
+
             await bot.answerCallbackQuery(
+
               q.id,
+
               {
+
                 text:
+
                   "Admin only."
+
               }
+
             );
+
           } catch {}
 
           return;
+
         }
 
         const reviewId =
+
           Number(
+
             data.replace(
+
               "review_reject_",
+
               ""
+
             )
+
           );
 
         const review =
-          db.prepare(
-            "SELECT * FROM reviews WHERE id = ?"
-          ).get(reviewId);
 
-        if (!review) {
-          try {
-            await bot.answerCallbackQuery(
-              q.id,
-              {
-                text:
-                  "Review not found."
-              }
+          db
+
+            .prepare(
+
+              "SELECT * FROM reviews WHERE id = ?"
+
+            )
+
+            .get(
+
+              reviewId
+
             );
+
+        if (
+
+          !review
+
+        ) {
+
+          try {
+
+            await bot.answerCallbackQuery(
+
+              q.id,
+
+              {
+
+                text:
+
+                  "Review not found."
+
+              }
+
+            );
+
           } catch {}
 
           return;
+
         }
 
-        db.prepare(
-          "DELETE FROM reviews WHERE id = ?"
-        ).run(reviewId);
+        db
+
+          .prepare(
+
+            "DELETE FROM reviews WHERE id = ?"
+
+          )
+
+          .run(
+
+            reviewId
+
+          );
 
         try {
+
           await bot.answerCallbackQuery(
+
             q.id,
+
             {
+
               text:
+
                 "Review rejected ❌"
+
             }
+
           );
+
         } catch {}
 
         try {
+
           await bot.editMessageText(
+
 `❌ REVIEW REJECTED
 
 Review:
+
 #${review.id}
 
 Order:
+
 #${review.order_id}
 
 Customer:
+
 ${review.display_name}
 
 The review has been removed.`,
+
             {
+
               chat_id:
+
                 chatId,
+
               message_id:
+
                 q.message.message_id
+
             }
+
           );
+
         } catch {}
 
         return;
+
       }
 
       try {
+
         await bot.answerCallbackQuery(
+
           q.id
+
         );
+
       } catch {}
 
-      /* ADMIN DASHBOARD */
-
       if (
+
         data ===
+
         "admin_dashboard"
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return safeSendMessage(
+
             chatId,
+
             "Admin only."
+
           );
+
         }
 
         return sendAdminDashboard(
+
           chatId
+
         );
+
       }
 
-      /* RECENT ORDERS */
-
       if (
+
         data ===
+
         "admin_recent_orders"
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         return showOrderList(
+
           chatId,
+
           "📦 RECENT ORDERS",
-          getRecentOrders(15)
+
+          getRecentOrders(
+
+            15
+
+          )
+
         );
+
       }
 
-      /* PAYMENTS */
-
       if (
+
         data ===
+
         "admin_payments"
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         const list =
-          getRecentOrders(100)
+
+          getRecentOrders(
+
+            100
+
+          )
+
             .filter(
+
               order =>
+
                 order.paymentStatus ===
+
                 "payment_submitted"
+
             );
 
         return showOrderList(
+
           chatId,
+
           "⏳ PAYMENTS TO CHECK",
+
           list
+
         );
+
       }
 
-      /* DISPATCH */
-
       if (
+
         data ===
+
         "admin_dispatch"
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         const list =
-          getRecentOrders(100)
+
+          getRecentOrders(
+
+            100
+
+          )
+
             .filter(
+
               order =>
+
                 order.paymentStatus ===
+
                   "paid" &&
+
                 order.fulfilmentStatus !==
+
                   "shipped"
+
             );
 
         return showOrderList(
+
           chatId,
+
           "🚚 DISPATCH QUEUE",
+
           list
+
         );
+
       }
 
-      /* FIND ORDER */
-
       if (
+
         data ===
+
         "admin_find_order"
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
-        clearAdminInputs(chatId);
+        clearAdminInputs(
+
+          chatId
+
+        );
 
         pendingAdminOrderLookup.add(
+
           chatId
+
         );
 
         return safeSendMessage(
+
           chatId,
 
 `🔎 FIND ORDER
@@ -14742,25 +10445,37 @@ The review has been removed.`,
 Send the order number.
 
 Example:
+
 1030`
+
         );
+
       }
 
-      /* SALES REPORT MENU */
-
       if (
+
         data ===
+
         "admin_reports"
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         return safeSendMessage(
+
           chatId,
 
 `📊 SALES REPORTS
@@ -14768,225 +10483,411 @@ Example:
 Choose a period.`,
 
           {
+
             reply_markup: {
+
               inline_keyboard: [
+
                 [
+
                   {
+
                     text:
+
                       "Today",
+
                     callback_data:
+
                       "admin_report_1"
+
                   },
+
                   {
+
                     text:
+
                       "7 Days",
+
                     callback_data:
+
                       "admin_report_7"
+
                   },
+
                   {
+
                     text:
+
                       "30 Days",
+
                     callback_data:
+
                       "admin_report_30"
+
                   }
+
                 ],
+
                 [
+
                   {
+
                     text:
+
                       "⬅️ Admin Dashboard",
+
                     callback_data:
+
                       "admin_dashboard"
+
                   }
+
                 ]
+
               ]
+
             }
+
           }
+
         );
+
       }
 
       if (
+
         data ===
+
         "admin_report_1"
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         return sendSalesReport(
+
           chatId,
+
           1,
+
           "TODAY / LAST 24 HOURS"
+
         );
+
       }
 
       if (
+
         data ===
+
         "admin_report_7"
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         return sendSalesReport(
+
           chatId,
+
           7,
+
           "7 DAY REPORT"
+
         );
+
       }
 
       if (
+
         data ===
+
         "admin_report_30"
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         return sendSalesReport(
+
           chatId,
+
           30,
+
           "30 DAY REPORT"
+
         );
+
       }
 
-      /* STOCK */
-
       if (
+
         data ===
+
         "admin_stock"
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         return showStockCentre(
+
           chatId
+
         );
+
       }
 
       if (
+
         data ===
+
         "admin_stock_all"
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         return sendStockList(
+
           chatId,
+
           "📋 ALL STOCK",
+
           getLiveProducts()
+
         );
+
       }
 
       if (
+
         data ===
+
         "admin_stock_low"
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         const list =
+
           getLiveProducts()
+
             .filter(
+
               product => {
+
                 const stock =
+
                   Number(
+
                     product.stock
+
                   );
 
                 return (
-                  Number.isFinite(stock) &&
-                  stock > 0 &&
+
+                  Number.isFinite(
+
+                    stock
+
+                  ) &&
+
+                  stock >
+
+                    0 &&
+
                   stock <=
+
                     LOW_STOCK_THRESHOLD
+
                 );
+
               }
+
             );
 
         return sendStockList(
+
           chatId,
+
           "📉 LOW STOCK",
+
           list
+
         );
+
       }
 
       if (
+
         data ===
+
         "admin_stock_out"
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         const list =
+
           getLiveProducts()
+
             .filter(
+
               product =>
+
                 Number(
+
                   product.stock
-                ) === 0
+
+                ) ===
+
+                0
+
             );
 
         return sendStockList(
+
           chatId,
+
           "❌ OUT OF STOCK",
+
           list
+
         );
+
       }
 
       if (
+
         data ===
+
         "admin_stock_adjust"
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
-        clearAdminInputs(chatId);
+        clearAdminInputs(
+
+          chatId
+
+        );
 
         pendingStockAdjustment.set(
+
           chatId,
+
           {
+
             stage:
+
               "product"
+
           }
+
         );
 
         return safeSendMessage(
+
           chatId,
 
 `✏️ ADJUST STOCK
@@ -14994,494 +10895,1063 @@ Choose a period.`,
 Send the product ID.
 
 You can find IDs in:
+
 Stock Centre → All Stock`
+
         );
+
       }
 
-      /* REVIEWS */
-
       if (
+
         data ===
+
         "admin_reviews"
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         return sendPendingReviews(
+
           chatId
+
         );
+
       }
 
-      /* EARNINGS */
-
       if (
+
         data ===
+
         "admin_earnings"
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         return sendLongMessage(
+
           chatId,
+
           getAffiliateEarningsText()
+
         );
+
       }
 
-      /* STORE-WIDE PROMO */
-
       if (
-        data ===
-        "admin_storewide_promo"
-      ) {
-        if (!isAdmin(q.from?.id)) return;
 
-        const promo = getStorewidePromo();
-        const live = isStorewidePromoLive(promo);
+        data ===
+
+        "admin_storewide_promo"
+
+      ) {
+
+        if (
+
+          !isAdmin(
+
+            q.from?.id
+
+          )
+
+        ) {
+
+          return;
+
+        }
+
+        const promo =
+
+          getStorewidePromo();
+
+        const live =
+
+          isStorewidePromoLive(
+
+            promo
+
+          );
 
         return safeSendMessage(
+
           chatId,
 
 `🎉 STORE-WIDE PROMO
 
 Code:
+
 ${promo.code}
 
 Discount:
+
 ${promo.discountPercent}%
 
 Stacks with affiliate codes:
+
 YES
 
 Status:
-${live ? "🟢 ACTIVE" : "🔴 OFF"}
+
+${live
+
+  ? "🟢 ACTIVE"
+
+  : "🔴 OFF"
+
+}
 
 ${
+
   live
+
     ? "Customers can use the promo code now."
+
     : "The promo code is currently disabled."
+
 }`,
+
           {
+
             reply_markup: {
+
               inline_keyboard: [
+
                 [
+
                   {
-                    text: live
-                      ? "⏸ Turn Promo Off"
-                      : "▶️ Turn Promo On",
-                    callback_data:
-                      "admin_storewide_toggle"
-                  }
-                ],
-                [
-                  {
+
                     text:
-                      "⬅️ Admin Dashboard",
+
+                      live
+
+                        ? "⏸ Turn Promo Off"
+
+                        : "▶️ Turn Promo On",
+
                     callback_data:
-                      "admin_dashboard"
+
+                      "admin_storewide_toggle"
+
                   }
+
+                ],
+
+                [
+
+                  {
+
+                    text:
+
+                      "⬅️ Admin Dashboard",
+
+                    callback_data:
+
+                      "admin_dashboard"
+
+                  }
+
                 ]
+
               ]
+
             }
+
           }
+
         );
+
       }
 
       if (
-        data ===
-        "admin_storewide_toggle"
-      ) {
-        if (!isAdmin(q.from?.id)) return;
 
-        const promo = getStorewidePromo();
-        const newState = !promo.active;
+        data ===
+
+        "admin_storewide_toggle"
+
+      ) {
+
+        if (
+
+          !isAdmin(
+
+            q.from?.id
+
+          )
+
+        ) {
+
+          return;
+
+        }
+
+        const promo =
+
+          getStorewidePromo();
+
+        const newState =
+
+          !promo.active;
 
         setMetaValue(
+
           "storewidePromo:active",
-          newState ? "true" : "false"
+
+          newState
+
+            ? "true"
+
+            : "false"
+
         );
 
-        const updated = getStorewidePromo();
+        const updated =
+
+          getStorewidePromo();
 
         return safeSendMessage(
+
           chatId,
+
           updated.active
+
             ? `✅ ${updated.code} is now LIVE.
 
 Customers can now use the code for ${updated.discountPercent}% off.
 
 It will stay active until you manually turn it off.`
+
             : `⏸ ${updated.code} has been switched OFF.
 
 Customers can no longer use the store-wide promo code.`,
+
           {
+
             reply_markup: {
+
               inline_keyboard: [
+
                 [
+
                   {
+
                     text:
+
                       "🎉 Promo Settings",
+
                     callback_data:
+
                       "admin_storewide_promo"
+
                   }
+
                 ],
+
                 [
+
                   {
+
                     text:
+
                       "⬅️ Admin Dashboard",
+
                     callback_data:
+
                       "admin_dashboard"
+
                   }
+
                 ]
+
               ]
+
             }
+
           }
+
         );
+
       }
 
-      /* OPEN ADMIN ORDER */
-
       if (
+
         data.startsWith(
+
           "admin_order_"
+
         )
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         const orderId =
+
           Number(
+
             data.replace(
+
               "admin_order_",
+
               ""
+
             )
+
           );
 
         const order =
-          orders.get(orderId);
 
-        if (!order) {
-          return safeSendMessage(
-            chatId,
-            "Order not found."
+          orders.get(
+
+            orderId
+
           );
+
+        if (
+
+          !order
+
+        ) {
+
+          return safeSendMessage(
+
+            chatId,
+
+            "Order not found."
+
+          );
+
         }
 
         return showAdminOrder(
+
           chatId,
+
           order
+
         );
+
       }
 
-      /* ADMIN MARK PAID */
-
       if (
+
         data.startsWith(
+
           "admin_paid_"
+
         )
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         const orderId =
+
           Number(
+
             data.replace(
+
               "admin_paid_",
+
               ""
+
             )
+
           );
 
         const order =
-          orders.get(orderId);
 
-        if (!order) {
-          return safeSendMessage(
-            chatId,
-            "Order not found."
+          orders.get(
+
+            orderId
+
           );
+
+        if (
+
+          !order
+
+        ) {
+
+          return safeSendMessage(
+
+            chatId,
+
+            "Order not found."
+
+          );
+
         }
 
         const result =
+
           await markOrderPaid(
+
             order
+
           );
 
-        if (!result.ok) {
+        if (
+
+          !result.ok
+
+        ) {
+
           return safeSendMessage(
+
             chatId,
+
             `❌ ${result.error}`
+
           );
+
         }
 
         await safeSendMessage(
+
           chatId,
+
           result.alreadyPaid
+
             ? `ℹ️ Order #${orderId} was already paid.`
+
             : `✅ Order #${orderId} marked paid. Reserved stock committed.`
+
         );
 
         return showAdminOrder(
+
           chatId,
+
           order
+
         );
+
       }
 
-      /* ADMIN TRACKING */
-
       if (
+
         data.startsWith(
+
           "admin_tracking_"
+
         )
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         const orderId =
+
           Number(
+
             data.replace(
+
               "admin_tracking_",
+
               ""
+
             )
+
           );
 
         const order =
-          orders.get(orderId);
+
+          orders.get(
+
+            orderId
+
+          );
 
         if (
+
           !order ||
+
           order.paymentStatus !==
+
           "paid"
+
         ) {
+
           return safeSendMessage(
+
             chatId,
+
             "Paid order not found."
+
           );
+
         }
 
-        clearAdminInputs(chatId);
+        clearAdminInputs(
+
+          chatId
+
+        );
 
         pendingAdminTracking.set(
+
           chatId,
+
           orderId
+
         );
 
         return safeSendMessage(
+
           chatId,
 
 `🚚 ADD TRACKING
 
 Order:
+
 #${orderId}
 
 Send the tracking number.`
+
         );
+
       }
 
-      /* ADMIN NOTE */
-
       if (
+
         data.startsWith(
+
           "admin_note_"
+
         )
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         const orderId =
+
           Number(
+
             data.replace(
+
               "admin_note_",
+
               ""
+
             )
+
           );
 
         if (
-          !orders.has(orderId)
+
+          !orders.has(
+
+            orderId
+
+          )
+
         ) {
+
           return safeSendMessage(
+
             chatId,
+
             "Order not found."
+
           );
+
         }
 
-        clearAdminInputs(chatId);
+        clearAdminInputs(
+
+          chatId
+
+        );
 
         pendingAdminNote.set(
+
           chatId,
+
           orderId
+
         );
 
         return safeSendMessage(
+
           chatId,
 
 `📝 ADD ADMIN NOTE
 
 Order:
+
 #${orderId}
 
 Send the note below.`
+
         );
+
       }
 
-      /* SEND REVIEW LINK */
-
       if (
+
         data.startsWith(
+
           "admin_review_"
+
         )
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         const orderId =
+
           Number(
+
             data.replace(
+
               "admin_review_",
+
               ""
+
             )
+
           );
 
         const order =
-          orders.get(orderId);
+
+          orders.get(
+
+            orderId
+
+          );
 
         if (
+
           !order ||
+
           order.paymentStatus !==
+
           "paid"
+
         ) {
+
           return safeSendMessage(
+
             chatId,
+
             "Paid order not found."
+
           );
+
         }
 
-        if (!order.telegramId) {
+        if (
+
+          !order.telegramId
+
+        ) {
+
           return safeSendMessage(
+
             chatId,
+
             "This order has no Telegram ID."
+
           );
+
         }
 
         const reviewUrl =
-          getReviewUrl(order);
 
-        if (!reviewUrl) {
-          return safeSendMessage(
-            chatId,
-            "Review link could not be generated."
+          getReviewUrl(
+
+            order
+
           );
+
+        if (
+
+          !reviewUrl
+
+        ) {
+
+          return safeSendMessage(
+
+            chatId,
+
+            "Review link could not be generated."
+
+          );
+
         }
 
         await safeSendMessage(
+
           order.telegramId,
 
 `⭐ We'd love your feedback
 
 Order:
+
 #${orderId}
 
 Tap below to leave your review.`,
 
           {
+
             reply_markup: {
+
               inline_keyboard: [
+
                 [
+
                   {
+
                     text:
+
                       "⭐ Leave a Review",
+
                     url:
+
                       reviewUrl
+
                   }
+
                 ]
+
               ]
+
             }
+
           }
+
         );
 
         return safeSendMessage(
+
           chatId,
+
           `✅ Review link sent for order #${orderId}.`
+
         );
+
       }
 
-      /* CANCEL ORDER */
-
       if (
+
         data.startsWith(
-          "admin_cancel_"
+
+          "admin_cancel_confirm_"
+
         )
+
       ) {
+
         if (
+
           !isAdmin(
+
             q.from?.id
+
           )
+
         ) {
+
           return;
+
         }
 
         const orderId =
+
           Number(
+
             data.replace(
-              "admin_cancel_",
+
+              "admin_cancel_confirm_",
+
               ""
+
             )
+
           );
 
         const order =
-          orders.get(orderId);
 
-        if (!order) {
-          return safeSendMessage(
-            chatId,
-            "Order not found."
+          orders.get(
+
+            orderId
+
           );
+
+        if (
+
+          !order
+
+        ) {
+
+          return safeSendMessage(
+
+            chatId,
+
+            "Order not found."
+
+          );
+
         }
 
         if (
+
           order.paymentStatus !==
+
           "awaiting_payment"
+
         ) {
+
           return safeSendMessage(
+
             chatId,
-            "Only unpaid orders with no submitted payment can be cancelled here."
+
+            "This order can no longer be cancelled from the dashboard."
+
           );
+
+        }
+
+        restoreReservedStock(
+
+          order
+
+        );
+
+        restoreStoreCreditForOrder(
+
+          order
+
+        );
+
+        order.paymentStatus =
+
+          "cancelled";
+
+        order.fulfilmentStatus =
+
+          "cancelled";
+
+        order.cancelledAt =
+
+          new Date().toISOString();
+
+        saveOrder(
+
+          order
+
+        );
+
+        if (
+
+          order.telegramId
+
+        ) {
+
+          await safeSendMessage(
+
+            order.telegramId,
+
+`❌ Order cancelled
+
+Order:
+
+#${orderId}
+
+If you believe this was a mistake, please contact support.`
+
+          );
+
+        }
+
+        await safeSendMessage(
+
+          chatId,
+
+          `❌ Order #${orderId} cancelled.`
+
+        );
+
+        return showAdminOrder(
+
+          chatId,
+
+          order
+
+        );
+
+      }
+
+      if (
+
+        data.startsWith(
+
+          "admin_cancel_"
+
+        )
+
+      ) {
+
+        if (
+
+          !isAdmin(
+
+            q.from?.id
+
+          )
+
+        ) {
+
+          return;
+
+        }
+
+        const orderId =
+
+          Number(
+
+            data.replace(
+
+              "admin_cancel_",
+
+              ""
+
+            )
+
+          );
+
+        const order =
+
+          orders.get(
+
+            orderId
+
+          );
+
+        if (
+
+          !order
+
+        ) {
+
+          return safeSendMessage(
+
+            chatId,
+
+            "Order not found."
+
+          );
+
+        }
+
+        if (
+
+          order.paymentStatus !==
+
+          "awaiting_payment"
+
+        ) {
+
+          return safeSendMessage(
+
+            chatId,
+
+            "Only unpaid orders with no submitted payment can be cancelled here."
+
+          );
+
         }
 
         return safeSendMessage(
+
           chatId,
 
 `⚠️ CANCEL ORDER #${orderId}?
@@ -15489,661 +11959,1043 @@ Tap below to leave your review.`,
 This will mark the order as cancelled.`,
 
           {
+
             reply_markup: {
+
               inline_keyboard: [
+
                 [
+
                   {
+
                     text:
+
                       "❌ Yes, Cancel",
+
                     callback_data:
+
                       `admin_cancel_confirm_${orderId}`
+
                   },
+
                   {
+
                     text:
+
                       "Keep Order",
+
                     callback_data:
+
                       `admin_order_${orderId}`
+
                   }
+
                 ]
+
               ]
+
             }
+
           }
+
         );
+
       }
 
       if (
-        data.startsWith(
-          "admin_cancel_confirm_"
-        )
-      ) {
-        if (
-          !isAdmin(
-            q.from?.id
-          )
-        ) {
-          return;
-        }
 
-        const orderId =
-          Number(
-            data.replace(
-              "admin_cancel_confirm_",
-              ""
-            )
-          );
-
-        const order =
-          orders.get(orderId);
-
-        if (!order) {
-          return safeSendMessage(
-            chatId,
-            "Order not found."
-          );
-        }
-
-        if (
-          order.paymentStatus !==
-          "awaiting_payment"
-        ) {
-          return safeSendMessage(
-            chatId,
-            "This order can no longer be cancelled from the dashboard."
-          );
-        }
-
-        restoreReservedStock(order);
-        restoreStoreCreditForOrder(order);
-
-        order.paymentStatus =
-          "cancelled";
-
-        order.fulfilmentStatus =
-          "cancelled";
-
-        order.cancelledAt =
-          new Date().toISOString();
-
-        saveOrder(order);
-
-        if (order.telegramId) {
-          await safeSendMessage(
-            order.telegramId,
-
-`❌ Order cancelled
-
-Order:
-#${orderId}
-
-If you believe this was a mistake, please contact support.`
-          );
-        }
-
-        await safeSendMessage(
-          chatId,
-          `❌ Order #${orderId} cancelled.`
-        );
-
-        return showAdminOrder(
-          chatId,
-          order
-        );
-      }
-
-      /* MY ORDERS */
-
-      if (
         data ===
+
         "orders"
+
       ) {
+
         const viewer = {
+
           telegramId:
+
             q.from?.id,
+
           telegramUsername:
+
             q.from?.username
+
         };
 
         const matches =
-          [...orders.values()]
-            .filter(
-              order =>
-                orderBelongsToViewer(
-                  order,
-                  viewer
-                )
-            )
-            .sort(
-              (
-                a,
-                b
-              ) =>
-                new Date(
-                  b.createdAt ||
-                  0
-                ) -
-                new Date(
-                  a.createdAt ||
-                  0
-                )
-            )
-            .slice(0, 10);
 
-        if (!matches.length) {
+          [
+
+            ...orders.values()
+
+          ]
+
+            .filter(
+
+              order =>
+
+                orderBelongsToViewer(
+
+                  order,
+
+                  viewer
+
+                )
+
+            )
+
+            .sort(
+
+              (
+
+                a,
+
+                b
+
+              ) =>
+
+                new Date(
+
+                  b.createdAt ||
+
+                  0
+
+                ) -
+
+                new Date(
+
+                  a.createdAt ||
+
+                  0
+
+                )
+
+            )
+
+            .slice(
+
+              0,
+
+              10
+
+            );
+
+        if (
+
+          !matches.length
+
+        ) {
+
           return safeSendMessage(
+
             chatId,
 
 `📦 My Orders
 
 No orders found yet.`
+
           );
+
         }
 
         const lines =
+
           matches.map(
+
             order => {
+
               const tracking =
+
                 order.trackingNumber
+
                   ? `\nTracking: ${order.trackingNumber}`
+
                   : "";
 
               return (
+
                 `#${order.orderId} — ` +
-                `${money(order.totalPence)} — ` +
-                `${getOrderStatusText(order)}` +
+
+                `${money(
+
+                  order.totalPence
+
+                )} — ` +
+
+                `${getOrderStatusText(
+
+                  order
+
+                )}` +
+
                 tracking
+
               );
+
             }
+
           );
 
         return safeSendMessage(
+
           chatId,
 
 `📦 My Orders
 
-${lines.join("\n\n")}`
+${lines.join(
+
+  "\n\n"
+
+)}`
+
         );
+
       }
 
-      /* SUPPORT */
-
       if (
+
         data ===
+
         "support"
+
       ) {
+
         if (
+
           !supportTelegramIds.length
+
         ) {
+
           return safeSendMessage(
+
             chatId,
 
 `💬 Support
 
 Support isn't configured yet.`
+
           );
+
         }
 
-        pendingSupport.add(chatId);
+        pendingSupport.add(
+
+          chatId
+
+        );
 
         return safeSendMessage(
+
           chatId,
 
 `💬 Support
 
 Send your message below.`
+
         );
+
       }
 
-      /* INFO */
-
       if (
+
         data ===
+
         "info"
+
       ) {
+
         return safeSendMessage(
+
           chatId,
 
 `ℹ️ Info
 
 Minimum basket:
+
 £50 before discount
 
 Delivery:
+
 £5
 
 Tap Open Shop to launch the Mini App.`
+
         );
+
       }
+
     }
+
   );
 
   /* =======================================================
-     MESSAGE INPUTS
+
+     MESSAGE HANDLER
+
      ======================================================= */
 
   bot.on(
+
     "message",
 
     async msg => {
+
       const chatId =
+
         msg.chat?.id;
 
       if (
+
         !chatId ||
+
         !msg.text ||
-        msg.text.startsWith("/")
+
+        msg.text.startsWith(
+
+          "/"
+
+        )
+
       ) {
+
         return;
+
       }
 
       const text =
-        String(msg.text).trim();
 
-      /* ADMIN FIND ORDER */
+        String(
+
+          msg.text
+
+        ).trim();
 
       if (
+
         pendingAdminOrderLookup.has(
+
           chatId
+
         ) &&
-        isAdmin(msg.from?.id)
+
+        isAdmin(
+
+          msg.from?.id
+
+        )
+
       ) {
+
         pendingAdminOrderLookup.delete(
+
           chatId
+
         );
 
         const orderId =
+
           Number(
+
             text.replace(
+
               /^#/,
+
               ""
+
             )
+
           );
 
         const order =
-          orders.get(orderId);
 
-        if (!order) {
-          return safeSendMessage(
-            chatId,
-            "❌ Order not found."
+          orders.get(
+
+            orderId
+
           );
+
+        if (
+
+          !order
+
+        ) {
+
+          return safeSendMessage(
+
+            chatId,
+
+            "❌ Order not found."
+
+          );
+
         }
 
         return showAdminOrder(
+
           chatId,
+
           order
+
         );
+
       }
 
-      /* ADMIN TRACKING INPUT */
-
       if (
+
         pendingAdminTracking.has(
+
           chatId
+
         ) &&
-        isAdmin(msg.from?.id)
+
+        isAdmin(
+
+          msg.from?.id
+
+        )
+
       ) {
+
         const orderId =
+
           pendingAdminTracking.get(
+
             chatId
+
           );
 
         pendingAdminTracking.delete(
+
           chatId
+
         );
 
         const order =
-          orders.get(orderId);
 
-        if (!order) {
-          return safeSendMessage(
-            chatId,
-            "Order not found."
+          orders.get(
+
+            orderId
+
           );
+
+        if (
+
+          !order
+
+        ) {
+
+          return safeSendMessage(
+
+            chatId,
+
+            "Order not found."
+
+          );
+
         }
 
         order.trackingNumber =
+
           text;
 
         order.fulfilmentStatus =
+
           "shipped";
 
         order.shippedAt =
+
           new Date().toISOString();
 
-        saveOrder(order);
+        saveOrder(
+
+          order
+
+        );
 
         await safeSendMessage(
+
           chatId,
 
 `✅ Tracking saved
 
 Order:
+
 #${orderId}
 
 Tracking:
+
 ${text}`
+
         );
 
-        if (order.telegramId) {
+        if (
+
+          order.telegramId
+
+        ) {
+
           await safeSendMessage(
+
             order.telegramId,
 
 `📦 Your order has been dispatched
 
 Order:
+
 #${orderId}
 
 Tracking:
+
 ${text}`
+
           );
+
         }
 
         return;
+
       }
 
-      /* ADMIN NOTE INPUT */
-
       if (
+
         pendingAdminNote.has(
+
           chatId
+
         ) &&
-        isAdmin(msg.from?.id)
+
+        isAdmin(
+
+          msg.from?.id
+
+        )
+
       ) {
+
         const orderId =
+
           pendingAdminNote.get(
+
             chatId
+
           );
 
         pendingAdminNote.delete(
+
           chatId
+
         );
 
         const order =
-          orders.get(orderId);
 
-        if (!order) {
-          return safeSendMessage(
-            chatId,
-            "Order not found."
+          orders.get(
+
+            orderId
+
           );
+
+        if (
+
+          !order
+
+        ) {
+
+          return safeSendMessage(
+
+            chatId,
+
+            "Order not found."
+
+          );
+
         }
 
         if (
+
           !Array.isArray(
+
             order.adminNotes
+
           )
+
         ) {
-          order.adminNotes = [];
+
+          order.adminNotes =
+
+            [];
+
         }
 
         order.adminNotes.push({
+
           text:
+
             text.slice(
+
               0,
+
               1000
+
             ),
+
           createdAt:
+
             new Date().toISOString()
+
         });
 
-        saveOrder(order);
+        saveOrder(
+
+          order
+
+        );
 
         await safeSendMessage(
+
           chatId,
+
           `✅ Note added to order #${orderId}.`
+
         );
 
         return showAdminOrder(
+
           chatId,
+
           order
+
         );
+
       }
 
-      /* STOCK ADJUSTMENT */
-
       if (
+
         pendingStockAdjustment.has(
+
           chatId
+
         ) &&
-        isAdmin(msg.from?.id)
+
+        isAdmin(
+
+          msg.from?.id
+
+        )
+
       ) {
+
         const state =
+
           pendingStockAdjustment.get(
+
             chatId
+
           );
 
         if (
+
           state.stage ===
+
           "product"
+
         ) {
+
           const productId =
+
             Number(
+
               text.replace(
+
                 /^#/,
+
                 ""
+
               )
+
             );
 
           const product =
+
             productsById.get(
+
               productId
+
             );
 
-          if (!product) {
+          if (
+
+            !product
+
+          ) {
+
             return safeSendMessage(
+
               chatId,
 
 `❌ Product not found.
 
 Send a valid product ID or use /admin to start again.`
+
             );
+
           }
 
           state.stage =
+
             "amount";
 
           state.productId =
+
             productId;
 
           pendingStockAdjustment.set(
+
             chatId,
+
             state
+
           );
 
           return safeSendMessage(
+
             chatId,
 
 `✏️ ${product.name}
 
 Current stock:
-${getLiveStock(productId)}
+
+${getLiveStock(
+
+  productId
+
+)}
 
 Send the NEW total stock number.
 
 Example:
+
 25`
+
           );
+
         }
 
         if (
+
           state.stage ===
+
           "amount"
+
         ) {
+
           const newStock =
-            Number(text);
+
+            Number(
+
+              text
+
+            );
 
           if (
+
             !Number.isInteger(
+
               newStock
+
             ) ||
-            newStock < 0
+
+            newStock <
+
+              0
+
           ) {
+
             return safeSendMessage(
+
               chatId,
 
 `❌ Send a whole number of 0 or more.
 
 Example:
+
 25`
+
             );
+
           }
 
           const product =
+
             productsById.get(
+
               state.productId
+
             );
 
           setInventoryStmt.run(
+
             newStock,
+
             state.productId
+
           );
 
           pendingStockAdjustment.delete(
+
             chatId
+
           );
 
           return safeSendMessage(
+
             chatId,
 
 `✅ STOCK UPDATED
 
-${product?.name || `Product #${state.productId}`}
+${
+
+  product?.name ||
+
+  `Product #${state.productId}`
+
+}
 
 New stock:
+
 ${newStock}`,
 
             {
+
               reply_markup: {
+
                 inline_keyboard: [
+
                   [
+
                     {
+
                       text:
+
                         "📦 Stock Centre",
+
                       callback_data:
+
                         "admin_stock"
+
                     },
+
                     {
+
                       text:
+
                         "⬅️ Dashboard",
+
                       callback_data:
+
                         "admin_dashboard"
+
                     }
+
                   ]
+
                 ]
+
               }
+
             }
+
           );
+
         }
+
       }
 
-      /* SUPPORT */
-
       if (
+
         pendingSupport.has(
+
           chatId
+
         )
+
       ) {
+
         pendingSupport.delete(
+
           chatId
+
         );
 
         const from =
+
           msg.from?.username
+
             ? `@${msg.from.username}`
+
             : `Telegram ID ${msg.from?.id}`;
 
         for (
+
           const supportId
+
           of supportTelegramIds
+
         ) {
+
           await safeSendMessage(
+
             supportId,
 
 `💬 New Support Message
 
 From:
+
 ${from}
 
 Message:
+
 ${text}`
+
           );
+
         }
 
         return safeSendMessage(
+
           chatId,
+
           "Thanks — your message has been sent."
+
         );
+
       }
+
     }
+
   );
+
 }
 
 /* =========================================================
+
    ERROR HANDLER
+
    ========================================================= */
 
 app.use(
+
   (
+
     err,
+
     req,
+
     res,
+
     next
+
   ) => {
+
     console.error(
+
       "SERVER ERROR:",
+
       err
+
     );
 
-    if (res.headersSent) {
-      return next(err);
+    if (
+
+      res.headersSent
+
+    ) {
+
+      return next(
+
+        err
+
+      );
+
     }
 
     return res
+
       .status(500)
+
       .json({
+
         error:
+
           "Internal server error"
+
       });
+
   }
+
 );
 
 /* =========================================================
+
    START SERVER
+
    ========================================================= */
 
 app.listen(
+
   port,
+
   () => {
+
     console.log(
+
       `Storefront running on port ${port}`
+
     );
 
     console.log(
+
       `Products: ${products.length}`
+
     );
 
     console.log(
+
       `Minimum basket: ${money(
+
         MINIMUM_ORDER_PENCE
+
       )} before discount`
+
     );
 
     console.log(
+
       `Shipping: ${money(
+
         SHIPPING_PENCE
+
       )}`
+
     );
 
     console.log(
+
       `Affiliate discount: ${AFFILIATE_DISCOUNT_PERCENT}%`
+
     );
 
     console.log(
+
       `Affiliate commission: ${AFFILIATE_COMMISSION_PERCENT}%`
+
     );
 
     console.log(
+
       `Affiliate codes: ${affiliateCodes.length}`
+
     );
+
   }
+
 );
