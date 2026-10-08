@@ -1,37 +1,41 @@
-import "dotenv/config";
-import { readFileSync, mkdirSync } from "fs";
-import { fileURLToPath } from "url";
-import path from "path";
-import { randomUUID } from "crypto";
-import { DatabaseSync } from "node:sqlite";
-import express from "express";
-import TelegramBot from "node-telegram-bot-api";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const app = express();
-const port = Number(process.env.PORT || 3000);
-
-/* =========================================================
-   ENVIRONMENT
+ADMINS
    ========================================================= */
 
-const token =
-  process.env.TELEGRAM ||
-  process.env.TELEGRAM_BOT_TOKEN;
+const ownerTelegramId =
+  String(
+    process.env.OWNER_TELEGRAM_ID ||
+    ""
+  ).trim();
 
-const receivingAddress =
-  process.env.ETH_RECEIVING_ADDRESS || "";
+const singleAdminId =
+  String(
+    process.env.ADMIN_TELEGRAM_ID ||
+    ""
+  ).trim();
 
-const etherscanApiKey =
-  process.env.ETHERSCAN ||
-  process.env.ETHERSCAN_API_KEY ||
-  "";
+const adminIdsFromEnv =
+  String(
+    process.env.ADMIN_TELEGRAM_IDS ||
+    ""
+  )
+    .split(",")
+    .map(id => id.trim())
+    .filter(Boolean);
 
-const webAppUrl =
-  process.env.WEBAPP_URL || "";
+const configuredAdminIds =
+  new Set(
+    [
+      ownerTelegramId,
+      singleAdminId,
+      ...adminIdsFromEnv
+    ].filter(Boolean)
+  );
 
 const adminTelegramId =
-  process.env.ADMIN_TELEGRAM_ID || "";
+  ownerTelegramId ||
+  singleAdminId ||
+  adminIdsFromEnv[0] ||
+  "";
 
 const DATA_DIR =
   process.env.DATA_DIR || ".";
@@ -626,10 +630,15 @@ function orderBelongsToViewer(
 }
 
 function isAdmin(userId) {
-  return Boolean(
-    adminTelegramId &&
-    String(userId) ===
-      String(adminTelegramId)
+  if (
+    userId === undefined ||
+    userId === null
+  ) {
+    return false;
+  }
+
+  return configuredAdminIds.has(
+    String(userId)
   );
 }
 
