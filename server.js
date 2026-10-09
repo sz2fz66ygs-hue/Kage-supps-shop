@@ -686,24 +686,47 @@ app.get("/kage-spin.js", (_req, res) => {
   var sources = ["/logo.png", "/logo.jpg", "/logo.webp", "/kage.png", "/icon.png", "/favicon.ico"];
   var img = new Image();
   var index = 0;
+  function heading() {
+    return Array.from(document.querySelectorAll("h1,h2,.brand,.title")).find(function (el) {
+      return /kage supps/i.test(el.textContent || "");
+    }) || null;
+  }
   function mount(src) {
-    var badge = document.createElement("div");
+    var title = heading();
+    if (title) {
+      title.childNodes.forEach(function (node) {
+        if (node.nodeType === 3 && node.textContent.indexOf("⚡") !== -1) {
+          node.textContent = node.textContent.replace(/⚡/g, "");
+        }
+      });
+      Array.from(title.querySelectorAll("span,i,em")).forEach(function (el) {
+        if ((el.textContent || "").indexOf("⚡") !== -1) el.remove();
+      });
+    }
+    var badge = document.createElement("span");
     badge.id = "kage-spin-logo";
-    badge.style.cssText = "position:fixed;top:12px;right:12px;z-index:99999;width:72px;height:72px;border-radius:50%;overflow:hidden;background:#111;box-shadow:0 6px 18px rgba(0,0,0,.35);pointer-events:none;";
+    badge.style.cssText = "display:inline-flex;width:42px;height:42px;margin-left:8px;border-radius:50%;overflow:hidden;vertical-align:middle;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.12);";
+    var el = document.createElement(src ? "img" : "span");
     if (src) {
-      var el = document.createElement("img");
       el.src = src;
       el.alt = "Kage Supps";
       el.style.cssText = "width:100%;height:100%;object-fit:cover;animation:kageSpin 4s linear infinite;";
-      badge.appendChild(el);
     } else {
-      badge.textContent = "KAGE";
-      badge.style.cssText += "display:flex;align-items:center;justify-content:center;color:#f5d76e;font:700 12px sans-serif;animation:kageSpin 4s linear infinite;";
+      el.textContent = "K";
+      el.style.cssText = "width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#b8860b;font:700 16px sans-serif;animation:kageSpin 4s linear infinite;";
     }
+    badge.appendChild(el);
     var style = document.createElement("style");
     style.textContent = "@keyframes kageSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}";
     document.head.appendChild(style);
-    document.body.appendChild(badge);
+    if (title) title.appendChild(badge);
+    else {
+      badge.style.position = "fixed";
+      badge.style.top = "64px";
+      badge.style.right = "16px";
+      badge.style.zIndex = "99999";
+      document.body.appendChild(badge);
+    }
   }
   function tryNext() {
     if (index >= sources.length) return mount("");
@@ -712,17 +735,16 @@ app.get("/kage-spin.js", (_req, res) => {
     img.onerror = tryNext;
     img.src = src;
   }
-  if (document.body) tryNext();
-  else document.addEventListener("DOMContentLoaded", tryNext);
+  function begin() {
+    if (heading() || document.body) tryNext();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", begin);
+  else begin();
   fetch("/api/theme").then(function (response) { return response.json(); }).then(function (data) {
     if (!data || !data.theme || data.theme.id !== "halloween") return;
     var style = document.createElement("style");
-    style.textContent = ":root{--kage-accent:#f97316}body{animation:kageHalloween 8s linear infinite;background:#14080f !important;color:#f8e7c9}header,nav,.header,.navbar{background:#1b0d14 !important;border-color:#f97316 !important}button,.btn,a.button{background:#7c2d12 !important;color:#fff7ed !important;border-color:#f97316 !important}button:nth-of-type(even),.btn:nth-of-type(even){background:#4c1d95 !important}@keyframes kageHalloween{0%{filter:hue-rotate(0deg)}50%{filter:hue-rotate(40deg)}100%{filter:hue-rotate(0deg)}}";
+    style.textContent = "body{animation:kageHalloween 8s linear infinite}@keyframes kageHalloween{0%{filter:hue-rotate(0deg)}50%{filter:hue-rotate(35deg)}100%{filter:hue-rotate(0deg)}}";
     document.head.appendChild(style);
-    var note = document.createElement("div");
-    note.textContent = "🎃 Halloween at Kage Supps";
-    note.style.cssText = "position:fixed;left:12px;top:12px;z-index:99999;padding:8px 12px;border-radius:999px;background:#7c2d12;color:#fff7ed;font:700 13px sans-serif;pointer-events:none;";
-    document.body.appendChild(note);
   }).catch(function () {});
 })();`);
 });
