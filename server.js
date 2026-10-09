@@ -710,14 +710,14 @@ app.get("/kage-spin.js", (_req, res) => {
     if (src) {
       el.src = src;
       el.alt = "Kage Supps";
-      el.style.cssText = "width:100%;height:100%;object-fit:cover;animation:kageSpin 4s linear infinite;";
+      el.style.cssText = "width:100%;height:100%;object-fit:cover;"; badge.style.animation = "kageSpin 3.5s linear infinite";
     } else {
       el.textContent = "K";
-      el.style.cssText = "width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#b8860b;font:700 16px sans-serif;animation:kageSpin 4s linear infinite;";
+      el.style.cssText = "width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#b8860b;font:700 16px sans-serif;"; badge.style.animation = "kageSpin 3.5s linear infinite";
     }
     badge.appendChild(el);
     var style = document.createElement("style");
-    style.textContent = "@keyframes kageSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}";
+    style.textContent = "@keyframes kageSpin{from{transform:rotate(0deg)}to{transform:rotate(-360deg)}}";
     document.head.appendChild(style);
     if (title) title.appendChild(badge);
     else {
@@ -7205,3 +7205,5 @@ app.listen(
     );
   }
 );
+
+How come it doesn’t include the promotions manager or the RT40
