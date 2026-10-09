@@ -11,23 +11,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const port = Number(process.env.PORT || 3000);
 
-const token = process.env.TELEGRAM || process.env.TELEGRAM_BOT_TOKEN;
+const token = process.env.TELEGRAM || process.env.TELEGRAM_BOT_TOKEN || "";
 const receivingAddress = process.env.ETH_RECEIVING_ADDRESS || "";
+const etherscanApiKey = process.env.ETHERSCAN || process.env.ETHERSCAN_API_KEY || "";
 const webAppUrl = process.env.WEBAPP_URL || "";
 
-const ownerTelegramId = String(process.env.OWNER_TELEGRAM_ID || "").trim();
-const singleAdminId = String(process.env.ADMIN_TELEGRAM_ID || "").trim();
-const adminIdsFromEnv = String(process.env.ADMIN_TELEGRAM_IDS || "")
+const adminTelegramIds = String(process.env.ADMIN_TELEGRAM_IDS || "")
   .split(",")
   .map(id => id.trim())
   .filter(Boolean);
 
-const configuredAdminIds = new Set(
-  [ownerTelegramId, singleAdminId, ...adminIdsFromEnv].filter(Boolean)
-);
-
-const adminTelegramId =
-  ownerTelegramId || singleAdminId || adminIdsFromEnv[0] || "";
+const configuredAdminIds = new Set(adminTelegramIds);
+const adminTelegramId = adminTelegramIds[0] || "";
 
 const DATA_DIR = process.env.DATA_DIR || ".";
 const supportTelegramIds = (process.env.SUPPORT_TELEGRAM_IDS || "")
@@ -675,9 +670,11 @@ app.get("/health", (_req, res) => {
     minimumOrderPence: MINIMUM_ORDER_PENCE,
     shippingPence: SHIPPING_PENCE,
     y8Loaded: discountCodes.has("Y8"),
+    y8Owner: "@Y8_JKO",
     bens33: discountCodes.get("BENS33")?.discountValue || null,
     telegramConfigured: Boolean(token),
-    receivingAddressConfigured: Boolean(receivingAddress)
+    receivingAddressConfigured: Boolean(receivingAddress),
+    etherscanConfigured: Boolean(etherscanApiKey)
   });
 });
 
