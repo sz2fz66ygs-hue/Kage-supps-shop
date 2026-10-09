@@ -670,6 +670,86 @@ app.get("/api/promotions", (_req, res) => {
   );
 });
 
+
+/* =========================================================
+   SPINNING LOGO IN THE MINI APP
+   ========================================================= */
+
+app.get("/api/theme", (_req, res) => {
+  res.json({ theme: getSeasonalTheme() });
+});
+
+app.get("/kage-spin.js", (_req, res) => {
+  res.type("application/javascript");
+  res.send(`(function () {
+  if (document.getElementById("kage-spin-logo")) return;
+  var sources = ["/logo.png", "/logo.jpg", "/logo.webp", "/kage.png", "/icon.png", "/favicon.ico"];
+  var img = new Image();
+  var index = 0;
+  function mount(src) {
+    var badge = document.createElement("div");
+    badge.id = "kage-spin-logo";
+    badge.style.cssText = "position:fixed;top:12px;right:12px;z-index:99999;width:72px;height:72px;border-radius:50%;overflow:hidden;background:#111;box-shadow:0 6px 18px rgba(0,0,0,.35);pointer-events:none;";
+    if (src) {
+      var el = document.createElement("img");
+      el.src = src;
+      el.alt = "Kage Supps";
+      el.style.cssText = "width:100%;height:100%;object-fit:cover;animation:kageSpin 4s linear infinite;";
+      badge.appendChild(el);
+    } else {
+      badge.textContent = "KAGE";
+      badge.style.cssText += "display:flex;align-items:center;justify-content:center;color:#f5d76e;font:700 12px sans-serif;animation:kageSpin 4s linear infinite;";
+    }
+    var style = document.createElement("style");
+    style.textContent = "@keyframes kageSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}";
+    document.head.appendChild(style);
+    document.body.appendChild(badge);
+  }
+  function tryNext() {
+    if (index >= sources.length) return mount("");
+    var src = sources[index++];
+    img.onload = function () { mount(src); };
+    img.onerror = tryNext;
+    img.src = src;
+  }
+  if (document.body) tryNext();
+  else document.addEventListener("DOMContentLoaded", tryNext);
+  fetch("/api/theme").then(function (response) { return response.json(); }).then(function (data) {
+    if (!data || !data.theme || data.theme.id !== "halloween") return;
+    var style = document.createElement("style");
+    style.textContent = ":root{--kage-accent:#f97316}body{animation:kageHalloween 8s linear infinite;background:#14080f !important;color:#f8e7c9}header,nav,.header,.navbar{background:#1b0d14 !important;border-color:#f97316 !important}button,.btn,a.button{background:#7c2d12 !important;color:#fff7ed !important;border-color:#f97316 !important}button:nth-of-type(even),.btn:nth-of-type(even){background:#4c1d95 !important}@keyframes kageHalloween{0%{filter:hue-rotate(0deg)}50%{filter:hue-rotate(40deg)}100%{filter:hue-rotate(0deg)}}";
+    document.head.appendChild(style);
+    var note = document.createElement("div");
+    note.textContent = "🎃 Halloween at Kage Supps";
+    note.style.cssText = "position:fixed;left:12px;top:12px;z-index:99999;padding:8px 12px;border-radius:999px;background:#7c2d12;color:#fff7ed;font:700 13px sans-serif;pointer-events:none;";
+    document.body.appendChild(note);
+  }).catch(function () {});
+})();`);
+});
+
+app.use((req, res, next) => {
+  const acceptsHtml = String(req.headers.accept || "").includes("text/html");
+  const isPage = req.method === "GET" && (req.path === "/" || req.path.endsWith(".html"));
+  if (!acceptsHtml || !isPage) return next();
+
+  const filePath = req.path === "/"
+    ? path.join(__dirname, "public", "index.html")
+    : path.join(__dirname, "public", req.path);
+
+  try {
+    let html = readFileSync(filePath, "utf8");
+    if (!html.includes("kage-spin.js")) {
+      html = html.replace(
+        "</body>",
+        '<script src="/kage-spin.js"></script></body>'
+      );
+    }
+    res.type("html").send(html);
+  } catch {
+    next();
+  }
+});
+
 app.use(
   express.static(
     path.join(__dirname, "public")
@@ -744,6 +824,27 @@ if (savedNextOrderId) {
 /* =========================================================
    HELPERS
    ========================================================= */
+
+
+function getSeasonalTheme(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(now);
+  const month = parts.find(part => part.type === "month")?.value;
+  const day = parts.find(part => part.type === "day")?.value;
+
+  if (month === "10" && day === "31") {
+    return {
+      id: "halloween",
+      label: "Halloween",
+      greeting: "🎃 Happy Halloween"
+    };
+  }
+
+  return null;
+}
 
 function money(pence) {
   return `£${(
@@ -4141,6 +4242,12 @@ Choose an option.`,
       buttons.push([
         {
           text:
+            "⭐ Reviews",
+          callback_data:
+            "reviews"
+        },
+        {
+          text:
             "ℹ️ Info",
           callback_data:
             "info"
@@ -4165,11 +4272,12 @@ Choose an option.`,
       await safeSendMessage(
         msg.chat.id,
 
-`⚡️ Welcome
+`${getSeasonalTheme() ? getSeasonalTheme().greeting + "\n\n" : ""}⚡️ Welcome
 
 🛍 Open Shop
 📦 My Orders
 💬 Support
+⭐ Reviews
 ℹ️ Info${
   isAdmin(msg.from?.id)
     ? "\n🛠 Admin Dashboard"
@@ -6323,6 +6431,34 @@ Support isn't configured yet.`
 `💬 Support
 
 Send your message below.`
+        );
+      }
+
+      /* REVIEWS */
+
+      if (data === "reviews") {
+        const rows = db.prepare(`
+          SELECT display_name, rating, review_text
+          FROM reviews
+          WHERE approved = 1
+          ORDER BY id DESC
+          LIMIT 20
+        `).all();
+
+        if (!rows.length) {
+          return safeSendMessage(
+            chatId,
+            "⭐ Reviews\n\nNo approved reviews yet."
+          );
+        }
+
+        const lines = rows.map(review =>
+          `${"⭐".repeat(Math.max(1, Math.min(5, Number(review.rating) || 0)))} ${review.display_name}\n${review.review_text}`
+        );
+
+        return sendLongMessage(
+          chatId,
+          `⭐ REVIEWS\n\n${lines.join("\n\n")}`
         );
       }
 
