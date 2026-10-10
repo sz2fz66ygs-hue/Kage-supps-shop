@@ -1073,10 +1073,10 @@ function renderBasket() {
   if (
     basketTotal
   ) {
-    basketTotal.textContent =
-      money(
-        totalBeforeShipping
-      );
+    basketTotal.innerHTML =
+      promotionDiscount > 0
+        ? `<span style="text-decoration:line-through;opacity:.55;margin-right:6px;">${money(subtotal)}</span>${money(totalBeforeShipping)}`
+        : money(totalBeforeShipping);
   }
 
   if (
@@ -1174,7 +1174,27 @@ function renderBasket() {
     return;
   }
 
+  const savingBlock = totalSavings > 0
+    ? `
+      <div class="discount-line">
+        Basket ${money(subtotal)}
+      </div>
+      ${promotionResult.applied.map(promo => `
+        <div class="discount-line">
+          ${escapeHtml(promo.name)} −${money(promo.discountPence)}
+        </div>
+      `).join("")}
+      ${affiliateDiscount > 0 ? `<div class="discount-line">Referral −${money(affiliateDiscount)}</div>` : ""}
+      <div class="savings-total">
+        You save ${money(totalSavings)}
+      </div>
+    `
+    : livePromotions.length
+      ? `<div class="discount-line">${escapeHtml(livePromotions.map(promo => promo.name).join(", "))} is live. The saving shows here once the basket qualifies.</div>`
+      : "";
+
   basketLines.innerHTML =
+    savingBlock +
     entries
       .map(
         (
