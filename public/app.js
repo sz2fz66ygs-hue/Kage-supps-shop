@@ -67,6 +67,7 @@ let currentCategory = null;
 let appliedCode = null;
 let appliedStorewideCode = null;
 let appliedStoreCredit = null;
+let livePromotions = [];
 
 let paymentCountdownTimer = null;
 
@@ -720,6 +721,72 @@ function renderProducts() {
    BASKET HELPERS
    ========================================================= */
 
+
+function calculatePromotionDiscount(lineItems, promotions) {
+  const active = (promotions || []).filter(promo => promo.active !== false);
+  const applied = [];
+  let promotionDiscountPence = 0;
+
+  for (const promo of active) {
+    const eligibleIds = new Set((promo.productIds || []).map(Number));
+    const units = [];
+
+    for (const item of lineItems) {
+      if (!eligibleIds.has(Number(item.id))) continue;
+      const qty = Number(item.quantity || 0);
+      const price = Number(item.pricePence || 0);
+      for (let i = 0; i < qty; i += 1) {
+        units.push({ id: Number(item.id), pricePence: price });
+      }
+    }
+
+    if (!units.length) continue;
+
+    const required = Math.max(1, Number(promo.requiredQuantity || 1));
+    let discount = 0;
+
+    if (promo.type === "fixed_bundle") {
+      const bundles = Math.floor(units.length / required);
+      if (!bundles) continue;
+      const bundleUnits = units.slice().sort((a, b) => b.pricePence - a.pricePence).slice(0, bundles * required);
+      const normal = bundleUnits.reduce((sum, unit) => sum + unit.pricePence, 0);
+      discount = Math.max(0, normal - bundles * Number(promo.bundlePricePence || 0));
+    } else {
+      const qualifying = Math.floor(units.length / required) * required;
+      if (!qualifying) continue;
+      const chosen = units.slice(0, qualifying);
+      if (promo.type === "fixed_amount") {
+        const perUnit = Number(promo.discountPence || 0);
+        discount = chosen.reduce((sum, unit) => sum + Math.min(unit.pricePence, perUnit), 0);
+      } else {
+        const percent = Number(promo.discountPercent || 0);
+        discount = chosen.reduce((sum, unit) => sum + Math.round(unit.pricePence * (percent / 100)), 0);
+      }
+    }
+
+    if (discount > 0) {
+      promotionDiscountPence += discount;
+      applied.push({
+        id: promo.id,
+        name: promo.name,
+        discountPence: discount
+      });
+    }
+  }
+
+  return { promotionDiscountPence, applied };
+}
+
+async function loadPromotions() {
+  try {
+    const res = await fetch("/api/promotions", { cache: "no-store" });
+    if (!res.ok) return;
+    const data = await res.json();
+    livePromotions = Array.isArray(data) ? data : [];
+    renderBasket();
+  } catch {}
+}
+
 function basketCount() {
   return Object
     .values(
@@ -937,23 +1004,52 @@ function renderBasket() {
   const subtotal =
     basketSubtotalValue();
 
+  const lineItems =
+    Object.entries(basket).map(([id, qty]) => {
+      const product = products.find(p => Number(p.id) === Number(id));
+      return {
+        id: Number(id),
+        quantity: Number(qty),
+        pricePence: Number(product?.pricePence || 0)
+      };
+    });
+
+  const promosForBasket =
+    livePromotions.filter(promo => {
+      if (appliedCode && promo.stackWithAffiliate === false) return false;
+      return true;
+    });
+
+  const promotionResult =
+    calculatePromotionDiscount(
+      lineItems,
+      promosForBasket
+    );
+
+  const promotionDiscount =
+    promotionResult.promotionDiscountPence;
+
+  const afterPromotion =
+    Math.max(0, subtotal - promotionDiscount);
+
   const affiliateDiscount =
     discountForSubtotal(
-      subtotal
+      afterPromotion
     );
 
   const storewideDiscount =
     storewideDiscountForSubtotal(
-      subtotal
+      afterPromotion
     );
 
   const totalSavings =
+    promotionDiscount +
     affiliateDiscount +
     storewideDiscount;
 
   const credit =
     storeCreditForRemaining(
-      subtotal -
+      afterPromotion -
       affiliateDiscount -
       storewideDiscount
     );
@@ -961,8 +1057,7 @@ function renderBasket() {
   const totalBeforeShipping =
     Math.max(
       0,
-
-      subtotal -
+      afterPromotion -
       affiliateDiscount -
       storewideDiscount -
       credit
@@ -1005,10 +1100,18 @@ function renderBasket() {
   if (
     promoRow
   ) {
-    promoRow.innerHTML =
-      storewideDiscount >
-      0
-        ? `
+    const liveNames = livePromotions.map(promo => promo.name).filter(Boolean);
+    const appliedLines = promotionResult.applied.map(promo => `
+      <div class="discount-line">
+        ${escapeHtml(promo.name)} is live:
+        −${money(promo.discountPence)}
+      </div>
+    `).join("");
+    const waiting = !appliedLines && liveNames.length
+      ? `<div class="discount-line">${escapeHtml(liveNames.join(", "))} is live. Add the qualifying products and it is taken off before any referral code.</div>`
+      : "";
+    const storeLine = storewideDiscount > 0
+      ? `
           <div class="discount-line">
             Store promo
             <strong>
@@ -1017,7 +1120,8 @@ function renderBasket() {
             −${money(storewideDiscount)}
           </div>
         `
-        : "";
+      : "";
+    promoRow.innerHTML = appliedLines + waiting + storeLine;
   }
 
   if (
@@ -1282,6 +1386,7 @@ async function loadProducts() {
 
   rebuildCatalogueNavigation();
   render();
+  loadPromotions();
 }
 
 
