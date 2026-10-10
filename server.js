@@ -675,8 +675,107 @@ app.get("/api/promotions", (_req, res) => {
    SPINNING LOGO IN THE MINI APP
    ========================================================= */
 
+
+app.post("/api/basket-quote", (req, res) => {
+  const items = Array.isArray(req.body?.items) ? req.body.items : [];
+  const lineItems = [];
+  let subtotalPence = 0;
+
+  for (const rawItem of items) {
+    const id = Number(rawItem?.id);
+    const quantity = Number(rawItem?.quantity);
+    const product = productsById.get(id);
+    if (!product || !Number.isInteger(quantity) || quantity <= 0) continue;
+    const pricePence = getEffectivePricePence(product, promotionsApi.getPriceOverride);
+    subtotalPence += pricePence * quantity;
+    lineItems.push({
+      id,
+      name: product.name,
+      quantity,
+      pricePence
+    });
+  }
+
+  const promotionResult = calculatePromotionDiscount(
+    lineItems,
+    promotionsApi.loadPromotions().filter(promo => promo.active)
+  );
+
+  return res.json({
+    subtotalPence,
+    promotionDiscountPence: promotionResult.promotionDiscountPence,
+    appliedPromotions: promotionResult.applied,
+    totalBeforeCodesPence: Math.max(0, subtotalPence - promotionResult.promotionDiscountPence),
+    note: "Promotion is applied before referral codes, store credit, and shipping."
+  });
+});
+
+
 app.get("/api/theme", (_req, res) => {
   res.json({ theme: getSeasonalTheme() });
+});
+
+
+app.get("/kage-basket.js", (_req, res) => {
+  res.type("application/javascript");
+  res.send(`(function () {
+  var box = document.createElement("div");
+  box.id = "kage-live-promo";
+  box.style.cssText = "margin:12px 16px;padding:12px 14px;border-radius:14px;background:#fff8e8;border:1px solid #e6d3a1;color:#3b2a12;font:600 14px/1.4 sans-serif;";
+  function place() {
+    if (box.parentNode) return;
+    var heading = Array.from(document.querySelectorAll("h1,h2")).find(function (el) {
+      return /kage supps/i.test(el.textContent || "");
+    });
+    var host = heading ? heading.parentNode : document.body;
+    if (heading && heading.nextSibling) host.insertBefore(box, heading.nextSibling);
+    else host.appendChild(box);
+  }
+  function money(pence) {
+    return "£" + (Number(pence || 0) / 100).toFixed(2);
+  }
+  function readBasket() {
+    var keys = ["basket", "cart", "kage-cart", "kageCart"];
+    for (var i = 0; i < keys.length; i++) {
+      try {
+        var saved = JSON.parse(localStorage.getItem(keys[i]) || "null");
+        if (Array.isArray(saved) && saved.length) return saved;
+        if (saved && Array.isArray(saved.items)) return saved.items;
+      } catch (err) {}
+    }
+    return [];
+  }
+  function render(promos, quote) {
+    place();
+    if (!promos.length) {
+      box.textContent = "No promotion is live.";
+      return;
+    }
+    var names = promos.map(function (promo) { return promo.name; }).join(", ");
+    var lines = names + " is live. It is taken off before any referral code.";
+    if (quote && quote.promotionDiscountPence > 0) {
+      lines += " Basket " + money(quote.subtotalPence) + " − " + money(quote.promotionDiscountPence) + " = " + money(quote.totalBeforeCodesPence) + " before referral.";
+    } else {
+      lines += " Add a qualifying product and the saving shows here before you enter your name or address.";
+    }
+    box.textContent = lines;
+  }
+  function refresh() {
+    fetch("/api/promotions").then(function (response) { return response.json(); }).then(function (promos) {
+      var items = readBasket();
+      if (!items.length) return render(promos || [], null);
+      return fetch("/api/basket-quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: items })
+      }).then(function (response) { return response.json(); }).then(function (quote) {
+        render(promos || [], quote);
+      });
+    }).catch(function () {});
+  }
+  refresh();
+  setInterval(refresh, 4000);
+})();`);
 });
 
 app.get("/kage-spin.js", (_req, res) => {
@@ -705,19 +804,19 @@ app.get("/kage-spin.js", (_req, res) => {
     }
     var badge = document.createElement("span");
     badge.id = "kage-spin-logo";
-    badge.style.cssText = "display:inline-flex;width:42px;height:42px;margin-left:8px;border-radius:50%;overflow:hidden;vertical-align:middle;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.12);";
+    badge.style.cssText = "display:inline-flex;width:42px;height:42px;margin-left:8px;border-radius:50%;overflow:visible;vertical-align:middle;background:transparent;perspective:200px;";
     var el = document.createElement(src ? "img" : "span");
     if (src) {
       el.src = src;
       el.alt = "Kage Supps";
-      el.style.cssText = "width:100%;height:100%;object-fit:cover;"; badge.style.animation = "kageSpin 3.5s linear infinite";
+      el.style.cssText = "width:100%;height:100%;object-fit:cover;"; el.style.animation = "kageSpin 2.8s linear infinite"; el.style.transformStyle = "preserve-3d"; el.style.backfaceVisibility = "visible";
     } else {
       el.textContent = "K";
-      el.style.cssText = "width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#b8860b;font:700 16px sans-serif;"; badge.style.animation = "kageSpin 3.5s linear infinite";
+      el.style.cssText = "width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#b8860b;font:700 16px sans-serif;"; el.style.animation = "kageSpin 2.8s linear infinite"; el.style.transformStyle = "preserve-3d"; el.style.backfaceVisibility = "visible";
     }
     badge.appendChild(el);
     var style = document.createElement("style");
-    style.textContent = "@keyframes kageSpin{from{transform:rotate(0deg)}to{transform:rotate(-360deg)}}";
+    style.textContent = "@keyframes kageSpin{from{transform:rotateY(0deg)}to{transform:rotateY(360deg)}}";
     document.head.appendChild(style);
     if (title) title.appendChild(badge);
     else {
@@ -763,7 +862,7 @@ app.use((req, res, next) => {
     if (!html.includes("kage-spin.js")) {
       html = html.replace(
         "</body>",
-        '<script src="/kage-spin.js"></script></body>'
+        '<script src="/kage-spin.js"></script><script src="/kage-basket.js"></script></body>'
       );
     }
     res.type("html").send(html);
@@ -1837,11 +1936,9 @@ app.get(
       shippingPence:
         SHIPPING_PENCE,
       y8Loaded:
-        discountCodes.has(
-          Y8_CODE
-        ),
+        discountCodes.has("Y8"),
       y8Owner:
-        Y8_OWNER,
+        affiliateCodes.find(code => code.code === "Y8")?.owner || null,
       telegramConfigured:
         Boolean(token),
       receivingAddressConfigured:
@@ -2156,10 +2253,21 @@ app.post(
       let referralCommissionPence =
         0;
 
+      const submittedAffiliate =
+        discountCode
+          ? discountCodes.get(normaliseCode(discountCode))
+          : null;
+
+      const validAffiliate =
+        submittedAffiliate &&
+        submittedAffiliate.active !== false
+          ? submittedAffiliate
+          : null;
+
       const promosForThisOrder =
         promotionsApi.loadPromotions().filter(promo => {
           if (!promo.active) return false;
-          if (discountCode && promo.stackWithAffiliate === false) {
+          if (validAffiliate && promo.stackWithAffiliate === false) {
             return false;
           }
           return true;
@@ -2296,21 +2404,6 @@ app.post(
           ) {
             appliedCreditCode =
               code;
-
-            credit.balancePence =
-              Math.max(
-                0,
-                Number(
-                  credit.balancePence ||
-                  0
-                ) -
-                storeCreditPence
-              );
-
-            saveReferralEarnings(
-              code,
-              credit
-            );
           }
         }
       }
@@ -2411,8 +2504,6 @@ app.post(
         reserveStockForOrder(order);
 
       if (!reservationResult.ok) {
-        restoreStoreCreditForOrder(order);
-
         return res
           .status(409)
           .json({
@@ -2420,6 +2511,17 @@ app.post(
               reservationResult.error ||
               "One or more products are no longer available."
           });
+      }
+
+      if (appliedCreditCode && storeCreditPence > 0) {
+        const credit = referralEarnings.get(appliedCreditCode);
+        if (credit && credit.cashOnly !== true) {
+          credit.balancePence = Math.max(
+            0,
+            Number(credit.balancePence || 0) - storeCreditPence
+          );
+          saveReferralEarnings(appliedCreditCode, credit);
+        }
       }
 
       saveOrder(order);
@@ -3919,10 +4021,9 @@ ${notes}`,
         );
 
       discountsPence +=
-        Number(
-          order.discountPence ||
-          0
-        );
+        Number(order.discountPence || 0) +
+        Number(order.promotionDiscountPence || 0) +
+        Number(order.storewideDiscountPence || 0);
 
       for (
         const item
@@ -4723,10 +4824,9 @@ ${trackingNumber}`
         of recentOrders
       ) {
         discountsPence +=
-          Number(
-            order.discountPence ||
-            0
-          );
+          Number(order.discountPence || 0) +
+          Number(order.promotionDiscountPence || 0) +
+          Number(order.storewideDiscountPence || 0);
 
         storeCreditPence +=
           Number(
@@ -6205,6 +6305,48 @@ Tap below to leave your review.`,
 
       if (
         data.startsWith(
+          "admin_cancel_confirm_"
+        )
+      ) {
+        if (!isAdmin(q.from?.id)) return;
+
+        const orderId = Number(
+          data.replace("admin_cancel_confirm_", "")
+        );
+        const order = orders.get(orderId);
+
+        if (!order) {
+          return safeSendMessage(chatId, "Order not found.");
+        }
+
+        if (order.paymentStatus !== "awaiting_payment") {
+          return safeSendMessage(
+            chatId,
+            "This order can no longer be cancelled from the dashboard."
+          );
+        }
+
+        restoreReservedStock(order);
+        restoreStoreCreditForOrder(order);
+
+        order.paymentStatus = "cancelled";
+        order.fulfilmentStatus = "cancelled";
+        order.cancelledAt = new Date().toISOString();
+        saveOrder(order);
+
+        if (order.telegramId) {
+          await safeSendMessage(
+            order.telegramId,
+            `❌ Order cancelled\n\nOrder:\n#${orderId}\n\nIf you believe this was a mistake, please contact support.`
+          );
+        }
+
+        await safeSendMessage(chatId, `❌ Order #${orderId} cancelled.`);
+        return showAdminOrder(chatId, order);
+      }
+
+      if (
+        data.startsWith(
           "admin_cancel_"
         )
       ) {
@@ -6274,84 +6416,6 @@ This will mark the order as cancelled.`,
         );
       }
 
-      if (
-        data.startsWith(
-          "admin_cancel_confirm_"
-        )
-      ) {
-        if (
-          !isAdmin(
-            q.from?.id
-          )
-        ) {
-          return;
-        }
-
-        const orderId =
-          Number(
-            data.replace(
-              "admin_cancel_confirm_",
-              ""
-            )
-          );
-
-        const order =
-          orders.get(orderId);
-
-        if (!order) {
-          return safeSendMessage(
-            chatId,
-            "Order not found."
-          );
-        }
-
-        if (
-          order.paymentStatus !==
-          "awaiting_payment"
-        ) {
-          return safeSendMessage(
-            chatId,
-            "This order can no longer be cancelled from the dashboard."
-          );
-        }
-
-        restoreReservedStock(order);
-        restoreStoreCreditForOrder(order);
-
-        order.paymentStatus =
-          "cancelled";
-
-        order.fulfilmentStatus =
-          "cancelled";
-
-        order.cancelledAt =
-          new Date().toISOString();
-
-        saveOrder(order);
-
-        if (order.telegramId) {
-          await safeSendMessage(
-            order.telegramId,
-
-`❌ Order cancelled
-
-Order:
-#${orderId}
-
-If you believe this was a mistake, please contact support.`
-          );
-        }
-
-        await safeSendMessage(
-          chatId,
-          `❌ Order #${orderId} cancelled.`
-        );
-
-        return showAdminOrder(
-          chatId,
-          order
-        );
-      }
 
       /* MY ORDERS */
 
@@ -7205,5 +7269,3 @@ app.listen(
     );
   }
 );
-
-How come it doesn’t include the promotions manager or the RT40
