@@ -1655,6 +1655,21 @@ if (token) {
     console.log(
       "Telegram bot started."
     );
+
+    bot.setMyCommands([
+      { command: "start", description: "Main menu" },
+      { command: "admin", description: "Admin dashboard" },
+      { command: "order", description: "Find order" },
+      { command: "summary", description: "7 day report" },
+      { command: "lowstock", description: "Low stock" },
+      { command: "reviews", description: "Pending reviews" },
+      { command: "earnings", description: "Affiliate earnings" },
+      { command: "paid", description: "Mark order paid" },
+      { command: "tracking", description: "Add tracking" },
+      { command: "myid", description: "Show Telegram ID" }
+    ]).catch(err => {
+      console.error("SET COMMANDS ERROR:", err?.message || err);
+    });
   } catch (err) {
     console.error(
       "Telegram startup failed:",
@@ -4488,7 +4503,56 @@ Choose an option.`,
      ======================================================= */
 
   bot.onText(
-    /^\/paid\s+(\d+)$/i,
+    /^\/order(?:@\w+)?(?:\s+#?(\d+))?$/i,
+
+    async (msg, match) => {
+      const orderId = Number(match[1]);
+
+      if (!orderId) {
+        return safeSendMessage(
+          msg.chat.id,
+          `🔎 FIND ORDER\n\nSend the order number.\n\nExample:\n/order 1049`
+        );
+      }
+
+      const order = orders.get(orderId);
+
+      if (!order) {
+        return safeSendMessage(
+          msg.chat.id,
+          `❌ Order #${orderId} not found.`
+        );
+      }
+
+      if (isAdmin(msg.from?.id)) {
+        return showAdminOrder(msg.chat.id, order);
+      }
+
+      const viewer = {
+        telegramId: msg.from?.id,
+        telegramUsername: msg.from?.username
+      };
+
+      if (!orderBelongsToViewer(order, viewer)) {
+        return safeSendMessage(
+          msg.chat.id,
+          "That order was not found on this account."
+        );
+      }
+
+      const items = (order.items || [])
+        .map(item => `${item.quantity} × ${item.name}`)
+        .join("\n");
+
+      return safeSendMessage(
+        msg.chat.id,
+        `📦 Order #${order.orderId}\n\n${items}\n\nTotal: ${money(order.totalPence)}\nStatus: ${getOrderStatusText(order)}${order.trackingNumber ? `\nTracking: ${order.trackingNumber}` : ""}`
+      );
+    }
+  );
+
+  bot.onText(
+    /^\/paid(?:@\w+)?(?:\s+#?(\d+))?$/i,
 
     async (
       msg,
@@ -4507,6 +4571,13 @@ Choose an option.`,
 
       const orderId =
         Number(match[1]);
+
+      if (!orderId) {
+        return safeSendMessage(
+          msg.chat.id,
+          `✅ MARK PAID\n\nSend the order number.\n\nExample:\n/paid 1049`
+        );
+      }
 
       const order =
         orders.get(orderId);
@@ -4609,7 +4680,7 @@ Reserved stock is now committed to the order.`
      ======================================================= */
 
   bot.onText(
-    /^\/tracking\s+(\d+)\s+(.+)$/i,
+    /^\/tracking(?:@\w+)?(?:\s+#?(\d+)(?:\s+(.+))?)?$/i,
 
     async (
       msg,
@@ -4629,10 +4700,24 @@ Reserved stock is now committed to the order.`
       const orderId =
         Number(match[1]);
 
+      if (!orderId) {
+        return safeSendMessage(
+          msg.chat.id,
+          `🚚 ADD TRACKING\n\nSend the order number and tracking.\n\nExample:\n/tracking 1049 AB123456789GB`
+        );
+      }
+
       const trackingNumber =
         String(
-          match[2]
+          match[2] || ""
         ).trim();
+
+      if (!trackingNumber) {
+        return safeSendMessage(
+          msg.chat.id,
+          `🚚 ADD TRACKING\n\nOrder #${orderId}\n\nSend the tracking on the same line.\n\nExample:\n/tracking ${orderId} AB123456789GB`
+        );
+      }
 
       const order =
         orders.get(orderId);
@@ -4696,6 +4781,23 @@ ${trackingNumber}`
   /* =======================================================
      /REVIEWS
      ======================================================= */
+
+  bot.onText(
+    /^\/lowstock(?:@\w+)?$/i,
+
+    async msg => {
+      if (!isAdmin(msg.from?.id)) {
+        return safeSendMessage(msg.chat.id, "This command is admin-only.");
+      }
+
+      const list = getLiveProducts().filter(product => {
+        const stock = Number(product.stock);
+        return Number.isFinite(stock) && stock > 0 && stock <= LOW_STOCK_THRESHOLD;
+      });
+
+      return sendStockList(msg.chat.id, "📉 LOW STOCK", list);
+    }
+  );
 
   bot.onText(
     /^\/reviews(?:@\w+)?$/i,
@@ -7269,3 +7371,5 @@ app.listen(
     );
   }
 );
+
+How come it doesn’t include the promotions manager or the RT40
