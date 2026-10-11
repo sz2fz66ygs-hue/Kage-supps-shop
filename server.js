@@ -1660,6 +1660,7 @@ if (token) {
       { command: "start", description: "Main menu" },
       { command: "admin", description: "Admin dashboard" },
       { command: "order", description: "Find order" },
+      { command: "cancel", description: "Cancel your unpaid order" },
       { command: "summary", description: "7 day report" },
       { command: "lowstock", description: "Low stock" },
       { command: "reviews", description: "Pending reviews" },
@@ -1771,6 +1772,56 @@ function getReviewUrl(order) {
 /* =========================================================
    MARK ORDER PAID
    ========================================================= */
+
+
+async function submitTransactionHash(order, transactionId) {
+  const hash = String(transactionId || "").trim();
+
+  if (!/^0x[a-fA-F0-9]{64}$/.test(hash)) {
+    return { ok: false, error: "Enter a valid Ethereum transaction hash." };
+  }
+
+  const alreadyUsed = [...orders.values()].some(existing =>
+    existing.orderId !== order.orderId &&
+    existing.transactionId?.toLowerCase() === hash.toLowerCase()
+  );
+
+  if (alreadyUsed) {
+    return { ok: false, error: "That transaction has already been used." };
+  }
+
+  const expiredByTimer =
+    order.paymentStatus === "cancelled" &&
+    String(order.cancellationReason || "").includes("Payment was not submitted");
+
+  if (order.paymentStatus === "paid") {
+    return { ok: true, alreadyPaid: true };
+  }
+
+  if (order.paymentStatus === "cancelled" && !expiredByTimer) {
+    return { ok: false, error: "This order was cancelled and cannot take a payment hash." };
+  }
+
+  if (order.paymentStatus === "awaiting_payment" && reservationHasExpired(order)) {
+    expireOrderReservation(order);
+  }
+
+  order.transactionId = hash;
+  order.paymentStatus = "payment_submitted";
+  order.paymentSubmittedAt = new Date().toISOString();
+  order.fulfilmentStatus = "not_shipped";
+  order.reservationExpiresAt = null;
+  order.stockReservationHeldForPayment = true;
+  order.hashSubmittedAfterExpiry = expiredByTimer;
+  saveOrder(order);
+
+  await safeSendMessage(
+    adminTelegramId,
+    `💳 PAYMENT SUBMITTED\n\nOrder:\n#${order.orderId}\n\nCustomer:\n${order.customerName}\n\n📍 Delivery Address:\n${order.address}\n\nExpected total:\n${money(order.totalPence)}\n\nTransaction:\n${hash}${expiredByTimer ? "\n\nThis arrived after the timer. Check the payment, then /paid " + order.orderId : ""}\n\nUse:\n/paid ${order.orderId}\n\nonce payment has been confirmed.`
+  );
+
+  return { ok: true, afterExpiry: expiredByTimer };
+}
 
 async function markOrderPaid(
   order
@@ -2792,112 +2843,17 @@ app.post(
       });
     }
 
-    if (
-      order.paymentStatus ===
-      "cancelled"
-    ) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "This order has been cancelled."
-        });
-    }
-
-    if (
-      order.paymentStatus === "awaiting_payment" &&
-      reservationHasExpired(order)
-    ) {
-      expireOrderReservation(order);
-
-      return res
-        .status(410)
-        .json({
-          error:
-            "This order expired because payment was not submitted within 30 minutes. The reserved stock has been returned."
-        });
-    }
-
     const transactionId =
       String(
         req.body?.transactionId ||
         ""
       ).trim();
 
-    if (
-      !/^0x[a-fA-F0-9]{64}$/.test(
-        transactionId
-      )
-    ) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "Enter a valid Ethereum transaction hash."
-        });
+    const submitted = await submitTransactionHash(order, transactionId);
+
+    if (!submitted.ok) {
+      return res.status(400).json({ error: submitted.error });
     }
-
-    const alreadyUsed =
-      [...orders.values()]
-        .some(
-          existing =>
-            existing.orderId !==
-              order.orderId &&
-            existing.transactionId
-              ?.toLowerCase() ===
-            transactionId.toLowerCase()
-        );
-
-    if (alreadyUsed) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "That transaction has already been used."
-        });
-    }
-
-    order.transactionId =
-      transactionId;
-
-    order.paymentStatus =
-      "payment_submitted";
-
-    order.paymentSubmittedAt =
-      new Date().toISOString();
-
-    // Once a transaction hash is submitted, keep the stock reserved
-    // while the admin verifies payment.
-    order.reservationExpiresAt = null;
-    order.stockReservationHeldForPayment = true;
-
-    saveOrder(order);
-
-    await safeSendMessage(
-      adminTelegramId,
-
-`💳 PAYMENT SUBMITTED
-
-Order:
-#${order.orderId}
-
-Customer:
-${order.customerName}
-
-📍 Delivery Address:
-${order.address}
-
-Expected total:
-${money(order.totalPence)}
-
-Transaction:
-${transactionId}
-
-Use:
-/paid ${order.orderId}
-
-once payment has been confirmed.`
-    );
 
     return res.json({
       ok: true,
@@ -4526,8 +4482,61 @@ Choose an option.`,
      /PAID
      ======================================================= */
 
+
   bot.onText(
-    /^\/order(?:@\w+)?(?:\s+#?(\d+))?$/i,
+    /^\/cancel(?:@\w+)?(?:\s+#?(\d+))?$/i,
+
+    async (msg, match) => {
+      const viewer = {
+        telegramId: msg.from?.id,
+        telegramUsername: msg.from?.username
+      };
+
+      let order = match[1] ? orders.get(Number(match[1])) : null;
+
+      if (!order) {
+        order = [...orders.values()]
+          .filter(item => orderBelongsToViewer(item, viewer))
+          .filter(item => item.paymentStatus === "awaiting_payment")
+          .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0];
+      }
+
+      if (!order || (!isAdmin(msg.from?.id) && !orderBelongsToViewer(order, viewer))) {
+        return safeSendMessage(
+          msg.chat.id,
+          "No unpaid order to cancel. Send /cancel 1075 if you know the number."
+        );
+      }
+
+      if (order.paymentStatus !== "awaiting_payment") {
+        return safeSendMessage(
+          msg.chat.id,
+          `Order #${order.orderId} can no longer be cancelled. If you have paid, send /order ${order.orderId} and your transaction hash.`
+        );
+      }
+
+      restoreReservedStock(order);
+      restoreStoreCreditForOrder(order);
+      order.paymentStatus = "cancelled";
+      order.fulfilmentStatus = "cancelled";
+      order.cancelledAt = new Date().toISOString();
+      order.cancellationReason = "Cancelled by customer.";
+      saveOrder(order);
+
+      await safeSendMessage(
+        adminTelegramId,
+        `❌ Customer cancelled order #${order.orderId}\n\n${order.customerName}\nStock has been released.`
+      );
+
+      return safeSendMessage(
+        msg.chat.id,
+        `❌ Order #${order.orderId} cancelled. The stock is free again.`
+      );
+    }
+  );
+
+  bot.onText(
+    /^\/(?:order|oder)(?:@\w+)?(?:\s+#?(\d+))?(?:\s+(0x[a-fA-F0-9]{64}))?$/i,
 
     async (msg, match) => {
       const orderId = Number(match[1]);
@@ -4574,6 +4583,28 @@ Choose an option.`,
         return safeSendMessage(
           msg.chat.id,
           `❌ Order #${orderId} not found.`
+        );
+      }
+
+      const hash = match[2];
+
+      if (hash) {
+        const viewer = {
+          telegramId: msg.from?.id,
+          telegramUsername: msg.from?.username
+        };
+        if (!isAdmin(msg.from?.id) && !orderBelongsToViewer(order, viewer)) {
+          return safeSendMessage(msg.chat.id, "That order was not found on this account.");
+        }
+        const submitted = await submitTransactionHash(order, hash);
+        if (!submitted.ok) {
+          return safeSendMessage(msg.chat.id, `❌ ${submitted.error}`);
+        }
+        return safeSendMessage(
+          msg.chat.id,
+          submitted.afterExpiry
+            ? `✅ Hash received for order #${order.orderId} after the timer. It has been sent for checking.`
+            : `✅ Hash received for order #${order.orderId}. It has been sent for checking.`
         );
       }
 
