@@ -387,7 +387,7 @@ const supportTelegramIds =
 const MINIMUM_ORDER_PENCE = 5000;
 const SHIPPING_PENCE = 500;
 const LOW_STOCK_THRESHOLD = 5;
-const STOCK_RESERVATION_MINUTES = 30;
+const STOCK_RESERVATION_MINUTES = Number(process.env.STOCK_RESERVATION_MINUTES || 90);
 const STOCK_RESERVATION_MS = STOCK_RESERVATION_MINUTES * 60 * 1000;
 
 /* =========================================================
@@ -4509,9 +4509,38 @@ Choose an option.`,
       const orderId = Number(match[1]);
 
       if (!orderId) {
+        if (isAdmin(msg.from?.id)) {
+          return safeSendMessage(
+            msg.chat.id,
+            `🔎 FIND ORDER\n\nSend the order number.\n\nExample:\n/order 1049`
+          );
+        }
+
+        const viewer = {
+          telegramId: msg.from?.id,
+          telegramUsername: msg.from?.username
+        };
+        const mine = [...orders.values()]
+          .filter(order => orderBelongsToViewer(order, viewer))
+          .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        const open = mine.find(order => order.paymentStatus === "awaiting_payment" || order.paymentStatus === "payment_submitted");
+
+        if (!open) {
+          return safeSendMessage(
+            msg.chat.id,
+            mine.length
+              ? `No open order. Your latest is #${mine[0].orderId} — ${getOrderStatusText(mine[0])}.\n\nOpen the shop again to place a new one.`
+              : "No orders on this account yet. Open the shop to start one."
+          );
+        }
+
+        const left = open.reservationExpiresAt
+          ? Math.max(0, Math.ceil((new Date(open.reservationExpiresAt).getTime() - Date.now()) / 60000))
+          : null;
+
         return safeSendMessage(
           msg.chat.id,
-          `🔎 FIND ORDER\n\nSend the order number.\n\nExample:\n/order 1049`
+          `📦 Open order #${open.orderId}\n\nTotal: ${money(open.totalPence)}\nStatus: ${getOrderStatusText(open)}${left !== null ? `\nTime left: ${left} minutes` : ""}\n\nOpen the shop again. Your basket is saved there. If this one expired, start a new order.`
         );
       }
 
