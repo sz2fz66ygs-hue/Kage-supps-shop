@@ -61,6 +61,12 @@ let categories = [];
 let sectionOrder = {};
 
 const basket = {};
+try {
+  Object.assign(basket, JSON.parse(localStorage.getItem("kage-basket-v1") || "{}"));
+} catch {}
+function saveBasket() {
+  try { localStorage.setItem("kage-basket-v1", JSON.stringify(basket)); } catch {}
+}
 
 let currentCategory = null;
 
@@ -709,6 +715,7 @@ function renderProducts() {
               ?.HapticFeedback
               ?.selectionChanged();
 
+            saveBasket();
             render();
           }
         );
@@ -1282,6 +1289,7 @@ function renderBasket() {
               );
 
             delete basket[id];
+            saveBasket();
 
             postCartEvent(
               id,
