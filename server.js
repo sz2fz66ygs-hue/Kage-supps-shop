@@ -1789,11 +1789,35 @@ async function markOrderPaid(
     order.paymentStatus ===
     "cancelled"
   ) {
-    return {
-      ok: false,
-      error:
-        "This order has been cancelled."
-    };
+    const expired =
+      String(order.cancellationReason || "").includes("Payment was not submitted");
+
+    if (!expired) {
+      return {
+        ok: false,
+        error:
+          "This order was cancelled by an admin and cannot be marked paid."
+      };
+    }
+
+    if (!order.stockDeducted) {
+      const stockResult = deductStockForOrder(order);
+      if (!stockResult.ok) {
+        return {
+          ok: false,
+          error:
+            `The timer cancelled this order and the stock is no longer available. ${stockResult.error || ""}`.trim()
+        };
+      }
+    }
+
+    order.paymentStatus = "paid";
+    order.fulfilmentStatus = "not_shipped";
+    order.paidAt = new Date().toISOString();
+    order.recoveredAfterExpiry = true;
+    saveOrder(order);
+
+    return { ok: true, recovered: true };
   }
 
   if (order.stockReserved) {
