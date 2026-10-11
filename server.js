@@ -1659,6 +1659,7 @@ if (token) {
     bot.setMyCommands([
       { command: "start", description: "Main menu" },
       { command: "admin", description: "Admin dashboard" },
+      { command: "orders", description: "Your old orders" },
       { command: "order", description: "Find order" },
       { command: "cancel", description: "Cancel your unpaid order" },
       { command: "summary", description: "7 day report" },
@@ -4482,6 +4483,35 @@ Choose an option.`,
      /PAID
      ======================================================= */
 
+
+
+  bot.onText(
+    /^\/orders(?:@\w+)?$/i,
+
+    async msg => {
+      const viewer = {
+        telegramId: msg.from?.id,
+        telegramUsername: msg.from?.username
+      };
+      const mine = [...orders.values()]
+        .filter(order => isAdmin(msg.from?.id) ? true : orderBelongsToViewer(order, viewer))
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        .slice(0, isAdmin(msg.from?.id) ? 15 : 20);
+
+      if (!mine.length) {
+        return safeSendMessage(msg.chat.id, "No orders on this account yet.");
+      }
+
+      const lines = mine.map(order =>
+        `#${order.orderId} • ${money(order.totalPence)} • ${getOrderStatusText(order)}`
+      );
+
+      return safeSendMessage(
+        msg.chat.id,
+        `📦 YOUR ORDERS\n\n${lines.join("\n")}\n\nOpen one with /order 1075`
+      );
+    }
+  );
 
   bot.onText(
     /^\/cancel(?:@\w+)?(?:\s+#?(\d+))?$/i,
