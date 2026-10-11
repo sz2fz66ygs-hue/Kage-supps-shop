@@ -7400,5 +7400,3 @@ app.listen(
     );
   }
 );
-
-How come it doesn’t include the promotions manager or the RT40
