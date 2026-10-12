@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { readFileSync, mkdirSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import { fileURLToPath } from "url";
 import path from "path";
 import { randomUUID } from "crypto";
@@ -3373,6 +3373,9 @@ const pendingAdminTracking =
 const pendingAdminNote =
   new Map();
 
+const pendingBulkStock = new Map();
+const pendingAddProduct = new Map();
+
 const pendingStockAdjustment =
   new Map();
 
@@ -3403,6 +3406,14 @@ if (bot) {
     );
 
     pendingStockAdjustment.delete(
+      chatId
+    );
+
+    pendingBulkStock.delete(
+      chatId
+    );
+
+    pendingAddProduct.delete(
       chatId
     );
 
@@ -3543,6 +3554,12 @@ if (bot) {
                 "📦 Recent Orders",
               callback_data:
                 "admin_recent_orders"
+            },
+            {
+              text:
+                "🗂 All Orders",
+              callback_data:
+                "admin_all_orders_0"
             },
             {
               text:
@@ -4290,6 +4307,22 @@ Choose an option.`,
             [
               {
                 text:
+                  "📋 Bulk Stock",
+                callback_data:
+                  "admin_stock_bulk"
+              }
+            ],
+            [
+              {
+                text:
+                  "➕ Add Product",
+                callback_data:
+                  "admin_add_product"
+              }
+            ],
+            [
+              {
+                text:
                   "⬅️ Admin Dashboard",
                 callback_data:
                   "admin_dashboard"
@@ -4308,10 +4341,15 @@ Choose an option.`,
   ) {
     const lines =
       list
-        .map(
-          product =>
-            `#${product.id} • ${product.name}: ${product.stock}`
-        )
+        .map(product => {
+          const reserved = [...orders.values()]
+            .filter(order => order.paymentStatus === "awaiting_payment" || order.paymentStatus === "payment_submitted")
+            .reduce((sum, order) => {
+              const item = (order.items || []).find(entry => Number(entry.id) === Number(product.id));
+              return sum + Number(item?.quantity || 0);
+            }, 0);
+          return `#${product.id} • ${product.name}: ${product.stock}${reserved ? ` (${reserved} held on unpaid orders)` : ""}`;
+        })
         .join("\n");
 
     await sendLongMessage(
@@ -5526,7 +5564,31 @@ The review has been removed.`,
         return showOrderList(
           chatId,
           "📦 RECENT ORDERS",
-          getRecentOrders(15)
+          getRecentOrders(30)
+        );
+      }
+
+      if (data.startsWith("admin_all_orders_")) {
+        if (!isAdmin(q.from?.id)) return;
+        const page = Number(data.replace("admin_all_orders_", "")) || 0;
+        const all = [...orders.values()].sort((a, b) =>
+          new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+        );
+        const pageSize = 15;
+        const slice = all.slice(page * pageSize, page * pageSize + pageSize);
+        const buttons = slice.map(order => [{
+          text: `#${order.orderId} • ${order.customerName} • ${money(order.totalPence)} • ${getOrderStatusText(order)}`,
+          callback_data: `admin_order_${order.orderId}`
+        }]);
+        const nav = [];
+        if (page > 0) nav.push({ text: "⬅️ Newer", callback_data: `admin_all_orders_${page - 1}` });
+        if ((page + 1) * pageSize < all.length) nav.push({ text: "Older ➡️", callback_data: `admin_all_orders_${page + 1}` });
+        if (nav.length) buttons.push(nav);
+        buttons.push([{ text: "⬅️ Admin Dashboard", callback_data: "admin_dashboard" }]);
+        return safeSendMessage(
+          chatId,
+          `🗂 ALL ORDERS\n\n${all.length} orders. Page ${page + 1}.`,
+          { reply_markup: { inline_keyboard: buttons } }
         );
       }
 
@@ -6074,6 +6136,26 @@ Send the product ID.
 
 You can find IDs in:
 Stock Centre → All Stock`
+        );
+      }
+
+      if (data === "admin_add_product") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingAddProduct.set(chatId, { stage: "name" });
+        return safeSendMessage(
+          chatId,
+          `➕ ADD PRODUCT\n\nSend the product name.\n\n/admin to cancel.`
+        );
+      }
+
+      if (data === "admin_stock_bulk") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingBulkStock.set(chatId, true);
+        return safeSendMessage(
+          chatId,
+          `📋 BULK STOCK\n\nSend one product per line:\n\n12 20\n13 5\n14 0\n\nID then the new total. Send /admin to cancel.`
         );
       }
 
@@ -7234,6 +7316,84 @@ ${text}`
         return showAdminOrder(
           chatId,
           order
+        );
+      }
+
+      if (pendingAddProduct.has(chatId) && isAdmin(msg.from?.id)) {
+        const state = pendingAddProduct.get(chatId);
+        if (state.stage === "name") {
+          state.name = text.trim();
+          state.stage = "category";
+          pendingAddProduct.set(chatId, state);
+          return safeSendMessage(chatId, "Send the category: Oils, Orals, Pharma or Peps.");
+        }
+        if (state.stage === "category") {
+          state.category = text.trim();
+          state.stage = "price";
+          pendingAddProduct.set(chatId, state);
+          return safeSendMessage(chatId, "Send the price in pounds, for example 32 or 32.50");
+        }
+        if (state.stage === "price") {
+          const pounds = Number(text.replace("£", ""));
+          if (!Number.isFinite(pounds) || pounds < 0) {
+            return safeSendMessage(chatId, "Send a price like 32 or 32.50");
+          }
+          state.pricePence = Math.round(pounds * 100);
+          state.stage = "stock";
+          pendingAddProduct.set(chatId, state);
+          return safeSendMessage(chatId, "Send the starting stock number.");
+        }
+        if (state.stage === "stock") {
+          const stock = Number(text);
+          if (!Number.isInteger(stock) || stock < 0) {
+            return safeSendMessage(chatId, "Send a whole number of 0 or more.");
+          }
+          const nextId = Math.max(0, ...products.map(product => Number(product.id) || 0)) + 1;
+          const product = {
+            id: nextId,
+            name: state.name,
+            category: state.category,
+            section: state.category,
+            pricePence: state.pricePence,
+            stock,
+            unit: "items",
+            purchasable: true
+          };
+          products.push(product);
+          productsById.set(nextId, product);
+          setInventoryStmt.run(stock, nextId);
+          writeFileSync(
+            path.join(__dirname, "public", "products.json"),
+            JSON.stringify(products.map(({ priceOverridden, cataloguePricePence, ...item }) => item), null, 2)
+          );
+          pendingAddProduct.delete(chatId);
+          return safeSendMessage(chatId, `✅ Product added\n\n#${nextId} ${product.name}\n${money(product.pricePence)}\nStock: ${stock}`);
+        }
+      }
+
+      if (pendingBulkStock.has(chatId) && isAdmin(msg.from?.id)) {
+        const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
+        const updated = [];
+        const failed = [];
+
+        for (const line of lines) {
+          const parts = line.replace(/^#/, "").split(/\s+/);
+          const productId = Number(parts[0]);
+          const newStock = Number(parts[1]);
+          const product = productsById.get(productId);
+          if (!product || !Number.isInteger(newStock) || newStock < 0) {
+            failed.push(line);
+            continue;
+          }
+          setInventoryStmt.run(newStock, productId);
+          updated.push(`${product.name}: ${newStock}`);
+        }
+
+        pendingBulkStock.delete(chatId);
+
+        return safeSendMessage(
+          chatId,
+          `✅ BULK STOCK\n\nUpdated ${updated.length}:\n${updated.join("\n") || "None"}${failed.length ? `\n\nSkipped:\n${failed.join("\n")}` : ""}`
         );
       }
 
