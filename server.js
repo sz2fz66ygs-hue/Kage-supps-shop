@@ -473,6 +473,16 @@ CREATE TABLE IF NOT EXISTS inventory (
   stock INTEGER
 );
 
+CREATE TABLE IF NOT EXISTS stock_updates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL,
+  product_name TEXT,
+  old_stock INTEGER,
+  new_stock INTEGER,
+  added INTEGER,
+  created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS reviews (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_id INTEGER NOT NULL UNIQUE,
@@ -1684,6 +1694,41 @@ if (token) {
   );
 }
 
+
+async function recordStockChange(product, oldStock, newStock) {
+  const added = Number(newStock) - Number(oldStock || 0);
+  if (added <= 0) return;
+
+  db.prepare(`
+    INSERT INTO stock_updates
+      (product_id, product_name, old_stock, new_stock, added, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    Number(product.id),
+    product.name,
+    Number(oldStock || 0),
+    Number(newStock),
+    added,
+    new Date().toISOString()
+  );
+
+  const groupId = getMetaValue("stock_group_id");
+  if (groupId) {
+    await safeSendMessage(
+      groupId,
+      `📦 STOCK ADDED\n\n${product.name}\n+${added} now in stock\n${Number(oldStock || 0)} → ${Number(newStock)}`
+    );
+  }
+}
+
+async function notifyAdmins(message, options) {
+  const ids = [...configuredAdminIds];
+  if (!ids.length && adminTelegramId) ids.push(adminTelegramId);
+  for (const id of ids) {
+    await safeSendMessage(id, message, options);
+  }
+}
+
 async function safeSendMessage(
   chatId,
   message,
@@ -1718,8 +1763,7 @@ async function runReservationCleanup() {
   const expired = expireOldReservations();
 
   for (const order of expired) {
-    await safeSendMessage(
-      adminTelegramId,
+    await notifyAdmins(
       `⌛ ORDER EXPIRED\n\nOrder: #${order.orderId}\nCustomer: ${order.customerName}\n\nPayment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes.\nReserved stock has been returned to circulation.`
     );
 
@@ -1816,8 +1860,7 @@ async function submitTransactionHash(order, transactionId) {
   order.hashSubmittedAfterExpiry = expiredByTimer;
   saveOrder(order);
 
-  await safeSendMessage(
-    adminTelegramId,
+  await notifyAdmins(
     `💳 PAYMENT SUBMITTED\n\nOrder:\n#${order.orderId}\n\nCustomer:\n${order.customerName}\n\n📍 Delivery Address:\n${order.address}\n\nExpected total:\n${money(order.totalPence)}\n\nTransaction:\n${hash}${expiredByTimer ? "\n\nThis arrived after the timer. Check the payment, then /paid " + order.orderId : ""}\n\nUse:\n/paid ${order.orderId}\n\nonce payment has been confirmed.`
   );
 
@@ -1895,6 +1938,13 @@ async function markOrderPaid(
 
   saveOrder(order);
 
+  if (order.telegramId) {
+    await safeSendMessage(
+      order.telegramId,
+      `✅ Payment confirmed\n\nOrder #${order.orderId} is paid. We will message you when it is dispatched.`
+    );
+  }
+
   if (
     order.referralCommissionPence >
       0 &&
@@ -1911,8 +1961,7 @@ async function markOrderPaid(
       )
       .join("\n");
 
-  await safeSendMessage(
-    adminTelegramId,
+  await notifyAdmins(
 
 `✅ PAYMENT CONFIRMED
 
@@ -2625,8 +2674,7 @@ app.post(
           )
           .join("\n");
 
-      await safeSendMessage(
-        adminTelegramId,
+      await notifyAdmins(
 
 `🧾 NEW ORDER
 
@@ -3026,8 +3074,7 @@ app.post(
       `).get(orderId);
 
     if (savedReview) {
-      safeSendMessage(
-        adminTelegramId,
+      notifyAdmins(
 
 `⭐ NEW REVIEW
 
@@ -4399,6 +4446,18 @@ Choose an option.`,
       buttons.push([
         {
           text:
+            "🏷 Promotions",
+          callback_data:
+            "promotions"
+        },
+        {
+          text:
+            "📦 Stock Added",
+          callback_data:
+            "stock_added"
+        },
+        {
+          text:
             "⭐ Reviews",
           callback_data:
             "reviews"
@@ -4410,6 +4469,13 @@ Choose an option.`,
             "info"
         }
       ]);
+
+      const groupLink = process.env.GROUP_LINK || getMetaValue("group_link");
+      if (groupLink) {
+        buttons.push([
+          { text: "👥 Join the group", url: groupLink }
+        ]);
+      }
 
       if (
         isAdmin(
@@ -4429,13 +4495,17 @@ Choose an option.`,
       await safeSendMessage(
         msg.chat.id,
 
-`${getSeasonalTheme() ? getSeasonalTheme().greeting + "\n\n" : ""}⚡️ Welcome
+`${getSeasonalTheme() ? getSeasonalTheme().greeting + "\n\n" : ""}Welcome to Kage Supps.
+
+Open the shop, check what is on promotion, and see when stock has been added. If you need us, tap Support.
 
 🛍 Open Shop
+🏷 Promotions
+📦 Stock Added
 📦 My Orders
 💬 Support
 ⭐ Reviews
-ℹ️ Info${
+ℹ️ Info${groupLink ? "\n👥 Join the group" : ""}${
   isAdmin(msg.from?.id)
     ? "\n🛠 Admin Dashboard"
     : ""
@@ -4523,6 +4593,106 @@ Choose an option.`,
 
 
 
+
+
+
+  bot.onText(
+    /^\/promos(?:@\w+)?$/i,
+    async msg => {
+      const promos = promotionsApi.loadPromotions().filter(promo => promo.active);
+      if (!promos.length) {
+        return safeSendMessage(msg.chat.id, "🏷 No promotions are running right now.");
+      }
+      const lines = promos.map(promo => `${promo.name}`);
+      return safeSendMessage(msg.chat.id, `🏷 RUNNING PROMOTIONS\n\n${lines.join("\n")}\n\nOpen the shop to use them.`);
+    }
+  );
+
+
+  bot.onText(
+    /^\/setreviewsgroup(?:@\w+)?$/i,
+    async msg => {
+      if (!isAdmin(msg.from?.id)) {
+        return safeSendMessage(msg.chat.id, "This command is admin-only.");
+      }
+      if (msg.chat.type === "private") {
+        return safeSendMessage(msg.chat.id, "Send /setreviewsgroup in the Reviews topic of the group.");
+      }
+      setMetaValue("reviews_group_id", String(msg.chat.id));
+      if (msg.message_thread_id) setMetaValue("reviews_thread_id", String(msg.message_thread_id));
+      return safeSendMessage(msg.chat.id, "✅ Approved reviews will be posted here.");
+    }
+  );
+
+  bot.onText(
+    /^\/setgrouplink(?:@\w+)?\s+(https?:\/\/\S+)$/i,
+    async (msg, match) => {
+      if (!isAdmin(msg.from?.id)) {
+        return safeSendMessage(msg.chat.id, "This command is admin-only.");
+      }
+      setMetaValue("group_link", match[1]);
+      return safeSendMessage(msg.chat.id, "✅ Group link saved. It will show on /start.");
+    }
+  );
+
+  bot.onText(
+    /^\/subtitle(?:@\w+)?\s+(\d+)\s+(.+)$/i,
+    async (msg, match) => {
+      if (!isAdmin(msg.from?.id)) {
+        return safeSendMessage(msg.chat.id, "This command is admin-only.");
+      }
+      const productId = Number(match[1]);
+      const product = productsById.get(productId);
+      if (!product) {
+        return safeSendMessage(msg.chat.id, `Product #${productId} not found.`);
+      }
+      product.subtitle = match[2].trim() === "-" ? "" : match[2].trim();
+      writeFileSync(
+        path.join(__dirname, "public", "products.json"),
+        JSON.stringify(products.map(({ priceOverridden, cataloguePricePence, ...item }) => item), null, 2)
+      );
+      return safeSendMessage(
+        msg.chat.id,
+        `✅ Description saved\n\n#${productId} ${product.name}\n${product.subtitle || "No description"}`
+      );
+    }
+  );
+
+  bot.onText(
+    /^\/stock(?:@\w+)?$/i,
+    async msg => {
+      const rows = db.prepare(`
+        SELECT product_name, added, new_stock, created_at
+        FROM stock_updates
+        ORDER BY id DESC
+        LIMIT 20
+      `).all();
+
+      if (!rows.length) {
+        return safeSendMessage(msg.chat.id, "No stock has been added yet.");
+      }
+
+      const lines = rows.map(row =>
+        `${row.product_name}: +${row.added} (now ${row.new_stock})`
+      );
+      return safeSendMessage(msg.chat.id, `📦 STOCK ADDED\n\n${lines.join("\n")}`);
+    }
+  );
+
+  bot.onText(
+    /^\/setstockgroup(?:@\w+)?$/i,
+    async msg => {
+      if (!isAdmin(msg.from?.id)) {
+        return safeSendMessage(msg.chat.id, "This command is admin-only.");
+      }
+      if (msg.chat.type === "private") {
+        return safeSendMessage(msg.chat.id, "Send /setstockgroup in the group you want stock updates posted to.");
+      }
+      setMetaValue("stock_group_id", String(msg.chat.id));
+      return safeSendMessage(msg.chat.id, "✅ This group will get a message whenever stock is added.");
+    }
+  );
+
   bot.onText(
     /^\/orders(?:@\w+)?$/i,
 
@@ -4591,8 +4761,7 @@ Choose an option.`,
       order.cancellationReason = "Cancelled by customer.";
       saveOrder(order);
 
-      await safeSendMessage(
-        adminTelegramId,
+      await notifyAdmins(
         `❌ Customer cancelled order #${order.orderId}\n\n${order.customerName}\nStock has been released.`
       );
 
@@ -4820,6 +4989,8 @@ Reserved stock is now committed to the order.`
         productId
       );
 
+      await recordStockChange(product, oldStock, newStock);
+
       return safeSendMessage(
         msg.chat.id,
         `✅ STOCK UPDATED\n\n${product.name}\n\nOld stock: ${oldStock}\nNew stock: ${newStock}`
@@ -4917,14 +5088,14 @@ ${trackingNumber}`
       if (order.telegramId) {
         await safeSendMessage(
           order.telegramId,
-
-`📦 Your order has been dispatched
-
-Order:
-#${orderId}
-
-Tracking:
-${trackingNumber}`
+          `📦 Your order has been dispatched\n\nOrder:\n#${orderId}\n\nTracking:\n${trackingNumber}\n\nTap below when it arrives.`,
+          {
+            reply_markup: {
+              inline_keyboard: [[
+                { text: "✅ I've received it", callback_data: `received_${orderId}` }
+              ]]
+            }
+          }
         );
       }
     }
@@ -5387,6 +5558,16 @@ ${productLines || "No activity in the last 7 days."}`
         db.prepare(
           "UPDATE reviews SET approved = 1 WHERE id = ?"
         ).run(reviewId);
+
+        const reviewsGroup = getMetaValue("reviews_group_id") || getMetaValue("stock_group_id");
+        if (reviewsGroup) {
+          const thread = getMetaValue("reviews_thread_id");
+          await safeSendMessage(
+            reviewsGroup,
+            `⭐ NEW REVIEW\n\n${review.display_name}\n${"⭐".repeat(Number(review.rating) || 0)}\n\n${review.review_text}`,
+            thread ? { message_thread_id: Number(thread) } : undefined
+          );
+        }
 
         try {
           await bot.answerCallbackQuery(
@@ -6818,6 +6999,51 @@ Send your message below.`
         );
       }
 
+      if (data.startsWith("received_")) {
+        const orderId = Number(data.replace("received_", ""));
+        const order = orders.get(orderId);
+        if (!order) return safeSendMessage(chatId, "Order not found.");
+        const viewer = { telegramId: q.from?.id, telegramUsername: q.from?.username };
+        if (!orderBelongsToViewer(order, viewer)) {
+          return safeSendMessage(chatId, "That order is not on this account.");
+        }
+        order.fulfilmentStatus = "delivered";
+        order.receivedAt = new Date().toISOString();
+        saveOrder(order);
+        await notifyAdmins(`✅ Order #${orderId} marked received by ${order.customerName}.`);
+        return safeSendMessage(chatId, `✅ Thanks. Order #${orderId} is marked as received.`);
+      }
+
+      if (data === "promotions") {
+        const promos = promotionsApi.loadPromotions().filter(promo => promo.active);
+        if (!promos.length) {
+          return safeSendMessage(chatId, "🏷 Promotions\n\nNo promotions are running right now.");
+        }
+        const lines = promos.map(promo => {
+          const rule = promo.type === "fixed_bundle"
+            ? `${promo.requiredQuantity} for ${money(promo.bundlePricePence)}`
+            : promo.type === "fixed_amount"
+              ? `${money(promo.discountPence)} off`
+              : `${promo.discountPercent}% off`;
+          return `${promo.name}\n${rule}`;
+        });
+        return safeSendMessage(chatId, `🏷 RUNNING PROMOTIONS\n\n${lines.join("\n\n")}`);
+      }
+
+      if (data === "stock_added") {
+        const rows = db.prepare(`
+          SELECT product_name, added, new_stock
+          FROM stock_updates
+          ORDER BY id DESC
+          LIMIT 20
+        `).all();
+        if (!rows.length) {
+          return safeSendMessage(chatId, "📦 Stock added\n\nNothing has been added yet.");
+        }
+        const lines = rows.map(row => `${row.product_name}: +${row.added} (now ${row.new_stock})`);
+        return safeSendMessage(chatId, `📦 STOCK ADDED\n\n${lines.join("\n")}`);
+      }
+
       /* REVIEWS */
 
       if (data === "reviews") {
@@ -7323,6 +7549,12 @@ ${text}`
         const state = pendingAddProduct.get(chatId);
         if (state.stage === "name") {
           state.name = text.trim();
+          state.stage = "description";
+          pendingAddProduct.set(chatId, state);
+          return safeSendMessage(chatId, "Send the line under the name, for example 50 tablets per tub.\n\nSend - if you do not want one.");
+        }
+        if (state.stage === "description") {
+          state.subtitle = text.trim() === "-" ? "" : text.trim();
           state.stage = "category";
           pendingAddProduct.set(chatId, state);
           return safeSendMessage(chatId, "Send the category: Oils, Orals, Pharma or Peps.");
@@ -7352,6 +7584,7 @@ ${text}`
           const product = {
             id: nextId,
             name: state.name,
+            subtitle: state.subtitle || "",
             category: state.category,
             section: state.category,
             pricePence: state.pricePence,
@@ -7385,7 +7618,9 @@ ${text}`
             failed.push(line);
             continue;
           }
+          const oldStock = getLiveStock(productId);
           setInventoryStmt.run(newStock, productId);
+          await recordStockChange(product, oldStock, newStock);
           updated.push(`${product.name}: ${newStock}`);
         }
 
@@ -7491,10 +7726,12 @@ Example:
               state.productId
             );
 
+          const oldStock = getLiveStock(state.productId);
           setInventoryStmt.run(
             newStock,
             state.productId
           );
+          await recordStockChange(product, oldStock, newStock);
 
           pendingStockAdjustment.delete(
             chatId
