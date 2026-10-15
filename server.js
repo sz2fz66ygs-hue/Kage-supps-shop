@@ -185,7 +185,24 @@ function findPromotionConflicts(promotions, productIds, ignoreId = null) {
  * One product, one active promo — guaranteed by conflict checks —
  * so discounts are summed, never stacked on the same unit.
  */
-function calculatePromotionDiscount(lineItems, promotions) {
+function unitsAlreadyUsed(promo, telegramId) {
+  if (!telegramId) return 0;
+  let used = 0;
+  for (const order of orders.values()) {
+    if (order.paymentStatus !== "paid") continue;
+    if (String(order.telegramId || "") !== String(telegramId)) continue;
+    const applied = (order.appliedPromotions || []).some(item => Number(item.id) === Number(promo.id));
+    if (!applied) continue;
+    for (const item of order.items || []) {
+      if ((promo.productIds || []).map(Number).includes(Number(item.id))) {
+        used += Number(item.quantity || 0);
+      }
+    }
+  }
+  return used;
+}
+
+function calculatePromotionDiscount(lineItems, promotions, telegramId) {
   const active = (promotions || []).filter(promo => promo.active);
   const applied = [];
   let promotionDiscountPence = 0;
@@ -204,6 +221,9 @@ function calculatePromotionDiscount(lineItems, promotions) {
     }
 
     if (!units.length) continue;
+
+    const maxUnits = Number(promo.maxUnits || 0);
+    if (maxUnits > 0 && units.length > maxUnits) units.length = maxUnits;
 
     const required = Math.max(1, Number(promo.requiredQuantity || 1));
     let discount = 0;
@@ -288,7 +308,9 @@ function formatPromotion(promo, money) {
     `Type: ${promo.type}`,
     `Rule: ${rule}`,
     `Product IDs: ${ids}`,
-    `Stacks with affiliate code: ${promo.stackWithAffiliate === false ? "NO" : "YES"}`
+    `Stacks with affiliate code: ${promo.stackWithAffiliate === false ? "NO" : "YES"}`,
+    `Per order: ${Number(promo.maxUnits) > 0 ? promo.maxUnits + " at this price" : "no limit"}`,
+    `One buyer only: ${promo.oneBuyer ? "YES" : "NO"}`
   ].join("\n");
 }
 
@@ -471,6 +493,11 @@ CREATE TABLE IF NOT EXISTS cart_events (
 CREATE TABLE IF NOT EXISTS inventory (
   product_id INTEGER PRIMARY KEY,
   stock INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS product_costs (
+  product_id INTEGER PRIMARY KEY,
+  cost_pence INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS stock_updates (
@@ -675,7 +702,8 @@ app.get("/api/promotions", (_req, res) => {
         discountPercent: promo.discountPercent || 0,
         discountPence: promo.discountPence || 0,
         bundlePricePence: promo.bundlePricePence || 0,
-        stackWithAffiliate: promo.stackWithAffiliate !== false
+        stackWithAffiliate: promo.stackWithAffiliate !== false,
+        maxUnits: Number(promo.maxUnits || 0)
       }))
   );
 });
@@ -1880,28 +1908,13 @@ async function markOrderPaid(
     };
   }
 
-  if (
-    order.paymentStatus ===
-    "cancelled"
-  ) {
-    const expired =
-      String(order.cancellationReason || "").includes("Payment was not submitted");
-
-    if (!expired) {
-      return {
-        ok: false,
-        error:
-          "This order was cancelled by an admin and cannot be marked paid."
-      };
-    }
-
+  if (order.paymentStatus === "cancelled") {
     if (!order.stockDeducted) {
       const stockResult = deductStockForOrder(order);
       if (!stockResult.ok) {
         return {
           ok: false,
-          error:
-            `The timer cancelled this order and the stock is no longer available. ${stockResult.error || ""}`.trim()
+          error: `Stock is no longer available. ${stockResult.error || ""}`.trim()
         };
       }
     }
@@ -1911,6 +1924,22 @@ async function markOrderPaid(
     order.paidAt = new Date().toISOString();
     order.recoveredAfterExpiry = true;
     saveOrder(order);
+
+    if (order.telegramId) {
+      await safeSendMessage(
+        order.telegramId,
+        `✅ Payment confirmed\n\nOrder #${order.orderId} is paid. We will message you when it is dispatched.`
+      );
+    }
+
+    for (const applied of order.appliedPromotions || []) {
+      const promo = promotionsApi.getPromotion(applied.id);
+      if (promo?.oneBuyer && !promo.usedByOrderId) {
+        promo.usedByOrderId = order.orderId;
+        promo.active = false;
+        promotionsApi.savePromotion(promo);
+      }
+    }
 
     return { ok: true, recovered: true };
   }
@@ -1937,6 +1966,7 @@ async function markOrderPaid(
     new Date().toISOString();
 
   saveOrder(order);
+
 
   if (order.telegramId) {
     await safeSendMessage(
@@ -2416,7 +2446,8 @@ app.post(
       const promotionResult =
         calculatePromotionDiscount(
           lineItems,
-          promosForThisOrder
+          promosForThisOrder,
+          telegramId
         );
 
       const promotionDiscountPence =
@@ -3421,6 +3452,7 @@ const pendingAdminNote =
   new Map();
 
 const pendingBulkStock = new Map();
+const pendingBulkCost = new Map();
 const pendingAddProduct = new Map();
 
 const pendingStockAdjustment =
@@ -3457,6 +3489,10 @@ if (bot) {
     );
 
     pendingBulkStock.delete(
+      chatId
+    );
+
+    pendingBulkCost.delete(
       chatId
     );
 
@@ -4354,9 +4390,23 @@ Choose an option.`,
             [
               {
                 text:
+                  "🧹 Clear unpaid holds",
+                callback_data:
+                  "admin_clear_unpaid"
+              }
+            ],
+            [
+              {
+                text:
                   "📋 Bulk Stock",
                 callback_data:
                   "admin_stock_bulk"
+              },
+              {
+                text:
+                  "💷 Bulk Cost",
+                callback_data:
+                  "admin_cost_bulk"
               }
             ],
             [
@@ -4773,7 +4823,7 @@ Open the shop, check what is on promotion, and see when stock has been added. If
   );
 
   bot.onText(
-    /^\/(?:order|oder)(?:@\w+)?(?:\s+#?(\d+))?(?:\s+(0x[a-fA-F0-9]{64}))?$/i,
+    /^\/(?:order|oder)(?:@\w+)?(?:\s+#?(\d+))?(?:\s+(paid|0x[a-fA-F0-9]{64}))?$/i,
 
     async (msg, match) => {
       const orderId = Number(match[1]);
@@ -4823,7 +4873,25 @@ Open the shop, check what is on promotion, and see when stock has been added. If
         );
       }
 
-      const hash = match[2];
+      const extra = match[2];
+
+      if (extra && extra.toLowerCase() === "paid") {
+        if (!isAdmin(msg.from?.id)) {
+          return safeSendMessage(msg.chat.id, "This command is admin-only.");
+        }
+        const result = await markOrderPaid(order);
+        if (!result.ok) {
+          return safeSendMessage(msg.chat.id, `❌ Could not mark order paid.\n\n${result.error}`);
+        }
+        return safeSendMessage(
+          msg.chat.id,
+          result.alreadyPaid
+            ? `ℹ️ Order #${order.orderId} was already paid.`
+            : `✅ Order #${order.orderId} marked paid. Stock has been taken.`
+        );
+      }
+
+      const hash = extra;
 
       if (hash) {
         const viewer = {
@@ -4952,6 +5020,29 @@ Reserved stock is now committed to the order.`
      Usage: /setstock PRODUCT_ID NEW_STOCK
      Example: /setstock 123 0
      ======================================================= */
+
+
+  bot.onText(
+    /^\/setcost(?:@\w+)?\s+(\d+)\s+([\d.]+)$/i,
+    async (msg, match) => {
+      if (!isAdmin(msg.from?.id)) {
+        return safeSendMessage(msg.chat.id, "This command is admin-only.");
+      }
+      const productId = Number(match[1]);
+      const product = productsById.get(productId);
+      if (!product) return safeSendMessage(msg.chat.id, `Product #${productId} not found.`);
+      const costPence = Math.round(Number(match[2]) * 100);
+      if (!Number.isFinite(costPence) || costPence < 0) {
+        return safeSendMessage(msg.chat.id, "Send a cost like 12 or 12.50");
+      }
+      db.prepare(`
+        INSERT INTO product_costs (product_id, cost_pence)
+        VALUES (?, ?)
+        ON CONFLICT(product_id) DO UPDATE SET cost_pence = excluded.cost_pence
+      `).run(productId, costPence);
+      return safeSendMessage(msg.chat.id, `✅ Cost saved\n\n${product.name}\n${money(costPence)} each`);
+    }
+  );
 
   bot.onText(
     /^\/setstock(?:@\w+)?\s+(\d+)\s+(\d+)$/i,
@@ -5210,6 +5301,7 @@ ${trackingNumber}`
       let storeCreditPence = 0;
       let unitsOrdered = 0;
       let unitsPaid = 0;
+      let costPence = 0;
 
       const productStats =
         new Map();
@@ -5324,6 +5416,8 @@ ${trackingNumber}`
               );
 
             unitsPaid += qty;
+            const cost = db.prepare("SELECT cost_pence FROM product_costs WHERE product_id = ?").get(Number(item.id));
+            costPence += Number(cost?.cost_pence || 0) * qty;
           }
         }
       }
@@ -5447,6 +5541,12 @@ ${paidOrders.length}
 
 Paid revenue:
 ${money(revenuePence)}
+
+Product cost:
+${money(costPence)}
+
+Profit:
+${money(revenuePence - shippingPence - costPence)}
 
 Shipping collected:
 ${money(shippingPence)}
@@ -6080,6 +6180,19 @@ Choose a period.`,
         const state = pendingPromotionCreate.get(chatId);
         if (!state || state.stage !== "stack") return;
         state.stackWithAffiliate = data === "admin_promo_stack_yes";
+        state.stage = "limit";
+        pendingPromotionCreate.set(chatId, state);
+        return safeSendMessage(
+          chatId,
+          `How many in one order get this price?\n\nExample: 2\nA second order can use the deal again.\nSend - for no limit.`
+        );
+      }
+
+      if (data === "admin_promo_one_yes" || data === "admin_promo_one_no") {
+        if (!isAdmin(q.from?.id)) return;
+        const state = pendingPromotionCreate.get(chatId);
+        if (!state || state.stage !== "onebuyer") return;
+        state.oneBuyer = data === "admin_promo_one_yes";
         state.stage = "confirm";
         pendingPromotionCreate.set(chatId, state);
         const draft = {
@@ -6092,6 +6205,8 @@ Choose a period.`,
           discountPence: state.discountPence,
           bundlePricePence: state.bundlePricePence,
           stackWithAffiliate: state.stackWithAffiliate,
+          maxUnits: state.maxUnits,
+          oneBuyer: state.oneBuyer,
           active: true
         };
         return safeSendMessage(
@@ -6136,6 +6251,8 @@ Choose a period.`,
           discountPence: state.discountPence || 0,
           bundlePricePence: state.bundlePricePence || 0,
           stackWithAffiliate: state.stackWithAffiliate !== false,
+          maxUnits: Number(state.maxUnits || 0),
+          oneBuyer: Boolean(state.oneBuyer),
           active: true,
           createdAt: new Date().toISOString()
         });
@@ -6327,6 +6444,43 @@ Stock Centre → All Stock`
         return safeSendMessage(
           chatId,
           `➕ ADD PRODUCT\n\nSend the product name.\n\n/admin to cancel.`
+        );
+      }
+
+      if (data === "admin_clear_unpaid") {
+        if (!isAdmin(q.from?.id)) return;
+        const holding = [...orders.values()].filter(order => order.paymentStatus === "awaiting_payment");
+        if (!holding.length) {
+          return safeSendMessage(chatId, "No unpaid orders are holding stock.");
+        }
+        for (const order of holding) {
+          restoreReservedStock(order);
+          restoreStoreCreditForOrder(order);
+          order.paymentStatus = "cancelled";
+          order.fulfilmentStatus = "cancelled";
+          order.cancelledAt = new Date().toISOString();
+          order.cancellationReason = "Cleared by admin. Unpaid order was holding stock.";
+          saveOrder(order);
+          if (order.telegramId) {
+            await safeSendMessage(
+              order.telegramId,
+              `❌ Order #${order.orderId} was cancelled because it was unpaid and holding stock. Open the shop to place it again if you still want it.`
+            );
+          }
+        }
+        return safeSendMessage(
+          chatId,
+          `✅ Cleared ${holding.length} unpaid order${holding.length === 1 ? "" : "s"}. Held stock is back.`
+        );
+      }
+
+      if (data === "admin_cost_bulk") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingBulkCost.set(chatId, true);
+        return safeSendMessage(
+          chatId,
+          `💷 BULK COST\n\nSend one product per line:\n\n12 8.50\n13 4\n14 11.25\n\nID then the cost each. /admin to cancel.`
         );
       }
 
@@ -7200,6 +7354,25 @@ Tap Open Shop to launch the Mini App.`
           });
         }
 
+        if (state.stage === "limit") {
+          const raw = text.trim();
+          const maxUnits = raw === "-" ? 0 : Number(raw);
+          if (raw !== "-" && (!Number.isInteger(maxUnits) || maxUnits < 1)) {
+            return safeSendMessage(chatId, "Send a whole number, or - for no limit.");
+          }
+          state.maxUnits = maxUnits;
+          state.stage = "onebuyer";
+          pendingPromotionCreate.set(chatId, state);
+          return safeSendMessage(chatId, "Only one buyer can use this deal?", {
+            reply_markup: {
+              inline_keyboard: [[
+                { text: "Yes, one buyer", callback_data: "admin_promo_one_yes" },
+                { text: "No limit", callback_data: "admin_promo_one_no" }
+              ]]
+            }
+          });
+        }
+
         return;
       }
 
@@ -7602,6 +7775,33 @@ ${text}`
           pendingAddProduct.delete(chatId);
           return safeSendMessage(chatId, `✅ Product added\n\n#${nextId} ${product.name}\n${money(product.pricePence)}\nStock: ${stock}`);
         }
+      }
+
+      if (pendingBulkCost.has(chatId) && isAdmin(msg.from?.id)) {
+        const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
+        const updated = [];
+        const failed = [];
+        for (const line of lines) {
+          const parts = line.replace(/^#/, "").split(/\s+/);
+          const productId = Number(parts[0]);
+          const costPence = Math.round(Number(parts[1]) * 100);
+          const product = productsById.get(productId);
+          if (!product || !Number.isFinite(costPence) || costPence < 0) {
+            failed.push(line);
+            continue;
+          }
+          db.prepare(`
+            INSERT INTO product_costs (product_id, cost_pence)
+            VALUES (?, ?)
+            ON CONFLICT(product_id) DO UPDATE SET cost_pence = excluded.cost_pence
+          `).run(productId, costPence);
+          updated.push(`${product.name}: ${money(costPence)}`);
+        }
+        pendingBulkCost.delete(chatId);
+        return safeSendMessage(
+          chatId,
+          `✅ BULK COST\n\nUpdated ${updated.length}:\n${updated.join("\n") || "None"}${failed.length ? `\n\nSkipped:\n${failed.join("\n")}` : ""}`
+        );
       }
 
       if (pendingBulkStock.has(chatId) && isAdmin(msg.from?.id)) {
