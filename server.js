@@ -4499,32 +4499,20 @@ Choose an option.`,
                   "➕ Add Stock",
                 callback_data:
                   "admin_stock_add"
-              },
-              {
-                text:
-                  "💷 Bulk Price",
-                callback_data:
-                  "admin_price_bulk"
-              },
-              {
-                text:
-                  "💷 Bulk Cost",
-                callback_data:
-                  "admin_cost_bulk"
               }
             ],
             [
               {
                 text:
-                  "➕ Add Product",
+                  "➕ Add Products",
                 callback_data:
-                  "admin_add_product"
+                  "admin_add_products"
               },
               {
                 text:
-                  "➕ Bulk Add Products",
+                  "💷 Set Price",
                 callback_data:
-                  "admin_add_products"
+                  "admin_price_bulk"
               }
             ],
             [
@@ -4533,12 +4521,6 @@ Choose an option.`,
                   "📋 Product IDs",
                 callback_data:
                   "admin_product_ids"
-              },
-              {
-                text:
-                  "💷 Change Price",
-                callback_data:
-                  "admin_price_change"
               }
             ],
             [
@@ -6581,7 +6563,7 @@ Stock Centre → All Stock`
         pendingBulkProducts.set(chatId, true);
         return safeSendMessage(
           chatId,
-          `➕ BULK ADD PRODUCTS\n\nOne product per line:\n\nName | Category | Price | Stock | Description\n\nExample:\nTest E 300 | Oils | 32 | 10 | 10ml vial\nAnavar 50 | Orals | 45 | 8 | 50 tablets\n\nDescription can be left off. /admin to cancel.`
+          `➕ ADD PRODUCTS\n\nOne product per line, or just one.\n\nName | Category | Price | Stock | Description\n\nExample:\nTest E 300 | Oils | 32 | 10 | 10ml vial\n\nDescription can be left off. /admin to cancel.`
         );
       }
 
@@ -6645,7 +6627,7 @@ Stock Centre → All Stock`
         pendingBulkPrice.set(chatId, true);
         return safeSendMessage(
           chatId,
-          `💷 BULK PRICE\n\nSets the selling price. One product per line.\n\n311 3\n415 3\n\nID then the price in pounds. /admin to cancel.`
+          `💷 SET PRICE\n\nThis is the selling price. One or many lines.\n\n311 3\n415 12.50\n\nID then the price. /admin to cancel.`
         );
       }
 
@@ -6655,7 +6637,7 @@ Stock Centre → All Stock`
         pendingBulkCost.set(chatId, true);
         return safeSendMessage(
           chatId,
-          `💷 BULK COST\n\nSend one product per line:\n\n12 8.50\n13 4\n14 11.25\n\nID then the cost each. /admin to cancel.`
+          `🧾 SET COST\n\nThis is what it costs you, for the profit figure. Not the selling price.\n\n12 8.50\n13 4\n\nID then the cost. /admin to cancel.`
         );
       }
 
