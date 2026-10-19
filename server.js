@@ -3942,6 +3942,12 @@ const cancelled =
       buttons.push([
         {
           text:
+            "📦 Mark Dispatched",
+          callback_data:
+            `admin_dispatch_${order.orderId}`
+        },
+        {
+          text:
             "🚚 Add Tracking",
           callback_data:
             `admin_tracking_${order.orderId}`
