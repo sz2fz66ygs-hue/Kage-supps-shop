@@ -3561,6 +3561,7 @@ const pendingPromotionEdit =
   new Map();
 
 const pendingBulkPrice = new Map();
+const pendingBroadcast = new Map();
 
 const pendingPriceChange =
   new Map();
@@ -3615,6 +3616,10 @@ if (bot) {
     );
 
     pendingBulkPrice.delete(
+      chatId
+    );
+
+    pendingBroadcast.delete(
       chatId
     );
   }
@@ -3738,6 +3743,12 @@ if (bot) {
       reply_markup: {
         inline_keyboard: [
           [
+            {
+              text:
+                "📣 Send Message",
+              callback_data:
+                "admin_broadcast"
+            },
             {
               text:
                 "📦 Orders",
@@ -5980,6 +5991,13 @@ The review has been removed.`,
       }
 
       /* DISPATCH */
+
+      if (data === "admin_broadcast") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingBroadcast.set(chatId, true);
+        return safeSendMessage(chatId, "📣 SEND MESSAGE\n\nSend the message to go to everyone who has ordered.\n\n/admin to cancel.");
+      }
 
       if (data === "admin_orders_home") {
         if (!isAdmin(q.from?.id)) return;
@@ -8684,6 +8702,12 @@ ${text}`
           pendingAddProduct.delete(chatId);
           return safeSendMessage(chatId, `✅ Product added\n\n#${nextId} ${product.name}\n${money(product.pricePence)}\nStock: ${stock}`);
         }
+      }
+
+      if (pendingBroadcast.has(chatId) && isAdmin(msg.from?.id)) {
+        pendingBroadcast.delete(chatId);
+        await sendCustomerBroadcast(text.slice(0, 3500));
+        return safeSendMessage(chatId, "✅ Message sent.");
       }
 
       if (pendingBulkPrice.has(chatId) && isAdmin(msg.from?.id)) {
