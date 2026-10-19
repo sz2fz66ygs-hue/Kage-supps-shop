@@ -3944,7 +3944,7 @@ const cancelled =
           text:
             "📦 Mark Dispatched",
           callback_data:
-            `admin_dispatch_${order.orderId}`
+            `disp_${order.orderId}`
         },
         {
           text:
@@ -4035,6 +4035,10 @@ const cancelled =
             .join("\n")
         : "None";
 
+    await safeSendMessage(chatId, `📦 ORDER #${order.orderId}\n${getOrderStatusText(order)}`);
+    await safeSendMessage(chatId, order.customerName || "No name");
+    await safeSendMessage(chatId, order.address || "No address");
+    await safeSendMessage(chatId, items);
     return safeSendMessage(
       chatId,
 
@@ -5694,6 +5698,27 @@ ${productLines || "No activity in the last 7 days."}`
           ""
         );
 
+      if (data.startsWith("disp_")) {
+        if (!isAdmin(q.from?.id)) return;
+        const orderId = Number(data.replace("disp_", ""));
+        const order = orders.get(orderId);
+        if (!order || order.paymentStatus !== "paid") {
+          return safeSendMessage(chatId, "Paid order not found.");
+        }
+        order.fulfilmentStatus = "shipped";
+        order.shippedAt = new Date().toISOString();
+        saveOrder(order);
+        try { await bot.answerCallbackQuery(q.id, { text: "Marked dispatched" }); } catch {}
+        if (order.telegramId) {
+          await safeSendMessage(
+            order.telegramId,
+            `📦 Your order has been dispatched\n\nOrder #${orderId}\n\nTracking will be added when it is available.`
+          );
+        }
+        await safeSendMessage(chatId, `✅ Order #${orderId} marked dispatched.`);
+        return showAdminOrder(chatId, order);
+      }
+
       /* REVIEW APPROVE */
 
       if (
@@ -6045,15 +6070,9 @@ The review has been removed.`,
           return;
         }
 
-        const list =
-          getRecentOrders(100)
-            .filter(
-              order =>
-                order.paymentStatus ===
-                  "paid" &&
-                order.fulfilmentStatus !==
-                  "shipped"
-            );
+        const list = [...orders.values()]
+          .filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped")
+          .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
 
         return showOrderList(
           chatId,
@@ -6925,6 +6944,26 @@ Customers can no longer use the store-wide promo code.`,
           chatId,
           order
         );
+      }
+
+      if (data.startsWith("admin_dispatch_")) {
+        if (!isAdmin(q.from?.id)) return;
+        const orderId = Number(data.replace("admin_dispatch_", ""));
+        const order = orders.get(orderId);
+        if (!order || order.paymentStatus !== "paid") {
+          return safeSendMessage(chatId, "Paid order not found.");
+        }
+        order.fulfilmentStatus = "shipped";
+        order.shippedAt = new Date().toISOString();
+        saveOrder(order);
+        if (order.telegramId) {
+          await safeSendMessage(
+            order.telegramId,
+            `📦 Your order has been dispatched\n\nOrder #${orderId}\n\nTracking will be added when it is available.`
+          );
+        }
+        await notifyAdmins(`📦 Order #${orderId} marked dispatched.`);
+        return showAdminOrder(chatId, order);
       }
 
       /* ADMIN TRACKING */
