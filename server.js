@@ -3808,10 +3808,6 @@ if (bot) {
             {
               text: "🏷 Promotions Manager",
               callback_data: "admin_promotions"
-            },
-            {
-              text: "💷 Change Price",
-              callback_data: "admin_price_change"
             }
           ]
         ]
@@ -6392,11 +6388,10 @@ Choose a period.`,
           active: true,
           createdAt: new Date().toISOString()
         });
-        pendingPromotionCreate.delete(chatId);
         const promo = promotionsApi.getPromotion(id);
         await sendCustomerBroadcast(`🏷 NEW PROMOTION\n\n${promoOfferText(promo)}\n\nOpen the shop to use it.`);
-        await safeSendMessage(chatId, `✅ Promotion #${id} is live. Customers have been messaged.`);
-        return sendPromotionsHome(chatId);
+        pendingPromotionCreate.set(chatId, { stage: "name" });
+        return safeSendMessage(chatId, `✅ Promotion #${id} is live. Customers have been messaged.\n\nSend the next promotion name, or /admin to stop.`);
       }
 
       if (data === "admin_price_change") {
@@ -8448,10 +8443,6 @@ Tap Open Shop to launch the Mini App.`
         ) &&
         isAdmin(msg.from?.id)
       ) {
-        pendingAdminOrderLookup.delete(
-          chatId
-        );
-
         const orderId =
           Number(
             text.replace(
@@ -8466,14 +8457,12 @@ Tap Open Shop to launch the Mini App.`
         if (!order) {
           return safeSendMessage(
             chatId,
-            "❌ Order not found."
+            "❌ Order not found. Send another number, or /admin to stop."
           );
         }
 
-        return showAdminOrder(
-          chatId,
-          order
-        );
+        await showAdminOrder(chatId, order);
+        return safeSendMessage(chatId, "Send another order number, or /admin to stop.");
       }
 
       /* ADMIN TRACKING INPUT */
@@ -8484,14 +8473,18 @@ Tap Open Shop to launch the Mini App.`
         ) &&
         isAdmin(msg.from?.id)
       ) {
-        const orderId =
-          pendingAdminTracking.get(
-            chatId
-          );
+        const trackingState = pendingAdminTracking.get(chatId);
+        if (trackingState && trackingState.stage === "order") {
+          const nextId = Number(String(text).replace(/^#/, ""));
+          const nextOrder = orders.get(nextId);
+          if (!nextOrder || nextOrder.paymentStatus !== "paid") {
+            return safeSendMessage(chatId, "Paid order not found. Send another number, or /admin to stop.");
+          }
+          pendingAdminTracking.set(chatId, nextId);
+          return safeSendMessage(chatId, `🚚 ADD TRACKING\n\nOrder #${nextId}\n\nSend the tracking number.`);
+        }
 
-        pendingAdminTracking.delete(
-          chatId
-        );
+        const orderId = trackingState;
 
         const order =
           orders.get(orderId);
@@ -8514,16 +8507,10 @@ Tap Open Shop to launch the Mini App.`
 
         saveOrder(order);
 
+        pendingAdminTracking.set(chatId, { stage: "order" });
         await safeSendMessage(
           chatId,
-
-`✅ Tracking saved
-
-Order:
-#${orderId}
-
-Tracking:
-${text}`
+          `✅ Tracking saved\n\nOrder #${orderId}\n${text}\n\nSend the next order number, or /admin to stop.`
         );
 
         if (order.telegramId) {
@@ -8551,14 +8538,16 @@ ${text}`
         ) &&
         isAdmin(msg.from?.id)
       ) {
-        const orderId =
-          pendingAdminNote.get(
-            chatId
-          );
+        const noteState = pendingAdminNote.get(chatId);
+        if (noteState && noteState.stage === "order") {
+          const nextId = Number(String(text).replace(/^#/, ""));
+          const nextOrder = orders.get(nextId);
+          if (!nextOrder) return safeSendMessage(chatId, "Order not found. Send another number, or /admin to stop.");
+          pendingAdminNote.set(chatId, nextId);
+          return safeSendMessage(chatId, `📝 NOTE\n\nOrder #${nextId}\n\nSend the note.`);
+        }
 
-        pendingAdminNote.delete(
-          chatId
-        );
+        const orderId = noteState;
 
         const order =
           orders.get(orderId);
@@ -8590,14 +8579,10 @@ ${text}`
 
         saveOrder(order);
 
-        await safeSendMessage(
+        pendingAdminNote.set(chatId, { stage: "order" });
+        return safeSendMessage(
           chatId,
-          `✅ Note added to order #${orderId}.`
-        );
-
-        return showAdminOrder(
-          chatId,
-          order
+          `✅ Note added to order #${orderId}.\n\nSend the next order number, or /admin to stop.`
         );
       }
 
@@ -8638,10 +8623,9 @@ ${text}`
           path.join(__dirname, "public", "products.json"),
           JSON.stringify(products.map(({ priceOverridden, cataloguePricePence, ...item }) => item), null, 2)
         );
-        pendingBulkProducts.delete(chatId);
         return safeSendMessage(
           chatId,
-          `✅ PRODUCTS ADDED\n\n${added.join("\n") || "None"}${failed.length ? `\n\nSkipped:\n${failed.join("\n")}` : ""}`
+          `✅ PRODUCTS ADDED\n\n${added.join("\n") || "None"}${failed.length ? `\n\nSkipped:\n${failed.join("\n")}` : ""}\n\nSend another, or /admin to stop.`
         );
       }
 
@@ -8705,9 +8689,8 @@ ${text}`
       }
 
       if (pendingBroadcast.has(chatId) && isAdmin(msg.from?.id)) {
-        pendingBroadcast.delete(chatId);
         await sendCustomerBroadcast(text.slice(0, 3500));
-        return safeSendMessage(chatId, "✅ Message sent.");
+        return safeSendMessage(chatId, "✅ Message sent.\n\nSend another, or /admin to stop.");
       }
 
       if (pendingBulkPrice.has(chatId) && isAdmin(msg.from?.id)) {
@@ -8726,10 +8709,9 @@ ${text}`
           promotionsApi.setPriceOverride(productId, Math.round(pounds * 100));
           updated.push(`${product.name}: ${money(Math.round(pounds * 100))}`);
         }
-        pendingBulkPrice.delete(chatId);
         return safeSendMessage(
           chatId,
-          `✅ PRICES SET\n\n${updated.join("\n") || "None"}${failed.length ? `\n\nSkipped:\n${failed.join("\n")}` : ""}`
+          `✅ PRICES SET\n\n${updated.join("\n") || "None"}${failed.length ? `\n\nSkipped:\n${failed.join("\n")}` : ""}\n\nSend another, or /admin to stop.`
         );
       }
 
@@ -8782,13 +8764,12 @@ ${text}`
           updated.push(mode === "add" ? `${product.name}: ${oldStock} + ${amount} = ${newStock}` : `${product.name}: ${newStock}`);
         }
 
-        pendingBulkStock.delete(chatId);
         const addedLines = updated.filter(line => line.includes("+"));
         if (addedLines.length) await sendRestockNotices(addedLines.map(line => line.split(":")[0] + " is back in stock"));
 
         return safeSendMessage(
           chatId,
-          `✅ BULK STOCK\n\nUpdated ${updated.length}:\n${updated.join("\n") || "None"}${failed.length ? `\n\nSkipped:\n${failed.join("\n")}` : ""}`
+          `✅ STOCK UPDATED\n\n${updated.join("\n") || "None"}${failed.length ? `\n\nSkipped:\n${failed.join("\n")}` : ""}\n\nSend another, or /admin to stop.`
         );
       }
 
@@ -8893,19 +8874,22 @@ Example:
           );
           await recordStockChange(product, oldStock, newStock);
 
-          pendingStockAdjustment.delete(
-            chatId
-          );
+          const doneName = product?.name || `Product #${state.productId}`;
+          state.stage = "product";
+          delete state.productId;
+          pendingStockAdjustment.set(chatId, state);
 
           return safeSendMessage(
             chatId,
 
 `✅ STOCK UPDATED
 
-${product?.name || `Product #${state.productId}`}
+${doneName}
 
 New stock:
-${newStock}`,
+${newStock}
+
+Send another product ID, or /admin to stop.`,
 
             {
               reply_markup: {
