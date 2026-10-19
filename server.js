@@ -1747,6 +1747,46 @@ async function recordStockChange(product, oldStock, newStock) {
       `📦 STOCK ADDED\n\n${product.name}\n+${added} now in stock\n${Number(oldStock || 0)} → ${Number(newStock)}`
     );
   }
+
+}
+
+const restockQueue = new Set();
+let restockTimer = null;
+
+function queueRestockNotice(line) {
+  restockQueue.add(line);
+  clearTimeout(restockTimer);
+  restockTimer = setTimeout(sendRestockNotices, 4000);
+}
+
+async function sendCustomerBroadcast(message) {
+  const ids = new Set(
+    [...orders.values()].map(order => order.telegramId).filter(Boolean).map(String)
+  );
+  for (const id of configuredAdminIds) ids.delete(String(id));
+  for (const id of ids) await safeSendMessage(id, message);
+}
+
+function promoOfferText(promo) {
+  if (promo.type === "fixed_bundle") return `${promo.name}: ${promo.requiredQuantity} for ${money(promo.bundlePricePence)}`;
+  if (promo.type === "fixed_amount") return `${promo.name}: ${money(promo.discountPence)} off`;
+  return `${promo.name}: ${promo.discountPercent}% off`;
+}
+
+async function sendRestockNotices(lines = [...restockQueue]) {
+  restockQueue.clear();
+  if (!lines.length) return;
+  const ids = new Set(
+    [...orders.values()]
+      .map(order => order.telegramId)
+      .filter(Boolean)
+      .map(String)
+  );
+  for (const id of configuredAdminIds) ids.delete(String(id));
+  const message = `📦 RESTOCK\n\n${lines.join("\n")}\n\nOpen the shop to order.`;
+  for (const id of ids) {
+    await safeSendMessage(id, message);
+  }
 }
 
 async function notifyAdmins(message, options) {
@@ -3700,41 +3740,9 @@ if (bot) {
           [
             {
               text:
-                "📦 Recent Orders",
+                "📦 Orders",
               callback_data:
-                "admin_recent_orders"
-            },
-            {
-              text:
-                "🗂 All Orders",
-              callback_data:
-                "admin_all_orders_0"
-            },
-            {
-              text:
-                "⏳ Payments",
-              callback_data:
-                "admin_payments"
-            }
-          ],
-          [
-            {
-              text:
-                "✅ Paid",
-              callback_data:
-                "admin_paid_orders"
-            },
-            {
-              text:
-                "🚚 Shipped",
-              callback_data:
-                "admin_shipped_orders"
-            },
-            {
-              text:
-                "🚚 Dispatch Queue",
-              callback_data:
-                "admin_dispatch"
+                "admin_orders_home"
             },
             {
               text:
@@ -4468,6 +4476,12 @@ Choose an option.`,
             [
               {
                 text:
+                  "📣 Send restock message",
+                callback_data:
+                  "admin_send_restock"
+              },
+              {
+                text:
                   "🧹 Clear unpaid holds",
                 callback_data:
                   "admin_clear_unpaid"
@@ -4511,6 +4525,20 @@ Choose an option.`,
                   "➕ Bulk Add Products",
                 callback_data:
                   "admin_add_products"
+              }
+            ],
+            [
+              {
+                text:
+                  "📋 Product IDs",
+                callback_data:
+                  "admin_product_ids"
+              },
+              {
+                text:
+                  "💷 Change Price",
+                callback_data:
+                  "admin_price_change"
               }
             ],
             [
@@ -4598,12 +4626,6 @@ Choose an option.`,
         },
         {
           text:
-            "📦 Stock Added",
-          callback_data:
-            "stock_added"
-        },
-        {
-          text:
             "⭐ Reviews",
           callback_data:
             "reviews"
@@ -4647,7 +4669,6 @@ Open the shop, check what is on promotion, and see when stock has been added. If
 
 🛍 Open Shop
 🏷 Promotions
-📦 Stock Added
 📦 My Orders
 💬 Support
 ⭐ Reviews
@@ -4805,27 +4826,6 @@ Open the shop, check what is on promotion, and see when stock has been added. If
   );
 
   bot.onText(
-    /^\/stock(?:@\w+)?$/i,
-    async msg => {
-      const rows = db.prepare(`
-        SELECT product_name, added, new_stock, created_at
-        FROM stock_updates
-        ORDER BY id DESC
-        LIMIT 20
-      `).all();
-
-      if (!rows.length) {
-        return safeSendMessage(msg.chat.id, "No stock has been added yet.");
-      }
-
-      const lines = rows.map(row =>
-        `${row.product_name}: +${row.added} (now ${row.new_stock})`
-      );
-      return safeSendMessage(msg.chat.id, `📦 STOCK ADDED\n\n${lines.join("\n")}`);
-    }
-  );
-
-  bot.onText(
     /^\/setstockgroup(?:@\w+)?$/i,
     async msg => {
       if (!isAdmin(msg.from?.id)) {
@@ -4848,7 +4848,7 @@ Open the shop, check what is on promotion, and see when stock has been added. If
         telegramUsername: msg.from?.username
       };
       const mine = [...orders.values()]
-        .filter(order => isAdmin(msg.from?.id) ? true : orderBelongsToViewer(order, viewer))
+        .filter(order => isAdmin(msg.from?.id) ? true : orderBelongsToViewer(order, viewer) && order.paymentStatus !== "cancelled")
         .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
         .slice(0, isAdmin(msg.from?.id) ? 15 : 20);
 
@@ -5999,6 +5999,22 @@ The review has been removed.`,
 
       /* DISPATCH */
 
+      if (data === "admin_orders_home") {
+        if (!isAdmin(q.from?.id)) return;
+        return safeSendMessage(chatId, "📦 ORDERS", {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "⏳ Waiting payment", callback_data: "admin_payments" }],
+              [{ text: "✅ Paid", callback_data: "admin_paid_orders" }],
+              [{ text: "🚚 Shipped", callback_data: "admin_shipped_orders" }],
+              [{ text: "📤 Dispatch queue", callback_data: "admin_dispatch" }],
+              [{ text: "🗂 All orders", callback_data: "admin_all_orders_0" }],
+              [{ text: "⬅️ Admin Dashboard", callback_data: "admin_dashboard" }]
+            ]
+          }
+        });
+      }
+
       if (data === "admin_paid_orders") {
         if (!isAdmin(q.from?.id)) return;
         const list = [...orders.values()]
@@ -6197,19 +6213,20 @@ Choose a period.`,
           reply_markup: {
             inline_keyboard: [
               [
-                { text: "📋 View Product IDs", callback_data: "admin_product_ids" },
-                { text: "➕ Create Promotion", callback_data: "admin_promo_create" }
+                { text: "➕ Create Promotion", callback_data: "admin_promo_create" },
+                { text: "🏷 Active Promotions", callback_data: "admin_promo_list" }
               ],
               [
-                { text: "🏷 Active Promotions", callback_data: "admin_promo_list" },
-                { text: "✏️ Edit Promotion", callback_data: "admin_promo_edit" }
+                { text: "✏️ Edit Promotion", callback_data: "admin_promo_edit" },
+                { text: "⏯ Enable / Disable", callback_data: "admin_promo_toggle" }
               ],
               [
-                { text: "⏯ Enable / Disable", callback_data: "admin_promo_toggle" },
                 { text: "🗑 Delete Promotion", callback_data: "admin_promo_delete" }
               ],
               [
-                { text: "💷 Change Price", callback_data: "admin_price_change" },
+                { text: "📣 Send promotions", callback_data: "admin_send_promos" }
+              ],
+              [
                 { text: "⬅️ Admin Dashboard", callback_data: "admin_dashboard" }
               ]
             ]
@@ -6225,6 +6242,14 @@ Choose a period.`,
           `🏷 PROMOTIONS MANAGER\n\nPromotions: ${promos.length}\nActive: ${active}\n\nCreate an offer, pause it, or change a product price. Checkout uses these rules on the server.`,
           promotionMenu()
         );
+      }
+
+      if (data === "admin_send_promos") {
+        if (!isAdmin(q.from?.id)) return;
+        const promos = promotionsApi.loadPromotions().filter(promo => promo.active);
+        if (!promos.length) return safeSendMessage(chatId, "No active promotions to send.");
+        await sendCustomerBroadcast(`🏷 PROMOTIONS\n\n${promos.map(promoOfferText).join("\n")}\n\nOpen the shop to use them.`);
+        return safeSendMessage(chatId, `✅ Promotion message sent for ${promos.length}.`);
       }
 
       if (data === "admin_promotions") {
@@ -6368,7 +6393,9 @@ Choose a period.`,
           createdAt: new Date().toISOString()
         });
         pendingPromotionCreate.delete(chatId);
-        await safeSendMessage(chatId, `✅ Promotion #${id} is live.`);
+        const promo = promotionsApi.getPromotion(id);
+        await sendCustomerBroadcast(`🏷 NEW PROMOTION\n\n${promoOfferText(promo)}\n\nOpen the shop to use it.`);
+        await safeSendMessage(chatId, `✅ Promotion #${id} is live. Customers have been messaged.`);
         return sendPromotionsHome(chatId);
       }
 
@@ -6566,6 +6593,23 @@ Stock Centre → All Stock`
           chatId,
           `➕ ADD PRODUCT\n\nSend the product name.\n\n/admin to cancel.`
         );
+      }
+
+      if (data === "admin_send_restock") {
+        if (!isAdmin(q.from?.id)) return;
+        const rows = db.prepare(`
+          SELECT product_id, product_name, MAX(id) AS latest
+          FROM stock_updates
+          GROUP BY product_id
+          ORDER BY latest DESC
+          LIMIT 20
+        `).all();
+        const lines = rows
+          .map(row => Number(getLiveStock(row.product_id) || 0) > 0 ? `${row.product_name} is back in stock` : null)
+          .filter(Boolean);
+        if (!lines.length) return safeSendMessage(chatId, "Nothing recently added is still in stock.");
+        await sendRestockNotices(lines);
+        return safeSendMessage(chatId, `✅ Restock message sent for ${lines.length} products.`);
       }
 
       if (data === "admin_clear_unpaid") {
@@ -7211,7 +7255,699 @@ This will mark the order as cancelled.`,
                 orderBelongsToViewer(
                   order,
                   viewer
+                ) &&
+                order.paymentStatus !== "cancelled"
+            )
+            .sort(
+              (
+                a,
+                b
+              ) =>
+                new Date(
+                  b.createdAt ||
+                  0
+                ) -
+                new Date(
+                  a.createdAt ||
+                  0
                 )
+            )
+            .slice(0, 10);
+
+        if (!matches.length) {
+          return safeSendMessage(
+            chatId,
+
+`📦 My Orders
+
+No orders found yet.`
+          );
+        }
+
+        const lines =
+          matches.map(
+            order => {
+              const tracking =
+                order.trackingNumber
+                  ? `\nTracking: ${order.trackingNumber}`
+                  : "";
+
+              return (
+                `#${order.orderId} — ` +
+                `${money(order.totalPence)} — ` +
+                `${getOrderStatusText(order)}` +
+                tracking
+              );
+            }
+          );
+
+        return safeSendMessage(
+          chatId,
+
+`📦 My Orders
+
+${lines.join("\n\n")}`
+        );
+      }
+
+      /* SUPPORT */
+
+      if (
+        data ===
+        "support"
+      ) {
+        if (
+          !supportTelegramIds.length
+        ) {
+          return safeSendMessage(
+            chatId,
+
+`💬 Support
+
+Support isn't configured yet.`
+          );
+        }
+
+        pendingSupport.add(chatId);
+
+        return safeSendMessage(
+          chatId,
+
+`💬 Support
+
+Send your message below.`
+        );
+      }
+
+      if (data.startsWith("received_")) {
+        const orderId = Number(data.replace("received_", ""));
+        const order = orders.get(orderId);
+        if (!order) return safeSendMessage(chatId, "Order not found.");
+        const viewer = { telegramId: q.from?.id, telegramUsername: q.from?.username };
+        if (!orderBelongsToViewer(order, viewer)) {
+          return safeSendMessage(chatId, "That order is not on this account.");
+        }
+        order.fulfilmentStatus = "delivered";
+        order.receivedAt = new Date().toISOString();
+        saveOrder(order);
+        await notifyAdmins(`✅ Order #${orderId} marked received by ${order.customerName}.`);
+        return safeSendMessage(chatId, `✅ Thanks. Order #${orderId} is marked as received.`);
+      }
+
+      if (data === "promotions") {
+        const promos = promotionsApi.loadPromotions().filter(promo => promo.active);
+        if (!promos.length) {
+          return safeSendMessage(chatId, "🏷 Promotions\n\nNo promotions are running right now.");
+        }
+        const lines = promos.map(promo => {
+          const rule = promo.type === "fixed_bundle"
+            ? `${promo.requiredQuantity} for ${money(promo.bundlePricePence)}`
+            : promo.type === "fixed_amount"
+              ? `${money(promo.discountPence)} off`
+              : `${promo.discountPercent}% off`;
+          return `${promo.name}\n${rule}`;
+        });
+        return safeSendMessage(chatId, `🏷 RUNNING PROMOTIONS\n\n${lines.join("\n\n")}`);
+      }
+
+      /* REVIEWS */
+
+      if (
+        data ===
+        "admin_reviews"
+      ) {
+        if (
+          !isAdmin(
+            q.from?.id
+          )
+        ) {
+          return;
+        }
+
+        return sendPendingReviews(
+          chatId
+        );
+      }
+
+      /* EARNINGS */
+
+      if (
+        data ===
+        "admin_earnings"
+      ) {
+        if (
+          !isAdmin(
+            q.from?.id
+          )
+        ) {
+          return;
+        }
+
+        return sendLongMessage(
+          chatId,
+          getAffiliateEarningsText()
+        );
+      }
+
+      /* STORE-WIDE PROMO */
+
+      if (
+        data ===
+        "admin_storewide_promo"
+      ) {
+        if (!isAdmin(q.from?.id)) return;
+
+        const promo = getStorewidePromo();
+        const live = isStorewidePromoLive(promo);
+
+        return safeSendMessage(
+          chatId,
+
+`🎉 STORE-WIDE PROMO
+
+Code:
+${promo.code}
+
+Discount:
+${promo.discountPercent}%
+
+Stacks with affiliate codes:
+YES
+
+Status:
+${live ? "🟢 ACTIVE" : "🔴 OFF"}
+
+${
+  live
+    ? "Customers can use the promo code now."
+    : "The promo code is currently disabled."
+}`,
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  {
+                    text: live
+                      ? "⏸ Turn Promo Off"
+                      : "▶️ Turn Promo On",
+                    callback_data:
+                      "admin_storewide_toggle"
+                  }
+                ],
+                [
+                  {
+                    text:
+                      "⬅️ Admin Dashboard",
+                    callback_data:
+                      "admin_dashboard"
+                  }
+                ]
+              ]
+            }
+          }
+        );
+      }
+
+      if (
+        data ===
+        "admin_storewide_toggle"
+      ) {
+        if (!isAdmin(q.from?.id)) return;
+
+        const promo = getStorewidePromo();
+        const newState = !promo.active;
+
+        setMetaValue(
+          "storewidePromo:active",
+          newState ? "true" : "false"
+        );
+
+        const updated = getStorewidePromo();
+
+        return safeSendMessage(
+          chatId,
+          updated.active
+            ? `✅ ${updated.code} is now LIVE.
+
+Customers can now use the code for ${updated.discountPercent}% off.
+
+It will stay active until you manually turn it off.`
+            : `⏸ ${updated.code} has been switched OFF.
+
+Customers can no longer use the store-wide promo code.`,
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  {
+                    text:
+                      "🎉 Promo Settings",
+                    callback_data:
+                      "admin_storewide_promo"
+                  }
+                ],
+                [
+                  {
+                    text:
+                      "⬅️ Admin Dashboard",
+                    callback_data:
+                      "admin_dashboard"
+                  }
+                ]
+              ]
+            }
+          }
+        );
+      }
+
+      /* OPEN ADMIN ORDER */
+
+      if (
+        data.startsWith(
+          "admin_order_"
+        )
+      ) {
+        if (
+          !isAdmin(
+            q.from?.id
+          )
+        ) {
+          return;
+        }
+
+        const orderId =
+          Number(
+            data.replace(
+              "admin_order_",
+              ""
+            )
+          );
+
+        const order =
+          orders.get(orderId);
+
+        if (!order) {
+          return safeSendMessage(
+            chatId,
+            "Order not found."
+          );
+        }
+
+        return showAdminOrder(
+          chatId,
+          order
+        );
+      }
+
+      /* ADMIN MARK PAID */
+
+      if (
+        data.startsWith(
+          "admin_paid_"
+        )
+      ) {
+        if (
+          !isAdmin(
+            q.from?.id
+          )
+        ) {
+          return;
+        }
+
+        const orderId =
+          Number(
+            data.replace(
+              "admin_paid_",
+              ""
+            )
+          );
+
+        const order =
+          orders.get(orderId);
+
+        if (!order) {
+          return safeSendMessage(
+            chatId,
+            "Order not found."
+          );
+        }
+
+        const result =
+          await markOrderPaid(
+            order
+          );
+
+        if (!result.ok) {
+          return safeSendMessage(
+            chatId,
+            `❌ ${result.error}`
+          );
+        }
+
+        await safeSendMessage(
+          chatId,
+          result.alreadyPaid
+            ? `ℹ️ Order #${orderId} was already paid.`
+            : `✅ Order #${orderId} marked paid. Reserved stock committed.`
+        );
+
+        return showAdminOrder(
+          chatId,
+          order
+        );
+      }
+
+      /* ADMIN TRACKING */
+
+      if (
+        data.startsWith(
+          "admin_tracking_"
+        )
+      ) {
+        if (
+          !isAdmin(
+            q.from?.id
+          )
+        ) {
+          return;
+        }
+
+        const orderId =
+          Number(
+            data.replace(
+              "admin_tracking_",
+              ""
+            )
+          );
+
+        const order =
+          orders.get(orderId);
+
+        if (
+          !order ||
+          order.paymentStatus !==
+          "paid"
+        ) {
+          return safeSendMessage(
+            chatId,
+            "Paid order not found."
+          );
+        }
+
+        clearAdminInputs(chatId);
+
+        pendingAdminTracking.set(
+          chatId,
+          orderId
+        );
+
+        return safeSendMessage(
+          chatId,
+
+`🚚 ADD TRACKING
+
+Order:
+#${orderId}
+
+Send the tracking number.`
+        );
+      }
+
+      /* ADMIN NOTE */
+
+      if (
+        data.startsWith(
+          "admin_note_"
+        )
+      ) {
+        if (
+          !isAdmin(
+            q.from?.id
+          )
+        ) {
+          return;
+        }
+
+        const orderId =
+          Number(
+            data.replace(
+              "admin_note_",
+              ""
+            )
+          );
+
+        if (
+          !orders.has(orderId)
+        ) {
+          return safeSendMessage(
+            chatId,
+            "Order not found."
+          );
+        }
+
+        clearAdminInputs(chatId);
+
+        pendingAdminNote.set(
+          chatId,
+          orderId
+        );
+
+        return safeSendMessage(
+          chatId,
+
+`📝 ADD ADMIN NOTE
+
+Order:
+#${orderId}
+
+Send the note below.`
+        );
+      }
+
+      /* SEND REVIEW LINK */
+
+      if (
+        data.startsWith(
+          "admin_review_"
+        )
+      ) {
+        if (
+          !isAdmin(
+            q.from?.id
+          )
+        ) {
+          return;
+        }
+
+        const orderId =
+          Number(
+            data.replace(
+              "admin_review_",
+              ""
+            )
+          );
+
+        const order =
+          orders.get(orderId);
+
+        if (
+          !order ||
+          order.paymentStatus !==
+          "paid"
+        ) {
+          return safeSendMessage(
+            chatId,
+            "Paid order not found."
+          );
+        }
+
+        if (!order.telegramId) {
+          return safeSendMessage(
+            chatId,
+            "This order has no Telegram ID."
+          );
+        }
+
+        const reviewUrl =
+          getReviewUrl(order);
+
+        if (!reviewUrl) {
+          return safeSendMessage(
+            chatId,
+            "Review link could not be generated."
+          );
+        }
+
+        await safeSendMessage(
+          order.telegramId,
+
+`⭐ We'd love your feedback
+
+Order:
+#${orderId}
+
+Tap below to leave your review.`,
+
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  {
+                    text:
+                      "⭐ Leave a Review",
+                    url:
+                      reviewUrl
+                  }
+                ]
+              ]
+            }
+          }
+        );
+
+        return safeSendMessage(
+          chatId,
+          `✅ Review link sent for order #${orderId}.`
+        );
+      }
+
+      /* CANCEL ORDER */
+
+      if (
+        data.startsWith(
+          "admin_cancel_confirm_"
+        )
+      ) {
+        if (!isAdmin(q.from?.id)) return;
+
+        const orderId = Number(
+          data.replace("admin_cancel_confirm_", "")
+        );
+        const order = orders.get(orderId);
+
+        if (!order) {
+          return safeSendMessage(chatId, "Order not found.");
+        }
+
+        if (order.paymentStatus !== "awaiting_payment") {
+          return safeSendMessage(
+            chatId,
+            "This order can no longer be cancelled from the dashboard."
+          );
+        }
+
+        restoreReservedStock(order);
+        restoreStoreCreditForOrder(order);
+
+        order.paymentStatus = "cancelled";
+        order.fulfilmentStatus = "cancelled";
+        order.cancelledAt = new Date().toISOString();
+        saveOrder(order);
+
+        if (order.telegramId) {
+          await safeSendMessage(
+            order.telegramId,
+            `❌ Order cancelled\n\nOrder:\n#${orderId}\n\nIf you believe this was a mistake, please contact support.`
+          );
+        }
+
+        await safeSendMessage(chatId, `❌ Order #${orderId} cancelled.`);
+        return showAdminOrder(chatId, order);
+      }
+
+      if (
+        data.startsWith(
+          "admin_cancel_"
+        )
+      ) {
+        if (
+          !isAdmin(
+            q.from?.id
+          )
+        ) {
+          return;
+        }
+
+        const orderId =
+          Number(
+            data.replace(
+              "admin_cancel_",
+              ""
+            )
+          );
+
+        const order =
+          orders.get(orderId);
+
+        if (!order) {
+          return safeSendMessage(
+            chatId,
+            "Order not found."
+          );
+        }
+
+        if (
+          order.paymentStatus !==
+          "awaiting_payment"
+        ) {
+          return safeSendMessage(
+            chatId,
+            "Only unpaid orders with no submitted payment can be cancelled here."
+          );
+        }
+
+        return safeSendMessage(
+          chatId,
+
+`⚠️ CANCEL ORDER #${orderId}?
+
+This will mark the order as cancelled.`,
+
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  {
+                    text:
+                      "❌ Yes, Cancel",
+                    callback_data:
+                      `admin_cancel_confirm_${orderId}`
+                  },
+                  {
+                    text:
+                      "Keep Order",
+                    callback_data:
+                      `admin_order_${orderId}`
+                  }
+                ]
+              ]
+            }
+          }
+        );
+      }
+
+
+      /* MY ORDERS */
+
+      if (
+        data ===
+        "orders"
+      ) {
+        const viewer = {
+          telegramId:
+            q.from?.id,
+          telegramUsername:
+            q.from?.username
+        };
+
+        const matches =
+          [...orders.values()]
+            .filter(
+              order =>
+                orderBelongsToViewer(
+                  order,
+                  viewer
+                ) &&
+                order.paymentStatus !== "cancelled"
             )
             .sort(
               (
@@ -7327,16 +8063,22 @@ Send your message below.`
 
       if (data === "stock_added") {
         const rows = db.prepare(`
-          SELECT product_name, added, new_stock
+          SELECT product_id, product_name, MAX(id) AS latest
           FROM stock_updates
-          ORDER BY id DESC
-          LIMIT 20
+          GROUP BY product_id
+          ORDER BY latest DESC
+          LIMIT 30
         `).all();
-        if (!rows.length) {
-          return safeSendMessage(chatId, "📦 Stock added\n\nNothing has been added yet.");
+        const lines = rows
+          .map(row => {
+            const stock = Number(getLiveStock(row.product_id) || 0);
+            return stock > 0 ? `${row.product_name}: ${stock} in stock` : null;
+          })
+          .filter(Boolean);
+        if (!lines.length) {
+          return safeSendMessage(chatId, "📦 Stock added\n\nNothing from recent additions is still in stock.");
         }
-        const lines = rows.map(row => `${row.product_name}: +${row.added} (now ${row.new_stock})`);
-        return safeSendMessage(chatId, `📦 STOCK ADDED\n\n${lines.join("\n")}`);
+        return safeSendMessage(chatId, `📦 IN STOCK\n\n${lines.join("\n")}`);
       }
 
       /* REVIEWS */
@@ -8035,6 +8777,8 @@ ${text}`
         }
 
         pendingBulkStock.delete(chatId);
+        const addedLines = updated.filter(line => line.includes("+"));
+        if (addedLines.length) await sendRestockNotices(addedLines.map(line => line.split(":")[0] + " is back in stock"));
 
         return safeSendMessage(
           chatId,
