@@ -3454,6 +3454,7 @@ const pendingAdminNote =
 const pendingBulkStock = new Map();
 const pendingBulkCost = new Map();
 const pendingAddProduct = new Map();
+const pendingBulkProducts = new Map();
 
 const pendingStockAdjustment =
   new Map();
@@ -3497,6 +3498,10 @@ if (bot) {
     );
 
     pendingAddProduct.delete(
+      chatId
+    );
+
+    pendingBulkProducts.delete(
       chatId
     );
 
@@ -4398,9 +4403,15 @@ Choose an option.`,
             [
               {
                 text:
-                  "📋 Bulk Stock",
+                  "📋 Set Stock",
                 callback_data:
                   "admin_stock_bulk"
+              },
+              {
+                text:
+                  "➕ Add Stock",
+                callback_data:
+                  "admin_stock_add"
               },
               {
                 text:
@@ -4415,6 +4426,12 @@ Choose an option.`,
                   "➕ Add Product",
                 callback_data:
                   "admin_add_product"
+              },
+              {
+                text:
+                  "➕ Bulk Add Products",
+                callback_data:
+                  "admin_add_products"
               }
             ],
             [
@@ -6437,6 +6454,16 @@ Stock Centre → All Stock`
         );
       }
 
+      if (data === "admin_add_products") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingBulkProducts.set(chatId, true);
+        return safeSendMessage(
+          chatId,
+          `➕ BULK ADD PRODUCTS\n\nOne product per line:\n\nName | Category | Price | Stock | Description\n\nExample:\nTest E 300 | Oils | 32 | 10 | 10ml vial\nAnavar 50 | Orals | 45 | 8 | 50 tablets\n\nDescription can be left off. /admin to cancel.`
+        );
+      }
+
       if (data === "admin_add_product") {
         if (!isAdmin(q.from?.id)) return;
         clearAdminInputs(chatId);
@@ -6484,13 +6511,23 @@ Stock Centre → All Stock`
         );
       }
 
+      if (data === "admin_stock_add") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingBulkStock.set(chatId, "add");
+        return safeSendMessage(
+          chatId,
+          `➕ ADD STOCK\n\nSend one product per line. This adds to the current stock.\n\n12 10\n13 5\n\nID then how many to add. /admin to cancel.`
+        );
+      }
+
       if (data === "admin_stock_bulk") {
         if (!isAdmin(q.from?.id)) return;
         clearAdminInputs(chatId);
         pendingBulkStock.set(chatId, true);
         return safeSendMessage(
           chatId,
-          `📋 BULK STOCK\n\nSend one product per line:\n\n12 20\n13 5\n14 0\n\nID then the new total. Send /admin to cancel.`
+          `📋 BULK STOCK\n\nThese are the NEW stock totals.\n\n12 20\n13 5\n14 0\n\nID then the new total. /admin to cancel.`
         );
       }
 
@@ -7718,6 +7755,50 @@ ${text}`
         );
       }
 
+      if (pendingBulkProducts.has(chatId) && isAdmin(msg.from?.id)) {
+        const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
+        const added = [];
+        const failed = [];
+        let nextId = Math.max(0, ...products.map(product => Number(product.id) || 0));
+
+        for (const line of lines) {
+          const parts = line.split("|").map(part => part.trim());
+          const [name, category, priceRaw, stockRaw, subtitle = ""] = parts;
+          const price = Number(String(priceRaw || "").replace("£", ""));
+          const stock = Number(stockRaw);
+          if (!name || !category || !Number.isFinite(price) || price < 0 || !Number.isInteger(stock) || stock < 0) {
+            failed.push(line);
+            continue;
+          }
+          nextId += 1;
+          const product = {
+            id: nextId,
+            name,
+            subtitle,
+            category,
+            section: category,
+            pricePence: Math.round(price * 100),
+            stock,
+            unit: "items",
+            purchasable: true
+          };
+          products.push(product);
+          productsById.set(nextId, product);
+          setInventoryStmt.run(stock, nextId);
+          added.push(`#${nextId} ${name} — ${money(product.pricePence)} — stock ${stock}`);
+        }
+
+        writeFileSync(
+          path.join(__dirname, "public", "products.json"),
+          JSON.stringify(products.map(({ priceOverridden, cataloguePricePence, ...item }) => item), null, 2)
+        );
+        pendingBulkProducts.delete(chatId);
+        return safeSendMessage(
+          chatId,
+          `✅ PRODUCTS ADDED\n\n${added.join("\n") || "None"}${failed.length ? `\n\nSkipped:\n${failed.join("\n")}` : ""}`
+        );
+      }
+
       if (pendingAddProduct.has(chatId) && isAdmin(msg.from?.id)) {
         const state = pendingAddProduct.get(chatId);
         if (state.stage === "name") {
@@ -7805,6 +7886,7 @@ ${text}`
       }
 
       if (pendingBulkStock.has(chatId) && isAdmin(msg.from?.id)) {
+        const mode = pendingBulkStock.get(chatId);
         const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
         const updated = [];
         const failed = [];
@@ -7812,16 +7894,17 @@ ${text}`
         for (const line of lines) {
           const parts = line.replace(/^#/, "").split(/\s+/);
           const productId = Number(parts[0]);
-          const newStock = Number(parts[1]);
+          const amount = Number(parts[1]);
           const product = productsById.get(productId);
-          if (!product || !Number.isInteger(newStock) || newStock < 0) {
+          if (!product || !Number.isInteger(amount) || amount < 0) {
             failed.push(line);
             continue;
           }
-          const oldStock = getLiveStock(productId);
+          const oldStock = Number(getLiveStock(productId) || 0);
+          const newStock = mode === "add" ? oldStock + amount : amount;
           setInventoryStmt.run(newStock, productId);
           await recordStockChange(product, oldStock, newStock);
-          updated.push(`${product.name}: ${newStock}`);
+          updated.push(mode === "add" ? `${product.name}: ${oldStock} + ${amount} = ${newStock}` : `${product.name}: ${newStock}`);
         }
 
         pendingBulkStock.delete(chatId);
