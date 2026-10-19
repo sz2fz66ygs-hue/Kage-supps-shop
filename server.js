@@ -1847,6 +1847,47 @@ function getReviewUrl(order) {
    ========================================================= */
 
 
+
+const USDT_CONTRACT = "0xdac17f958d2ee523a2206206994597c13d831ec7";
+
+async function verifyUsdtPayment(hash, expectedUsdt) {
+  if (!etherscanApiKey || !receivingAddress) {
+    return { ok: false, reason: "Payment checker is not configured." };
+  }
+
+  const url = `https://api.etherscan.io/v2/api?chainid=1&module=proxy&action=eth_getTransactionReceipt&txhash=${hash}&apikey=${etherscanApiKey}`;
+  const response = await fetch(url);
+  const data = await response.json();
+  const receipt = data?.result;
+  if (!receipt || receipt === "null") {
+    return { ok: false, reason: "Transaction not found yet. It may still be confirming." };
+  }
+  if (receipt.status && receipt.status !== "0x1") {
+    return { ok: false, reason: "Transaction failed on Ethereum." };
+  }
+
+  const want = receivingAddress.toLowerCase().replace(/^0x/, "").padStart(64, "0");
+  let received = 0;
+  for (const log of receipt.logs || []) {
+    if (String(log.address || "").toLowerCase() !== USDT_CONTRACT) continue;
+    if (!log.topics || log.topics[0] !== "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef") continue;
+    if (String(log.topics[2] || "").toLowerCase() !== `0x${want}`) continue;
+    received += Number(BigInt(log.data)) / 1e6;
+  }
+
+  const expected = Number(expectedUsdt);
+  if (!Number.isFinite(expected) || expected <= 0) {
+    return { ok: false, reason: "No expected USDT amount on this order.", received };
+  }
+  const close = Math.abs(received - expected) <= Math.max(0.5, expected * 0.02);
+  return {
+    ok: close && received > 0,
+    received,
+    expected,
+    reason: close ? "Matched" : `Received ${received.toFixed(2)} USDT, expected about ${expected}.`
+  };
+}
+
 async function submitTransactionHash(order, transactionId) {
   const hash = String(transactionId || "").trim();
 
@@ -1888,11 +1929,25 @@ async function submitTransactionHash(order, transactionId) {
   order.hashSubmittedAfterExpiry = expiredByTimer;
   saveOrder(order);
 
+  let autoPaid = false;
+  let check = null;
+  try {
+    check = await verifyUsdtPayment(hash, order.usdtQuote);
+    if (check.ok) {
+      const paid = await markOrderPaid(order);
+      autoPaid = Boolean(paid.ok);
+    }
+  } catch (err) {
+    check = { ok: false, reason: err?.message || "Could not check the payment." };
+  }
+
   await notifyAdmins(
-    `💳 PAYMENT SUBMITTED\n\nOrder:\n#${order.orderId}\n\nCustomer:\n${order.customerName}\n\n📍 Delivery Address:\n${order.address}\n\nExpected total:\n${money(order.totalPence)}\n\nTransaction:\n${hash}${expiredByTimer ? "\n\nThis arrived after the timer. Check the payment, then /paid " + order.orderId : ""}\n\nUse:\n/paid ${order.orderId}\n\nonce payment has been confirmed.`
+    autoPaid
+      ? `✅ PAYMENT AUTO APPROVED\n\nOrder #${order.orderId}\n${order.customerName}\n${check.received.toFixed(2)} USDT matched ${check.expected}\n${hash}`
+      : `💳 PAYMENT SUBMITTED\n\nOrder:\n#${order.orderId}\n\nCustomer:\n${order.customerName}\n\n📍 Delivery Address:\n${order.address}\n\nExpected total:\n${money(order.totalPence)}\n\nTransaction:\n${hash}\n\nAuto check: ${check?.reason || "not checked"}\n\nUse:\n/paid ${order.orderId}\n\nonce payment has been confirmed.`
   );
 
-  return { ok: true, afterExpiry: expiredByTimer };
+  return { ok: true, afterExpiry: expiredByTimer, autoPaid };
 }
 
 async function markOrderPaid(
@@ -3465,6 +3520,8 @@ const pendingPromotionCreate =
 const pendingPromotionEdit =
   new Map();
 
+const pendingBulkPrice = new Map();
+
 const pendingPriceChange =
   new Map();
 
@@ -3514,6 +3571,10 @@ if (bot) {
     );
 
     pendingPriceChange.delete(
+      chatId
+    );
+
+    pendingBulkPrice.delete(
       chatId
     );
   }
@@ -3657,6 +3718,18 @@ if (bot) {
             }
           ],
           [
+            {
+              text:
+                "✅ Paid",
+              callback_data:
+                "admin_paid_orders"
+            },
+            {
+              text:
+                "🚚 Shipped",
+              callback_data:
+                "admin_shipped_orders"
+            },
             {
               text:
                 "🚚 Dispatch Queue",
@@ -4412,6 +4485,12 @@ Choose an option.`,
                   "➕ Add Stock",
                 callback_data:
                   "admin_stock_add"
+              },
+              {
+                text:
+                  "💷 Bulk Price",
+                callback_data:
+                  "admin_price_bulk"
               },
               {
                 text:
@@ -5904,22 +5983,37 @@ The review has been removed.`,
           return;
         }
 
-        const list =
-          getRecentOrders(100)
-            .filter(
-              order =>
-                order.paymentStatus ===
-                "payment_submitted"
-            );
+        const list = [...orders.values()]
+          .filter(order =>
+            order.paymentStatus === "payment_submitted" ||
+            order.paymentStatus === "awaiting_payment"
+          )
+          .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
         return showOrderList(
           chatId,
-          "⏳ PAYMENTS TO CHECK",
+          `⏳ AWAITING PAYMENT (${list.length})`,
           list
         );
       }
 
       /* DISPATCH */
+
+      if (data === "admin_paid_orders") {
+        if (!isAdmin(q.from?.id)) return;
+        const list = [...orders.values()]
+          .filter(order => order.paymentStatus === "paid")
+          .sort((a, b) => new Date(b.paidAt || b.createdAt || 0) - new Date(a.paidAt || a.createdAt || 0));
+        return showOrderList(chatId, `✅ PAID (${list.length})`, list);
+      }
+
+      if (data === "admin_shipped_orders") {
+        if (!isAdmin(q.from?.id)) return;
+        const list = [...orders.values()]
+          .filter(order => order.fulfilmentStatus === "shipped" || order.trackingNumber)
+          .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        return showOrderList(chatId, `🚚 SHIPPED (${list.length})`, list);
+      }
 
       if (
         data ===
@@ -6498,6 +6592,16 @@ Stock Centre → All Stock`
         return safeSendMessage(
           chatId,
           `✅ Cleared ${holding.length} unpaid order${holding.length === 1 ? "" : "s"}. Held stock is back.`
+        );
+      }
+
+      if (data === "admin_price_bulk") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingBulkPrice.set(chatId, true);
+        return safeSendMessage(
+          chatId,
+          `💷 BULK PRICE\n\nSets the selling price. One product per line.\n\n311 3\n415 3\n\nID then the price in pounds. /admin to cancel.`
         );
       }
 
@@ -7856,6 +7960,29 @@ ${text}`
           pendingAddProduct.delete(chatId);
           return safeSendMessage(chatId, `✅ Product added\n\n#${nextId} ${product.name}\n${money(product.pricePence)}\nStock: ${stock}`);
         }
+      }
+
+      if (pendingBulkPrice.has(chatId) && isAdmin(msg.from?.id)) {
+        const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
+        const updated = [];
+        const failed = [];
+        for (const line of lines) {
+          const parts = line.replace(/^#/, "").split(/\s+/);
+          const productId = Number(parts[0]);
+          const pounds = Number(String(parts[1] || "").replace("£", ""));
+          const product = productsById.get(productId);
+          if (!product || !Number.isFinite(pounds) || pounds < 0) {
+            failed.push(line);
+            continue;
+          }
+          promotionsApi.setPriceOverride(productId, Math.round(pounds * 100));
+          updated.push(`${product.name}: ${money(Math.round(pounds * 100))}`);
+        }
+        pendingBulkPrice.delete(chatId);
+        return safeSendMessage(
+          chatId,
+          `✅ PRICES SET\n\n${updated.join("\n") || "None"}${failed.length ? `\n\nSkipped:\n${failed.join("\n")}` : ""}`
+        );
       }
 
       if (pendingBulkCost.has(chatId) && isAdmin(msg.from?.id)) {
