@@ -749,6 +749,9 @@ function calculatePromotionDiscount(lineItems, promotions) {
 
     if (!units.length) continue;
 
+    const maxUnits = Number(promo.maxUnits || 0);
+    if (maxUnits > 0 && units.length > maxUnits) units.length = maxUnits;
+
     const required = Math.max(1, Number(promo.requiredQuantity || 1));
     let discount = 0;
 
@@ -936,6 +939,19 @@ function storewideDiscountForSubtotal(
 }
 
 
+let personalCreditPence = 0;
+
+async function loadPersonalCredit() {
+  const id = telegramUser?.id;
+  if (!id) return;
+  try {
+    const res = await fetch(`/api/store-credit?initData=${encodeURIComponent(tg?.initData || "")}`);
+    const data = await res.json();
+    personalCreditPence = Number(data.balancePence || 0);
+    renderBasket();
+  } catch {}
+}
+
 function storeCreditForRemaining(
   remainingPence
 ) {
@@ -1054,12 +1070,10 @@ function renderBasket() {
     affiliateDiscount +
     storewideDiscount;
 
-  const credit =
-    storeCreditForRemaining(
-      afterPromotion -
-      affiliateDiscount -
-      storewideDiscount
-    );
+  const afterCodes = Math.max(0, afterPromotion - affiliateDiscount - storewideDiscount);
+  const codeCredit = storeCreditForRemaining(afterCodes);
+  const personalCredit = Math.min(Math.max(0, personalCreditPence), Math.max(0, afterCodes - codeCredit));
+  const credit = codeCredit + personalCredit;
 
   const totalBeforeShipping =
     Math.max(
@@ -1149,18 +1163,17 @@ function renderBasket() {
     creditRow
   ) {
     creditRow.innerHTML =
-      credit >
-      0
+      credit > 0
         ? `
           <div class="discount-line">
-            Store credit
-            <strong>
-              ${escapeHtml(appliedStoreCredit.code)}
-            </strong>:
+            Store credit${appliedStoreCredit?.code ? ` <strong>${escapeHtml(appliedStoreCredit.code)}</strong>` : ""}:
             −${money(credit)}
           </div>
+          <div class="discount-line">Balance left after this order: ${money(Math.max(0, personalCreditPence - personalCredit))}</div>
         `
-        : "";
+        : personalCreditPence > 0
+          ? `<div class="discount-line">Store credit available: ${money(personalCreditPence)}</div>`
+          : "";
   }
 
   if (
@@ -1844,6 +1857,10 @@ async function submitOrder() {
 
               storeCreditCode:
                 appliedStoreCredit?.code ||
+                undefined,
+
+              initData:
+                tg?.initData ||
                 undefined
             })
         }
@@ -2761,4 +2778,6 @@ if (
    START SHOP
    ========================================================= */
 
+
 loadProducts();
+loadPersonalCredit();
