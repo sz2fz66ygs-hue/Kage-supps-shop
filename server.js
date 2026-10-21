@@ -495,6 +495,11 @@ CREATE TABLE IF NOT EXISTS inventory (
   stock INTEGER
 );
 
+CREATE TABLE IF NOT EXISTS customer_credit (
+  telegram_id TEXT PRIMARY KEY,
+  balance_pence INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS product_costs (
   product_id INTEGER PRIMARY KEY,
   cost_pence INTEGER NOT NULL
@@ -687,6 +692,11 @@ app.get("/products.json", (_req, res) => {
 
 app.get("/api/products", (_req, res) => {
   res.json(getLiveProducts());
+});
+
+app.get("/api/store-credit", (req, res) => {
+  const telegramId = String(req.query.telegramId || "");
+  res.json({ balancePence: getCustomerCredit(telegramId) });
 });
 
 app.get("/api/promotions", (_req, res) => {
@@ -1487,6 +1497,12 @@ function restoreStoreCreditForOrder(order) {
     return;
   }
 
+  if (String(order.storeCreditCode || "").startsWith("tg:")) {
+    addCustomerCredit(String(order.storeCreditCode).slice(3), Number(order.storeCreditPence || 0));
+    order.storeCreditRestored = true;
+    saveOrder(order);
+    return;
+  }
   const code = normaliseCode(order.storeCreditCode);
   const record = referralEarnings.get(code);
 
@@ -1926,6 +1942,31 @@ async function verifyUsdtPayment(hash, expectedUsdt) {
     expected,
     reason: close ? "Matched" : `Received ${received.toFixed(2)} USDT, expected about ${expected}.`
   };
+}
+
+
+function getCustomerCredit(telegramId) {
+  if (!telegramId) return 0;
+  const row = db.prepare("SELECT balance_pence FROM customer_credit WHERE telegram_id = ?").get(String(telegramId));
+  return Number(row?.balance_pence || 0);
+}
+
+function addCustomerCredit(telegramId, pence) {
+  db.prepare(`
+    INSERT INTO customer_credit (telegram_id, balance_pence)
+    VALUES (?, ?)
+    ON CONFLICT(telegram_id) DO UPDATE SET balance_pence = customer_credit.balance_pence + excluded.balance_pence
+  `).run(String(telegramId), Math.round(pence));
+  return getCustomerCredit(telegramId);
+}
+
+function takeCustomerCredit(telegramId, pence) {
+  const next = Math.max(0, getCustomerCredit(telegramId) - Math.round(pence));
+  db.prepare(`
+    INSERT INTO customer_credit (telegram_id, balance_pence)
+    VALUES (?, ?)
+    ON CONFLICT(telegram_id) DO UPDATE SET balance_pence = excluded.balance_pence
+  `).run(String(telegramId), next);
 }
 
 async function submitTransactionHash(order, transactionId) {
@@ -2634,6 +2675,13 @@ app.post(
       let storeCreditPence = 0;
       let appliedCreditCode = null;
 
+      if (!storeCreditCode && telegramId) {
+        const personal = getCustomerCredit(telegramId);
+        const remaining = Math.max(0, subtotalPence - promotionDiscountPence - discountPence - storewideDiscountPence);
+        storeCreditPence = Math.min(remaining, personal);
+        if (storeCreditPence > 0) appliedCreditCode = `tg:${telegramId}`;
+      }
+
       if (storeCreditCode) {
         const code =
           normaliseCode(
@@ -2780,6 +2828,9 @@ app.post(
       }
 
       if (appliedCreditCode && storeCreditPence > 0) {
+        if (String(appliedCreditCode).startsWith("tg:")) {
+          takeCustomerCredit(String(appliedCreditCode).slice(3), storeCreditPence);
+        }
         const credit = referralEarnings.get(appliedCreditCode);
         if (credit && credit.cashOnly !== true) {
           credit.balancePence = Math.max(
@@ -3562,6 +3613,7 @@ const pendingPromotionEdit =
 
 const pendingBulkPrice = new Map();
 const pendingBroadcast = new Map();
+const pendingAddCredit = new Map();
 
 const pendingPriceChange =
   new Map();
@@ -3620,6 +3672,10 @@ if (bot) {
     );
 
     pendingBroadcast.delete(
+      chatId
+    );
+
+    pendingAddCredit.delete(
       chatId
     );
   }
@@ -3748,6 +3804,12 @@ if (bot) {
                 "📣 Send Message",
               callback_data:
                 "admin_broadcast"
+            },
+            {
+              text:
+                "💳 Add Store Credit",
+              callback_data:
+                "admin_add_credit"
             },
             {
               text:
@@ -4616,6 +4678,14 @@ Choose an option.`,
         }
       ]);
 
+      buttons.push([
+        {
+          text:
+            "💳 Store Credit",
+          callback_data:
+            "store_credit"
+        }
+      ]);
       buttons.push([
         {
           text:
@@ -6018,6 +6088,21 @@ The review has been removed.`,
       }
 
       /* DISPATCH */
+
+      if (data === "store_credit") {
+        const balance = getCustomerCredit(q.from?.id);
+        return safeSendMessage(
+          chatId,
+          `💳 STORE CREDIT\n\nYou have ${money(balance)}.\n\nIt is taken off automatically when you place an order. You can still enter a store credit code in the shop if you have one.`
+        );
+      }
+
+      if (data === "admin_add_credit") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingAddCredit.set(chatId, { stage: "who" });
+        return safeSendMessage(chatId, "💳 ADD STORE CREDIT\n\nSend the Telegram ID, or @username.\n\n/admin to cancel.");
+      }
 
       if (data === "admin_broadcast") {
         if (!isAdmin(q.from?.id)) return;
@@ -8731,6 +8816,31 @@ ${text}`
           pendingAddProduct.delete(chatId);
           return safeSendMessage(chatId, `✅ Product added\n\n#${nextId} ${product.name}\n${money(product.pricePence)}\nStock: ${stock}`);
         }
+      }
+
+      if (pendingAddCredit.has(chatId) && isAdmin(msg.from?.id)) {
+        const state = pendingAddCredit.get(chatId);
+        if (state.stage === "who") {
+          const raw = text.trim();
+          let telegramId = raw.replace(/^@/, "");
+          if (!/^\d+$/.test(telegramId)) {
+            const match = [...orders.values()].find(order =>
+              String(order.telegramUsername || "").toLowerCase() === telegramId.toLowerCase()
+            );
+            telegramId = match?.telegramId ? String(match.telegramId) : "";
+          }
+          if (!telegramId) return safeSendMessage(chatId, "Could not find that person. Send a Telegram ID, or /admin to stop.");
+          state.telegramId = telegramId;
+          state.stage = "amount";
+          pendingAddCredit.set(chatId, state);
+          return safeSendMessage(chatId, `Current credit: ${money(getCustomerCredit(telegramId))}\n\nSend how many pounds to add. Example: 10`);
+        }
+        const pounds = Number(text.replace("£", ""));
+        if (!Number.isFinite(pounds) || pounds <= 0) return safeSendMessage(chatId, "Send an amount like 10, or /admin to stop.");
+        const balance = addCustomerCredit(state.telegramId, Math.round(pounds * 100));
+        await safeSendMessage(state.telegramId, `💳 ${money(Math.round(pounds * 100))} store credit has been added. You now have ${money(balance)}. It comes off automatically at checkout.`);
+        pendingAddCredit.set(chatId, { stage: "who" });
+        return safeSendMessage(chatId, `✅ Added ${money(Math.round(pounds * 100))}. New balance: ${money(balance)}.\n\nSend another ID, or /admin to stop.`);
       }
 
       if (pendingBroadcast.has(chatId) && isAdmin(msg.from?.id)) {
