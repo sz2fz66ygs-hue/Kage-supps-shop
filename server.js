@@ -2,7 +2,7 @@ import "dotenv/config";
 import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import { fileURLToPath } from "url";
 import path from "path";
-import { randomUUID } from "crypto";
+import { randomUUID, createHmac } from "crypto";
 import { DatabaseSync } from "node:sqlite";
 import express from "express";
 import TelegramBot from "node-telegram-bot-api";
@@ -1946,8 +1946,6 @@ async function verifyUsdtPayment(hash, expectedUsdt) {
 
 
 
-const crypto = require("crypto");
-
 function verifiedTelegramId(initData) {
   if (!initData || !token) return null;
   const params = new URLSearchParams(initData);
@@ -1958,8 +1956,8 @@ function verifiedTelegramId(initData) {
     if (key !== "hash") pairs.push(`${key}=${value}`);
   }
   pairs.sort();
-  const secret = crypto.createHmac("sha256", "WebAppData").update(token).digest();
-  const check = crypto.createHmac("sha256", secret).update(pairs.join("\n")).digest("hex");
+  const secret = createHmac("sha256", "WebAppData").update(token).digest();
+  const check = createHmac("sha256", secret).update(pairs.join("\n")).digest("hex");
   if (check !== hash) return null;
   try {
     return String(JSON.parse(params.get("user") || "{}").id || "") || null;
