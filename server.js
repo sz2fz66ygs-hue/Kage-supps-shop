@@ -695,7 +695,7 @@ app.get("/api/products", (_req, res) => {
 });
 
 app.get("/api/store-credit", (req, res) => {
-  const telegramId = String(req.query.telegramId || "");
+  const telegramId = verifiedTelegramId(req.query.initData) || "";
   res.json({ balancePence: getCustomerCredit(telegramId) });
 });
 
@@ -1945,6 +1945,29 @@ async function verifyUsdtPayment(hash, expectedUsdt) {
 }
 
 
+
+const crypto = require("crypto");
+
+function verifiedTelegramId(initData) {
+  if (!initData || !token) return null;
+  const params = new URLSearchParams(initData);
+  const hash = params.get("hash");
+  if (!hash) return null;
+  const pairs = [];
+  for (const [key, value] of params.entries()) {
+    if (key !== "hash") pairs.push(`${key}=${value}`);
+  }
+  pairs.sort();
+  const secret = crypto.createHmac("sha256", "WebAppData").update(token).digest();
+  const check = crypto.createHmac("sha256", secret).update(pairs.join("\n")).digest("hex");
+  if (check !== hash) return null;
+  try {
+    return String(JSON.parse(params.get("user") || "{}").id || "") || null;
+  } catch {
+    return null;
+  }
+}
+
 function getCustomerCredit(telegramId) {
   if (!telegramId) return 0;
   const row = db.prepare("SELECT balance_pence FROM customer_credit WHERE telegram_id = ?").get(String(telegramId));
@@ -2675,11 +2698,13 @@ app.post(
       let storeCreditPence = 0;
       let appliedCreditCode = null;
 
-      if (!storeCreditCode && telegramId) {
-        const personal = getCustomerCredit(telegramId);
+      const verifiedId = verifiedTelegramId(req.body?.initData);
+      const creditOwner = verifiedId || "";
+      if (!storeCreditCode && creditOwner) {
+        const personal = getCustomerCredit(creditOwner);
         const remaining = Math.max(0, subtotalPence - promotionDiscountPence - discountPence - storewideDiscountPence);
         storeCreditPence = Math.min(remaining, personal);
-        if (storeCreditPence > 0) appliedCreditCode = `tg:${telegramId}`;
+        if (storeCreditPence > 0) appliedCreditCode = `tg:${creditOwner}`;
       }
 
       if (storeCreditCode) {
