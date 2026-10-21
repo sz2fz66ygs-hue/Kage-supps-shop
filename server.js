@@ -3836,6 +3836,12 @@ if (bot) {
             },
             {
               text:
+                "💳 Remove Store Credit",
+              callback_data:
+                "admin_remove_credit"
+            },
+            {
+              text:
                 "📦 Orders",
               callback_data:
                 "admin_orders_home"
@@ -6120,11 +6126,11 @@ The review has been removed.`,
         );
       }
 
-      if (data === "admin_add_credit") {
+      if (data === "admin_add_credit" || data === "admin_remove_credit") {
         if (!isAdmin(q.from?.id)) return;
         clearAdminInputs(chatId);
-        pendingAddCredit.set(chatId, { stage: "who" });
-        return safeSendMessage(chatId, "💳 ADD STORE CREDIT\n\nSend the Telegram ID, or @username.\n\n/admin to cancel.");
+        pendingAddCredit.set(chatId, { stage: "who", mode: data === "admin_remove_credit" ? "remove" : "add" });
+        return safeSendMessage(chatId, `${data === "admin_remove_credit" ? "💳 REMOVE STORE CREDIT" : "💳 ADD STORE CREDIT"}\n\nSend the Telegram ID, or @username.\n\n/admin to cancel.`);
       }
 
       if (data === "admin_broadcast") {
@@ -8860,10 +8866,19 @@ ${text}`
         }
         const pounds = Number(text.replace("£", ""));
         if (!Number.isFinite(pounds) || pounds <= 0) return safeSendMessage(chatId, "Send an amount like 10, or /admin to stop.");
-        const balance = addCustomerCredit(state.telegramId, Math.round(pounds * 100));
-        await safeSendMessage(state.telegramId, `💳 ${money(Math.round(pounds * 100))} store credit has been added. You now have ${money(balance)}. It comes off automatically at checkout.`);
-        pendingAddCredit.set(chatId, { stage: "who" });
-        return safeSendMessage(chatId, `✅ Added ${money(Math.round(pounds * 100))}. New balance: ${money(balance)}.\n\nSend another ID, or /admin to stop.`);
+        const pence = Math.round(pounds * 100);
+        const balance = state.mode === "remove"
+          ? addCustomerCredit(state.telegramId, -pence)
+          : addCustomerCredit(state.telegramId, pence);
+        const safeBalance = Math.max(0, balance);
+        if (balance < 0) addCustomerCredit(state.telegramId, -balance);
+        if (state.mode === "remove") {
+          await safeSendMessage(state.telegramId, `💳 ${money(pence)} store credit has been removed. You now have ${money(Math.max(0, getCustomerCredit(state.telegramId)))}.`);
+        } else {
+          await safeSendMessage(state.telegramId, `💳 ${money(pence)} store credit has been added. You now have ${money(getCustomerCredit(state.telegramId))}. It comes off automatically at checkout.`);
+        }
+        pendingAddCredit.set(chatId, { stage: "who", mode: state.mode });
+        return safeSendMessage(chatId, `✅ ${state.mode === "remove" ? "Removed" : "Added"} ${money(pence)}. New balance: ${money(getCustomerCredit(state.telegramId))}.\n\nSend another ID, or /admin to stop.`);
       }
 
       if (pendingBroadcast.has(chatId) && isAdmin(msg.from?.id)) {
