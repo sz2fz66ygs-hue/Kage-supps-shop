@@ -495,6 +495,11 @@ CREATE TABLE IF NOT EXISTS inventory (
   stock INTEGER
 );
 
+CREATE TABLE IF NOT EXISTS product_limits (
+  product_id INTEGER PRIMARY KEY,
+  max_qty INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS customer_credit (
   telegram_id TEXT PRIMARY KEY,
   balance_pence INTEGER NOT NULL DEFAULT 0
@@ -677,7 +682,8 @@ function getLiveProducts() {
         promotionsApi.getPriceOverride
       ),
       priceOverridden:
-        promotionsApi.getPriceOverride(product.id) !== null
+        promotionsApi.getPriceOverride(product.id) !== null,
+      maxPerOrder: Number(db.prepare("SELECT max_qty FROM product_limits WHERE product_id = ?").get(product.id)?.max_qty || 0)
     };
   });
 }
@@ -2511,6 +2517,11 @@ app.post(
         const liveStock =
           getLiveStock(id);
 
+        const maxPerOrder = Number(db.prepare("SELECT max_qty FROM product_limits WHERE product_id = ?").get(id)?.max_qty || 0);
+        if (maxPerOrder > 0 && quantity > maxPerOrder) {
+          return res.status(400).json({ error: `${product.name} is limited to ${maxPerOrder} per order.` });
+        }
+
         if (
           liveStock !== null &&
           quantity > liveStock
@@ -3637,6 +3648,7 @@ const pendingPromotionEdit =
 const pendingBulkPrice = new Map();
 const pendingBroadcast = new Map();
 const pendingAddCredit = new Map();
+const pendingOrderLimit = new Map();
 
 const pendingPriceChange =
   new Map();
@@ -3699,6 +3711,10 @@ if (bot) {
     );
 
     pendingAddCredit.delete(
+      chatId
+    );
+
+    pendingOrderLimit.delete(
       chatId
     );
   }
@@ -3822,84 +3838,15 @@ if (bot) {
       reply_markup: {
         inline_keyboard: [
           [
-            {
-              text:
-                "📣 Send Message",
-              callback_data:
-                "admin_broadcast"
-            },
-            {
-              text:
-                "💳 Add Store Credit",
-              callback_data:
-                "admin_add_credit"
-            },
-            {
-              text:
-                "💳 Remove Store Credit",
-              callback_data:
-                "admin_remove_credit"
-            },
-            {
-              text:
-                "📦 Orders",
-              callback_data:
-                "admin_orders_home"
-            },
-            {
-              text:
-                "🔎 Find Order",
-              callback_data:
-                "admin_find_order"
-            }
+            { text: "📦 Orders", callback_data: "admin_orders_home" },
+            { text: "📦 Stock Centre", callback_data: "admin_stock" }
           ],
           [
-            {
-              text:
-                "📊 Sales Reports",
-              callback_data:
-                "admin_reports"
-            },
-            {
-              text:
-                "📦 Stock Centre",
-              callback_data:
-                "admin_stock"
-            }
+            { text: "🏷 Promotions", callback_data: "admin_promotions" },
+            { text: "👥 Customers", callback_data: "admin_customers" }
           ],
           [
-            {
-              text:
-                "⭐ Reviews",
-              callback_data:
-                "admin_reviews"
-            },
-            {
-              text:
-                "💰 Affiliate Earnings",
-              callback_data:
-                "admin_earnings"
-            }
-          ],
-          [
-            {
-              text:
-                "🎉 Storewide Promo",
-              callback_data:
-                "admin_storewide_promo"
-            }
-          ],
-          [
-            {
-              text: "📋 View Product IDs",
-              callback_data: "admin_product_ids"
-            }
-          ],
-          [
-            {
-              text: "🏷 Promotions Manager",
-              callback_data: "admin_promotions"
-            }
+            { text: "📊 Reports", callback_data: "admin_reports" }
           ]
         ]
       }
@@ -4213,28 +4160,26 @@ ${notes}`,
       );
     }
 
+    const clearKey = title.toLowerCase().includes("cancel")
+      ? "cancelled"
+      : title.toLowerCase().includes("dispatch") || title.toLowerCase().includes("to send")
+        ? "dispatch"
+        : title.toLowerCase().includes("paid")
+          ? "paid"
+          : "";
     const buttons =
       list
         .slice(0, 20)
-        .map(
-          order => [
-            {
-              text:
-                `#${order.orderId} • ${order.customerName} • ${money(order.totalPence)}`,
-              callback_data:
-                `admin_order_${order.orderId}`
-            }
-          ]
-        );
+        .map(order => [
+          {
+            text: `#${order.orderId} • ${order.customerName} • ${money(order.totalPence)}`,
+            callback_data: `admin_order_${order.orderId}`
+          },
+          ...(clearKey ? [{ text: "Clear", callback_data: `clr_${clearKey}_${order.orderId}` }] : [])
+        ]);
 
-    buttons.push([
-      {
-        text:
-          "⬅️ Admin Dashboard",
-        callback_data:
-          "admin_dashboard"
-      }
-    ]);
+    if (clearKey) buttons.push([{ text: "🧹 Clear all", callback_data: `clrall_${clearKey}` }]);
+    buttons.push([{ text: "⬅️ Orders", callback_data: "admin_orders_home" }]);
 
     return safeSendMessage(
       chatId,
@@ -4554,6 +4499,27 @@ Choose an option.`,
         reply_markup: {
           inline_keyboard: [
             [
+              { text: "📦 Stock", callback_data: "admin_stock_section" },
+              { text: "➕ Products", callback_data: "admin_products_section" }
+            ],
+            [
+              { text: "💷 Prices", callback_data: "admin_prices_section" },
+              { text: "🚫 Limits", callback_data: "admin_limits_section" }
+            ],
+            [
+              { text: "⬅️ Admin Dashboard", callback_data: "admin_dashboard" }
+            ]
+          ]
+        }
+      }
+    );
+  }
+
+  function sendStockSection(chatId) {
+    return safeSendMessage(chatId, "📦 STOCK", {
+      reply_markup: {
+        inline_keyboard: [
+            [
               {
                 text:
                   "📋 All Stock",
@@ -4610,34 +4576,7 @@ Choose an option.`,
               }
             ],
             [
-              {
-                text:
-                  "➕ Add Products",
-                callback_data:
-                  "admin_add_products"
-              },
-              {
-                text:
-                  "💷 Set Price",
-                callback_data:
-                  "admin_price_bulk"
-              }
-            ],
-            [
-              {
-                text:
-                  "📋 Product IDs",
-                callback_data:
-                  "admin_product_ids"
-              }
-            ],
-            [
-              {
-                text:
-                  "⬅️ Admin Dashboard",
-                callback_data:
-                  "admin_dashboard"
-              }
+              { text: "⬅️ Stock Centre", callback_data: "admin_stock" }
             ]
           ]
         }
@@ -6126,6 +6065,56 @@ The review has been removed.`,
         );
       }
 
+      if (data === "admin_stock_section") return sendStockSection(chatId);
+      if (data === "admin_products_section") {
+        if (!isAdmin(q.from?.id)) return;
+        return safeSendMessage(chatId, "➕ PRODUCTS", {
+          reply_markup: { inline_keyboard: [
+            [{ text: "➕ Add Products", callback_data: "admin_add_products" }],
+            [{ text: "📋 Product IDs", callback_data: "admin_product_ids" }],
+            [{ text: "⬅️ Stock Centre", callback_data: "admin_stock" }]
+          ]}
+        });
+      }
+      if (data === "admin_prices_section") {
+        if (!isAdmin(q.from?.id)) return;
+        return safeSendMessage(chatId, "💷 PRICES", {
+          reply_markup: { inline_keyboard: [
+            [{ text: "💷 Set Price", callback_data: "admin_price_bulk" }],
+            [{ text: "⬅️ Stock Centre", callback_data: "admin_stock" }]
+          ]}
+        });
+      }
+      if (data === "admin_limits_section") {
+        if (!isAdmin(q.from?.id)) return;
+        return safeSendMessage(chatId, "🚫 LIMITS", {
+          reply_markup: { inline_keyboard: [
+            [{ text: "🚫 Set order limits", callback_data: "admin_order_limit" }],
+            [{ text: "⬅️ Stock Centre", callback_data: "admin_stock" }]
+          ]}
+        });
+      }
+
+      if (data === "admin_order_limit") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingOrderLimit.set(chatId, true);
+        return safeSendMessage(chatId, "🚫 ORDER LIMIT\n\nOne per line. A category sets every product in it.\n\nPharma 2\n301 5\n\n0 removes the limit. /admin to cancel.");
+      }
+
+      if (data === "admin_credit_home") {
+        if (!isAdmin(q.from?.id)) return;
+        return safeSendMessage(chatId, "💳 STORE CREDIT", {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "➕ Add credit", callback_data: "admin_add_credit" }],
+              [{ text: "➖ Remove credit", callback_data: "admin_remove_credit" }],
+              [{ text: "⬅️ Admin Dashboard", callback_data: "admin_dashboard" }]
+            ]
+          }
+        });
+      }
+
       if (data === "admin_add_credit" || data === "admin_remove_credit") {
         if (!isAdmin(q.from?.id)) return;
         clearAdminInputs(chatId);
@@ -6140,26 +6129,78 @@ The review has been removed.`,
         return safeSendMessage(chatId, "📣 SEND MESSAGE\n\nSend the message to go to everyone who has ordered.\n\n/admin to cancel.");
       }
 
-      if (data === "admin_orders_home") {
+      if (data === "admin_customers") {
         if (!isAdmin(q.from?.id)) return;
-        return safeSendMessage(chatId, "📦 ORDERS", {
+        return safeSendMessage(chatId, "👥 CUSTOMERS", {
           reply_markup: {
             inline_keyboard: [
-              [{ text: "⏳ Waiting payment", callback_data: "admin_payments" }],
-              [{ text: "✅ Paid", callback_data: "admin_paid_orders" }],
-              [{ text: "🚚 Shipped", callback_data: "admin_shipped_orders" }],
-              [{ text: "📤 Dispatch queue", callback_data: "admin_dispatch" }],
-              [{ text: "🗂 All orders", callback_data: "admin_all_orders_0" }],
+              [{ text: "💳 Store Credit", callback_data: "admin_credit_home" }],
+              [{ text: "📣 Send Message", callback_data: "admin_broadcast" }],
+              [{ text: "⭐ Reviews", callback_data: "admin_reviews" }],
+              [{ text: "💰 Affiliate Earnings", callback_data: "admin_earnings" }],
               [{ text: "⬅️ Admin Dashboard", callback_data: "admin_dashboard" }]
             ]
           }
         });
       }
 
+      if (data === "admin_orders_home") {
+        if (!isAdmin(q.from?.id)) return;
+        return safeSendMessage(chatId, "📦 ORDERS", {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "📤 To send", callback_data: "admin_dispatch" }],
+              [{ text: "✅ Paid", callback_data: "admin_paid_orders" }],
+              [{ text: "❌ Cancelled", callback_data: "admin_cancelled_orders" }],
+              [{ text: "⏳ Waiting payment", callback_data: "admin_payments" }],
+              [{ text: "✅ Sent", callback_data: "admin_shipped_orders" }],
+              [{ text: "🔎 Find order", callback_data: "admin_find_order" }],
+              [{ text: "⬅️ Admin Dashboard", callback_data: "admin_dashboard" }]
+            ]
+          }
+        });
+      }
+
+      if (data === "admin_cancelled_orders") {
+        if (!isAdmin(q.from?.id)) return;
+        const list = [...orders.values()]
+          .filter(order => order.paymentStatus === "cancelled" && !(order.cleared || []).includes("cancelled"))
+          .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        return showOrderList(chatId, `❌ CANCELLED (${list.length})`, list);
+      }
+
+      if (data.startsWith("clrall_")) {
+        if (!isAdmin(q.from?.id)) return;
+        const key = data.replace("clrall_", "");
+        const match = key === "cancelled"
+          ? order => order.paymentStatus === "cancelled"
+          : key === "dispatch"
+            ? order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped"
+            : order => order.paymentStatus === "paid";
+        let count = 0;
+        for (const order of orders.values()) {
+          if (!match(order) || (order.cleared || []).includes(key)) continue;
+          order.cleared = [...(order.cleared || []), key];
+          saveOrder(order);
+          count += 1;
+        }
+        return safeSendMessage(chatId, `✅ Cleared ${count} from ${key}.`);
+      }
+
+      if (data.startsWith("clr_")) {
+        if (!isAdmin(q.from?.id)) return;
+        const [, key, idRaw] = data.split("_");
+        const order = orders.get(Number(idRaw));
+        if (!order) return safeSendMessage(chatId, "Order not found.");
+        order.cleared = [...new Set([...(order.cleared || []), key])];
+        saveOrder(order);
+        return safeSendMessage(chatId, `✅ #${order.orderId} cleared from ${key}.`);
+      }
+
       if (data === "admin_paid_orders") {
         if (!isAdmin(q.from?.id)) return;
         const list = [...orders.values()]
-          .filter(order => order.paymentStatus === "paid")
+          .filter(order => order.paymentStatus === "paid" && !(order.cleared || []).includes("paid"))
           .sort((a, b) => new Date(b.paidAt || b.createdAt || 0) - new Date(a.paidAt || a.createdAt || 0));
         return showOrderList(chatId, `✅ PAID (${list.length})`, list);
       }
@@ -6185,7 +6226,7 @@ The review has been removed.`,
         }
 
         const list = [...orders.values()]
-          .filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped")
+          .filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped" && !(order.cleared || []).includes("dispatch"))
           .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
 
         return showOrderList(
@@ -6218,9 +6259,9 @@ The review has been removed.`,
         return safeSendMessage(
           chatId,
 
-`🔎 FIND ORDER
+`🔎 SEARCH
 
-Send the order number.
+Send an order number, a name, or an @username.
 
 Example:
 1030`
@@ -6359,7 +6400,8 @@ Choose a period.`,
                 { text: "🗑 Delete Promotion", callback_data: "admin_promo_delete" }
               ],
               [
-                { text: "📣 Send promotions", callback_data: "admin_send_promos" }
+                { text: "📣 Send promotions", callback_data: "admin_send_promos" },
+                { text: "🎉 Storewide promo", callback_data: "admin_storewide_promo" }
               ],
               [
                 { text: "⬅️ Admin Dashboard", callback_data: "admin_dashboard" }
@@ -7445,11 +7487,15 @@ No orders found yet.`
                 order.trackingNumber
                   ? `\nTracking: ${order.trackingNumber}`
                   : "";
+              const items = (order.items || [])
+                .map(item => `${item.quantity} × ${item.name}`)
+                .join("\n");
 
               return (
                 `#${order.orderId} — ` +
                 `${money(order.totalPence)} — ` +
-                `${getOrderStatusText(order)}` +
+                `${getOrderStatusText(order)}\n` +
+                items +
                 tracking
               );
             }
@@ -8136,11 +8182,15 @@ No orders found yet.`
                 order.trackingNumber
                   ? `\nTracking: ${order.trackingNumber}`
                   : "";
+              const items = (order.items || [])
+                .map(item => `${item.quantity} × ${item.name}`)
+                .join("\n");
 
               return (
                 `#${order.orderId} — ` +
                 `${money(order.totalPence)} — ` +
-                `${getOrderStatusText(order)}` +
+                `${getOrderStatusText(order)}\n` +
+                items +
                 tracking
               );
             }
@@ -8602,26 +8652,24 @@ Tap Open Shop to launch the Mini App.`
         ) &&
         isAdmin(msg.from?.id)
       ) {
-        const orderId =
-          Number(
-            text.replace(
-              /^#/,
-              ""
-            )
-          );
+        const query = text.replace(/^[#@]/, "").trim().toLowerCase();
+        const orderId = Number(query);
+        const matches = [...orders.values()].filter(order =>
+          (Number.isInteger(orderId) && order.orderId === orderId) ||
+          String(order.customerName || "").toLowerCase().includes(query) ||
+          String(order.telegramUsername || "").toLowerCase().includes(query) ||
+          String(order.telegramId || "") === query
+        ).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
-        const order =
-          orders.get(orderId);
-
-        if (!order) {
-          return safeSendMessage(
-            chatId,
-            "❌ Order not found. Send another number, or /admin to stop."
-          );
+        if (!matches.length) {
+          return safeSendMessage(chatId, "Nothing found. Send another name or number, or /admin to stop.");
         }
-
-        await showAdminOrder(chatId, order);
-        return safeSendMessage(chatId, "Send another order number, or /admin to stop.");
+        if (matches.length === 1) {
+          await showAdminOrder(chatId, matches[0]);
+          return safeSendMessage(chatId, "Send another search, or /admin to stop.");
+        }
+        await showOrderList(chatId, `🔎 ${matches.length} MATCHES`, matches.slice(0, 20));
+        return safeSendMessage(chatId, "Send another search, or /admin to stop.");
       }
 
       /* ADMIN TRACKING INPUT */
@@ -8845,6 +8893,35 @@ ${text}`
           pendingAddProduct.delete(chatId);
           return safeSendMessage(chatId, `✅ Product added\n\n#${nextId} ${product.name}\n${money(product.pricePence)}\nStock: ${stock}`);
         }
+      }
+
+      if (pendingOrderLimit.has(chatId) && isAdmin(msg.from?.id)) {
+        const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
+        const updated = [];
+        const failed = [];
+        for (const line of lines) {
+          const parts = line.replace(/^#/, "").trim().split(/\s+/);
+          const maxQty = Number(parts.pop());
+          const label = parts.join(" ");
+          if (!Number.isInteger(maxQty) || maxQty < 0 || !label) {
+            failed.push(line);
+            continue;
+          }
+          const byId = productsById.get(Number(label));
+          const matches = byId
+            ? [byId]
+            : products.filter(product => String(product.category || product.section || "").toLowerCase() === label.toLowerCase());
+          if (!matches.length) {
+            failed.push(line);
+            continue;
+          }
+          for (const product of matches) {
+            if (maxQty === 0) db.prepare("DELETE FROM product_limits WHERE product_id = ?").run(product.id);
+            else db.prepare("INSERT INTO product_limits (product_id, max_qty) VALUES (?, ?) ON CONFLICT(product_id) DO UPDATE SET max_qty = excluded.max_qty").run(product.id, maxQty);
+          }
+          updated.push(`${label}: ${matches.length} set to ${maxQty === 0 ? "no limit" : maxQty}`);
+        }
+        return safeSendMessage(chatId, `✅ LIMITS SET\n\n${updated.join("\n") || "None"}${failed.length ? `\n\nSkipped:\n${failed.join("\n")}` : ""}\n\nSend another, or /admin to stop.`);
       }
 
       if (pendingAddCredit.has(chatId) && isAdmin(msg.from?.id)) {
