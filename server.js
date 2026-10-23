@@ -3649,6 +3649,8 @@ const pendingBulkPrice = new Map();
 const pendingBroadcast = new Map();
 const pendingAddCredit = new Map();
 const pendingOrderLimit = new Map();
+const pendingWelcome = new Map();
+const pendingGroupWelcome = new Map();
 
 const pendingPriceChange =
   new Map();
@@ -3715,6 +3717,14 @@ if (bot) {
     );
 
     pendingOrderLimit.delete(
+      chatId
+    );
+
+    pendingWelcome.delete(
+      chatId
+    );
+
+    pendingGroupWelcome.delete(
       chatId
     );
   }
@@ -4616,6 +4626,14 @@ Choose an option.`,
     /^\/start(?:@\w+)?(?:\s.*)?$/i,
 
     async msg => {
+      if (msg.chat.type !== "private") {
+        return safeSendMessage(
+          msg.chat.id,
+          "Tap below to open the bot.",
+          botLink ? { reply_markup: { inline_keyboard: [[{ text: "🛍 Open the bot", url: botLink }]] } } : undefined
+        );
+      }
+
       const buttons = [];
 
       if (webAppUrl) {
@@ -4700,9 +4718,9 @@ Choose an option.`,
       await safeSendMessage(
         msg.chat.id,
 
-`${getSeasonalTheme() ? getSeasonalTheme().greeting + "\n\n" : ""}Welcome to Kage Supps.
+`${getSeasonalTheme() ? getSeasonalTheme().greeting + "\n\n" : ""}${getMetaValue("welcome_message") || `Welcome to Kage Supps.
 
-Open the shop, check what is on promotion, and see when stock has been added. If you need us, tap Support.
+Open the shop, check what is on promotion, and see when stock has been added. If you need us, tap Support.`}
 
 🛍 Open Shop
 🏷 Promotions
@@ -4859,6 +4877,50 @@ Open the shop, check what is on promotion, and see when stock has been added. If
         msg.chat.id,
         `✅ Description saved\n\n#${productId} ${product.name}\n${product.subtitle || "No description"}`
       );
+    }
+  );
+
+  let botLink = "";
+  bot.getMe().then(me => { botLink = `https://t.me/${me.username}`; }).catch(() => {});
+
+  bot.on("message", async msg => {
+    const members = msg.new_chat_members || [];
+    if (!members.length) return;
+    const groupId = getMetaValue("welcome_group_id");
+    if (groupId && String(msg.chat.id) !== String(groupId)) return;
+    const welcome = getMetaValue("group_welcome") || "Welcome to Kage Supps. Please read and follow the rules. Tap the button to open the bot.";
+    for (const member of members) {
+      if (member.is_bot) continue;
+      const name = member.username ? `@${member.username}` : member.first_name || "there";
+      await safeSendMessage(
+        msg.chat.id,
+        `👋 ${name}\n\n${welcome}`,
+        botLink ? { reply_markup: { inline_keyboard: [[{ text: "🛍 Open the bot", url: botLink }]] } } : undefined
+      );
+    }
+  });
+
+  bot.onText(
+    /^\/setgroupwelcome(?:@\w+)?(?:\s+([\s\S]+))?$/i,
+    async (msg, match) => {
+      if (!isAdmin(msg.from?.id)) return;
+      const message = (match?.[1] || "").trim();
+      if (!message) return safeSendMessage(msg.chat.id, "Send /setgroupwelcome then the message.");
+      setMetaValue("group_welcome", message.slice(0, 1000));
+      if (msg.chat.type !== "private") setMetaValue("welcome_group_id", String(msg.chat.id));
+      return safeSendMessage(msg.chat.id, "✅ Group welcome saved. It posts here when someone joins.");
+    }
+  );
+
+  bot.onText(
+    /^\/setwelcomegroup(?:@\w+)?$/i,
+    async msg => {
+      if (!isAdmin(msg.from?.id)) return;
+      if (msg.chat.type === "private") {
+        return safeSendMessage(msg.chat.id, "Send /setwelcomegroup in the group.");
+      }
+      setMetaValue("welcome_group_id", String(msg.chat.id));
+      return safeSendMessage(msg.chat.id, "✅ This group will get the join welcome.");
     }
   );
 
@@ -6129,6 +6191,20 @@ The review has been removed.`,
         return safeSendMessage(chatId, "📣 SEND MESSAGE\n\nSend the message to go to everyone who has ordered.\n\n/admin to cancel.");
       }
 
+      if (data === "admin_group_welcome") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingGroupWelcome.set(chatId, true);
+        return safeSendMessage(chatId, `👋 GROUP WELCOME\n\nPosted when someone joins the group.\n\nCurrent:\n${getMetaValue("group_welcome") || "Welcome to Kage Supps. Please read and follow the rules. Tap the button to open the bot."}\n\nSend the new message. /admin to cancel.`);
+      }
+
+      if (data === "admin_welcome") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingWelcome.set(chatId, true);
+        return safeSendMessage(chatId, `👋 WELCOME MESSAGE\n\nCurrent:\n${getMetaValue("welcome_message") || "Welcome to Kage Supps."}\n\nSend the new message. /admin to cancel.`);
+      }
+
       if (data === "admin_customers") {
         if (!isAdmin(q.from?.id)) return;
         return safeSendMessage(chatId, "👥 CUSTOMERS", {
@@ -6138,6 +6214,8 @@ The review has been removed.`,
               [{ text: "📣 Send Message", callback_data: "admin_broadcast" }],
               [{ text: "⭐ Reviews", callback_data: "admin_reviews" }],
               [{ text: "💰 Affiliate Earnings", callback_data: "admin_earnings" }],
+              [{ text: "👋 Welcome message", callback_data: "admin_welcome" }],
+              [{ text: "👋 Group welcome", callback_data: "admin_group_welcome" }],
               [{ text: "⬅️ Admin Dashboard", callback_data: "admin_dashboard" }]
             ]
           }
@@ -8893,6 +8971,18 @@ ${text}`
           pendingAddProduct.delete(chatId);
           return safeSendMessage(chatId, `✅ Product added\n\n#${nextId} ${product.name}\n${money(product.pricePence)}\nStock: ${stock}`);
         }
+      }
+
+      if (pendingGroupWelcome.has(chatId) && isAdmin(msg.from?.id)) {
+        pendingGroupWelcome.delete(chatId);
+        setMetaValue("group_welcome", text.slice(0, 1000));
+        return safeSendMessage(chatId, "✅ Group welcome saved.");
+      }
+
+      if (pendingWelcome.has(chatId) && isAdmin(msg.from?.id)) {
+        pendingWelcome.delete(chatId);
+        setMetaValue("welcome_message", text.slice(0, 1000));
+        return safeSendMessage(chatId, "✅ Welcome message saved. It shows on /start.");
       }
 
       if (pendingOrderLimit.has(chatId) && isAdmin(msg.from?.id)) {
