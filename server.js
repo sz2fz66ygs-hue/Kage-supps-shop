@@ -9144,19 +9144,24 @@ ${text}`
         const failed = [];
 
         for (const line of lines) {
-          const parts = line.replace(/^#/, "").split(/\s+/);
-          const productId = Number(parts[0]);
-          const amount = Number(parts[1]);
-          const product = productsById.get(productId);
-          if (!product || !Number.isInteger(amount) || amount < 0) {
-            failed.push(line);
+          const parts = line.replace(/^#/, "").trim().split(/\s+/);
+          const productId = Number(String(parts[0] || "").replace(/[^0-9]/g, ""));
+          const amount = Number(String(parts[1] || "").replace(/[^0-9]/g, ""));
+          const product = productsById.get(productId) || products.find(item => Number(item.id) === productId);
+          if (!Number.isInteger(productId) || productId <= 0 || !Number.isInteger(amount) || amount < 0) {
+            failed.push(`${line} (bad line)`);
+            continue;
+          }
+          if (!product && getLiveStock(productId) === null) {
+            failed.push(`${line} (no product #${productId})`);
             continue;
           }
           const oldStock = Number(getLiveStock(productId) || 0);
           const newStock = mode === "add" ? oldStock + amount : amount;
           setInventoryStmt.run(productId, newStock);
-          await recordStockChange(product, oldStock, newStock);
-          updated.push(mode === "add" ? `${product.name}: ${oldStock} + ${amount} = ${newStock}` : `${product.name}: ${newStock}`);
+          if (product) await recordStockChange(product, oldStock, newStock);
+          const name = product?.name || `#${productId}`;
+          updated.push(mode === "add" ? `${name}: ${oldStock} + ${amount} = ${newStock}` : `${name}: ${newStock}`);
         }
 
         const addedLines = updated.filter(line => line.includes("+"));
