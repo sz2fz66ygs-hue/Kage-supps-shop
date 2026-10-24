@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { readFileSync, writeFileSync, mkdirSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { fileURLToPath } from "url";
 import path from "path";
 import { randomUUID, createHmac } from "crypto";
@@ -605,13 +605,18 @@ const restoreInventoryStmt = db.prepare(`
 
 let products = [];
 
+const PRODUCTS_FILE = path.join(DATA_DIR, "products.json");
+const BUNDLED_PRODUCTS = path.join(__dirname, "public", "products.json");
+
+function saveProductsFile() {
+  const clean = products.map(({ priceOverridden, cataloguePricePence, ...item }) => item);
+  writeFileSync(PRODUCTS_FILE, JSON.stringify(clean, null, 2));
+  try { writeFileSync(BUNDLED_PRODUCTS, JSON.stringify(clean, null, 2)); } catch {}
+}
+
 try {
-  products = JSON.parse(
-    readFileSync(
-      path.join(__dirname, "public", "products.json"),
-      "utf8"
-    )
-  );
+  const source = existsSync(PRODUCTS_FILE) ? PRODUCTS_FILE : BUNDLED_PRODUCTS;
+  products = JSON.parse(readFileSync(source, "utf8"));
 
   if (!Array.isArray(products)) {
     throw new Error("products.json must contain an array.");
@@ -4908,7 +4913,7 @@ Open the shop, check what is on promotion, and see when stock has been added. If
       }
       product.subtitle = match[2].trim() === "-" ? "" : match[2].trim();
       writeFileSync(
-        path.join(__dirname, "public", "products.json"),
+        PRODUCTS_FILE,
         JSON.stringify(products.map(({ priceOverridden, cataloguePricePence, ...item }) => item), null, 2)
       );
       return safeSendMessage(
@@ -8919,7 +8924,7 @@ ${text}`
         }
 
         writeFileSync(
-          path.join(__dirname, "public", "products.json"),
+          PRODUCTS_FILE,
           JSON.stringify(products.map(({ priceOverridden, cataloguePricePence, ...item }) => item), null, 2)
         );
         return safeSendMessage(
@@ -8979,7 +8984,7 @@ ${text}`
           productsById.set(nextId, product);
           setInventoryStmt.run(nextId, stock);
           writeFileSync(
-            path.join(__dirname, "public", "products.json"),
+            PRODUCTS_FILE,
             JSON.stringify(products.map(({ priceOverridden, cataloguePricePence, ...item }) => item), null, 2)
           );
           pendingAddProduct.delete(chatId);
@@ -9016,7 +9021,7 @@ ${text}`
           product.subtitle = match[2].trim();
           updated.push(`#${product.id} ${product.name}`);
         }
-        writeFileSync(path.join(__dirname, "public", "products.json"), JSON.stringify(products, null, 2));
+        writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2));
         return safeSendMessage(chatId, `✅ DESCRIPTIONS SET\n\n${updated.join("\n") || "None"}${failed.length ? `\n\nSkipped:\n${failed.join("\n")}` : ""}\n\nSend another, or /admin to stop.`);
       }
 
@@ -9139,7 +9144,7 @@ ${text}`
 
       if (pendingBulkStock.has(chatId) && isAdmin(msg.from?.id)) {
         try {
-          const fresh = JSON.parse(readFileSync(path.join(__dirname, "public", "products.json"), "utf8"));
+          const fresh = JSON.parse(readFileSync(PRODUCTS_FILE, "utf8"));
           if (Array.isArray(fresh)) {
             for (const item of fresh) {
               const id = Number(item.id);
