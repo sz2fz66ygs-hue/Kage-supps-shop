@@ -9138,6 +9138,18 @@ ${text}`
       }
 
       if (pendingBulkStock.has(chatId) && isAdmin(msg.from?.id)) {
+        try {
+          const fresh = JSON.parse(readFileSync(path.join(__dirname, "public", "products.json"), "utf8"));
+          if (Array.isArray(fresh)) {
+            for (const item of fresh) {
+              const id = Number(item.id);
+              if (!productsById.has(id)) {
+                products.push(item);
+                productsById.set(id, item);
+              }
+            }
+          }
+        } catch {}
         const mode = pendingBulkStock.get(chatId);
         const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
         const updated = [];
@@ -9153,7 +9165,8 @@ ${text}`
             continue;
           }
           if (!product && getLiveStock(productId) === null) {
-            failed.push(`${line} (no product #${productId})`);
+            setInventoryStmt.run(productId, amount);
+            updated.push(`#${productId}: ${amount}`);
             continue;
           }
           const oldStock = Number(getLiveStock(productId) || 0);
