@@ -581,9 +581,9 @@ const getInventoryStmt = db.prepare(`
 `);
 
 const setInventoryStmt = db.prepare(`
-  UPDATE inventory
-  SET stock = ?
-  WHERE product_id = ?
+  INSERT INTO inventory (product_id, stock)
+  VALUES (?, ?)
+  ON CONFLICT(product_id) DO UPDATE SET stock = excluded.stock
 `);
 
 const reserveInventoryStmt = db.prepare(`
@@ -1584,7 +1584,7 @@ function deductStockForOrder(order) {
       const liveStock = getLiveStock(item.id);
 
       if (liveStock === null) {
-        continue;
+        setInventoryStmt.run(Number(item.id), 0);
       }
 
       const qty = Number(item.quantity || 0);
@@ -1877,6 +1877,27 @@ const reservationCleanupTimer = setInterval(() => {
 }, 60 * 1000);
 
 reservationCleanupTimer.unref?.();
+
+async function sendDeliveryReminders() {
+  const day = 24 * 60 * 60 * 1000;
+  for (const order of orders.values()) {
+    if (order.paymentStatus !== "paid" || order.fulfilmentStatus !== "shipped" || order.receivedAt || order.deliveryReminderSent || !order.telegramId) continue;
+    const sentAt = new Date(order.shippedAt || 0).getTime();
+    if (!Number.isFinite(sentAt) || Date.now() - sentAt < day) continue;
+    order.deliveryReminderSent = true;
+    saveOrder(order);
+    await safeSendMessage(
+      order.telegramId,
+      `📦 Order #${order.orderId}\n\nThis was dispatched${order.trackingNumber ? ` with tracking ${order.trackingNumber}` : ""}.\n\nTap below once it arrives.`,
+      { reply_markup: { inline_keyboard: [[{ text: "✅ I've received it", callback_data: `received_${order.orderId}` }]] } }
+    );
+  }
+}
+
+const deliveryReminderTimer = setInterval(() => {
+  sendDeliveryReminders().catch(err => console.error("DELIVERY REMINDER ERROR:", err));
+}, 60 * 60 * 1000);
+deliveryReminderTimer.unref?.();
 
 /* =========================================================
    REVIEW URL
@@ -3649,8 +3670,10 @@ const pendingBulkPrice = new Map();
 const pendingBroadcast = new Map();
 const pendingAddCredit = new Map();
 const pendingOrderLimit = new Map();
+const pendingBulkSubtitle = new Map();
 const pendingWelcome = new Map();
 const pendingGroupWelcome = new Map();
+const pendingGroupStart = new Map();
 
 const pendingPriceChange =
   new Map();
@@ -3720,11 +3743,19 @@ if (bot) {
       chatId
     );
 
+    pendingBulkSubtitle.delete(
+      chatId
+    );
+
     pendingWelcome.delete(
       chatId
     );
 
     pendingGroupWelcome.delete(
+      chatId
+    );
+
+    pendingGroupStart.delete(
       chatId
     );
   }
@@ -4602,13 +4633,19 @@ Choose an option.`,
     const lines =
       list
         .map(product => {
-          const reserved = [...orders.values()]
-            .filter(order => order.paymentStatus === "awaiting_payment" || order.paymentStatus === "payment_submitted")
-            .reduce((sum, order) => {
-              const item = (order.items || []).find(entry => Number(entry.id) === Number(product.id));
-              return sum + Number(item?.quantity || 0);
-            }, 0);
-          return `#${product.id} • ${product.name}: ${product.stock}${reserved ? ` (${reserved} held on unpaid orders)` : ""}`;
+          const waiting = [...orders.values()].filter(order => order.paymentStatus === "awaiting_payment");
+          const confirming = [...orders.values()].filter(order => order.paymentStatus === "payment_submitted");
+          const qty = list => list.reduce((sum, order) => {
+            const item = (order.items || []).find(entry => Number(entry.id) === Number(product.id));
+            return sum + Number(item?.quantity || 0);
+          }, 0);
+          const held = qty(waiting);
+          const toConfirm = qty(confirming);
+          const notes = [
+            held ? `${held} held, no payment yet` : "",
+            toConfirm ? `${toConfirm} waiting on your confirm` : ""
+          ].filter(Boolean).join(", ");
+          return `#${product.id} • ${product.name}: ${product.stock}${notes ? ` (${notes})` : ""}`;
         })
         .join("\n");
 
@@ -4627,9 +4664,10 @@ Choose an option.`,
 
     async msg => {
       if (msg.chat.type !== "private") {
+        const startText = getMetaValue("group_start") || "Tap the button to open the bot.";
         return safeSendMessage(
           msg.chat.id,
-          "Tap below to open the bot.",
+          startText,
           botLink ? { reply_markup: { inline_keyboard: [[{ text: "🛍 Open the bot", url: botLink }]] } } : undefined
         );
       }
@@ -4899,6 +4937,17 @@ Open the shop, check what is on promotion, and see when stock has been added. If
       );
     }
   });
+
+  bot.onText(
+    /^\/setgroupstart(?:@\w+)?(?:\s+([\s\S]+))?$/i,
+    async (msg, match) => {
+      if (!isAdmin(msg.from?.id)) return;
+      const message = (match?.[1] || "").trim();
+      if (!message) return safeSendMessage(msg.chat.id, "Send /setgroupstart then the message.");
+      setMetaValue("group_start", message.slice(0, 1000));
+      return safeSendMessage(msg.chat.id, "✅ Group /start message saved.");
+    }
+  );
 
   bot.onText(
     /^\/setgroupwelcome(?:@\w+)?(?:\s+([\s\S]+))?$/i,
@@ -5812,7 +5861,8 @@ ${productLines || "No activity in the last 7 days."}`
         if (order.telegramId) {
           await safeSendMessage(
             order.telegramId,
-            `📦 Your order has been dispatched\n\nOrder #${orderId}\n\nTracking will be added when it is available.`
+            `📦 Your order has been dispatched\n\nOrder #${orderId}\n\nTracking will be added when it is available.\n\nTap below when it arrives.`,
+            { reply_markup: { inline_keyboard: [[{ text: "✅ I've received it", callback_data: `received_${orderId}` }]] } }
           );
         }
         await safeSendMessage(chatId, `✅ Order #${orderId} marked dispatched.`);
@@ -6133,6 +6183,7 @@ The review has been removed.`,
         return safeSendMessage(chatId, "➕ PRODUCTS", {
           reply_markup: { inline_keyboard: [
             [{ text: "➕ Add Products", callback_data: "admin_add_products" }],
+            [{ text: "📝 Set descriptions", callback_data: "admin_bulk_subtitle" }],
             [{ text: "📋 Product IDs", callback_data: "admin_product_ids" }],
             [{ text: "⬅️ Stock Centre", callback_data: "admin_stock" }]
           ]}
@@ -6155,6 +6206,13 @@ The review has been removed.`,
             [{ text: "⬅️ Stock Centre", callback_data: "admin_stock" }]
           ]}
         });
+      }
+
+      if (data === "admin_bulk_subtitle") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingBulkSubtitle.set(chatId, true);
+        return safeSendMessage(chatId, "📝 SET DESCRIPTIONS\n\nOne per line. This is the grey line under the name, not the stock.\n\n408 10 tabs per strip\n411 4 tabs per strip\n\n/admin to cancel.");
       }
 
       if (data === "admin_order_limit") {
@@ -6191,6 +6249,13 @@ The review has been removed.`,
         return safeSendMessage(chatId, "📣 SEND MESSAGE\n\nSend the message to go to everyone who has ordered.\n\n/admin to cancel.");
       }
 
+      if (data === "admin_group_start") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingGroupStart.set(chatId, true);
+        return safeSendMessage(chatId, `👋 GROUP /start\n\nShown when someone sends /start in the group.\n\nCurrent:\n${getMetaValue("group_start") || "Tap the button to open the bot."}\n\nSend the new message. /admin to cancel.`);
+      }
+
       if (data === "admin_group_welcome") {
         if (!isAdmin(q.from?.id)) return;
         clearAdminInputs(chatId);
@@ -6216,6 +6281,7 @@ The review has been removed.`,
               [{ text: "💰 Affiliate Earnings", callback_data: "admin_earnings" }],
               [{ text: "👋 Welcome message", callback_data: "admin_welcome" }],
               [{ text: "👋 Group welcome", callback_data: "admin_group_welcome" }],
+              [{ text: "👋 Group /start", callback_data: "admin_group_start" }],
               [{ text: "⬅️ Admin Dashboard", callback_data: "admin_dashboard" }]
             ]
           }
@@ -7193,7 +7259,8 @@ Customers can no longer use the store-wide promo code.`,
         if (order.telegramId) {
           await safeSendMessage(
             order.telegramId,
-            `📦 Your order has been dispatched\n\nOrder #${orderId}\n\nTracking will be added when it is available.`
+            `📦 Your order has been dispatched\n\nOrder #${orderId}\n\nTracking will be added when it is available.\n\nTap below when it arrives.`,
+            { reply_markup: { inline_keyboard: [[{ text: "✅ I've received it", callback_data: `received_${orderId}` }]] } }
           );
         }
         await notifyAdmins(`📦 Order #${orderId} marked dispatched.`);
@@ -7511,81 +7578,28 @@ This will mark the order as cancelled.`,
 
       /* MY ORDERS */
 
-      if (
-        data ===
-        "orders"
-      ) {
-        const viewer = {
-          telegramId:
-            q.from?.id,
-          telegramUsername:
-            q.from?.username
-        };
+      if (data === "orders") {
+        const viewer = { telegramId: q.from?.id, telegramUsername: q.from?.username };
+        const matches = [...orders.values()]
+          .filter(order => orderBelongsToViewer(order, viewer) && ["awaiting_payment", "payment_submitted", "paid"].includes(order.paymentStatus))
+          .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+          .slice(0, 10);
 
-        const matches =
-          [...orders.values()]
-            .filter(
-              order =>
-                orderBelongsToViewer(
-                  order,
-                  viewer
-                ) &&
-                order.paymentStatus !== "cancelled"
-            )
-            .sort(
-              (
-                a,
-                b
-              ) =>
-                new Date(
-                  b.createdAt ||
-                  0
-                ) -
-                new Date(
-                  a.createdAt ||
-                  0
-                )
-            )
-            .slice(0, 10);
+        if (!matches.length) return safeSendMessage(chatId, "📦 My Orders\n\nNo orders found yet.");
 
-        if (!matches.length) {
-          return safeSendMessage(
+        for (const order of matches) {
+          const tracking = order.trackingNumber ? `\nTracking: ${order.trackingNumber}` : "";
+          const items = (order.items || []).map(item => `${item.quantity} × ${item.name}`).join("\n");
+          const buttons = order.paymentStatus === "paid" && order.fulfilmentStatus === "shipped" && !order.receivedAt
+            ? [[{ text: "✅ I've received it", callback_data: `received_${order.orderId}` }]]
+            : [];
+          await safeSendMessage(
             chatId,
-
-`📦 My Orders
-
-No orders found yet.`
+            `#${order.orderId} — ${money(order.totalPence)} — ${getOrderStatusText(order)}\n${items}${tracking}`,
+            buttons.length ? { reply_markup: { inline_keyboard: buttons } } : undefined
           );
         }
-
-        const lines =
-          matches.map(
-            order => {
-              const tracking =
-                order.trackingNumber
-                  ? `\nTracking: ${order.trackingNumber}`
-                  : "";
-              const items = (order.items || [])
-                .map(item => `${item.quantity} × ${item.name}`)
-                .join("\n");
-
-              return (
-                `#${order.orderId} — ` +
-                `${money(order.totalPence)} — ` +
-                `${getOrderStatusText(order)}\n` +
-                items +
-                tracking
-              );
-            }
-          );
-
-        return safeSendMessage(
-          chatId,
-
-`📦 My Orders
-
-${lines.join("\n\n")}`
-        );
+        return;
       }
 
       /* SUPPORT */
@@ -8973,6 +8987,12 @@ ${text}`
         }
       }
 
+      if (pendingGroupStart.has(chatId) && isAdmin(msg.from?.id)) {
+        pendingGroupStart.delete(chatId);
+        setMetaValue("group_start", text.slice(0, 1000));
+        return safeSendMessage(chatId, "✅ Group /start message saved.");
+      }
+
       if (pendingGroupWelcome.has(chatId) && isAdmin(msg.from?.id)) {
         pendingGroupWelcome.delete(chatId);
         setMetaValue("group_welcome", text.slice(0, 1000));
@@ -8983,6 +9003,21 @@ ${text}`
         pendingWelcome.delete(chatId);
         setMetaValue("welcome_message", text.slice(0, 1000));
         return safeSendMessage(chatId, "✅ Welcome message saved. It shows on /start.");
+      }
+
+      if (pendingBulkSubtitle.has(chatId) && isAdmin(msg.from?.id)) {
+        const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
+        const updated = [];
+        const failed = [];
+        for (const line of lines) {
+          const match = line.match(/^#?(\d+)\s+(.+)$/);
+          const product = match ? productsById.get(Number(match[1])) : null;
+          if (!product) { failed.push(line); continue; }
+          product.subtitle = match[2].trim();
+          updated.push(`#${product.id} ${product.name}`);
+        }
+        writeFileSync(path.join(__dirname, "public", "products.json"), JSON.stringify(products, null, 2));
+        return safeSendMessage(chatId, `✅ DESCRIPTIONS SET\n\n${updated.join("\n") || "None"}${failed.length ? `\n\nSkipped:\n${failed.join("\n")}` : ""}\n\nSend another, or /admin to stop.`);
       }
 
       if (pendingOrderLimit.has(chatId) && isAdmin(msg.from?.id)) {
@@ -9228,10 +9263,7 @@ Example:
             );
 
           const oldStock = getLiveStock(state.productId);
-          setInventoryStmt.run(
-            newStock,
-            state.productId
-          );
+          setInventoryStmt.run(state.productId, newStock);
           await recordStockChange(product, oldStock, newStock);
 
           const doneName = product?.name || `Product #${state.productId}`;
