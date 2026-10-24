@@ -5320,8 +5320,8 @@ Reserved stock is now committed to the order.`
       const oldStock = getLiveStock(productId);
 
       setInventoryStmt.run(
-        newStock,
-        productId
+        productId,
+        newStock
       );
 
       await recordStockChange(product, oldStock, newStock);
@@ -8914,7 +8914,7 @@ ${text}`
           };
           products.push(product);
           productsById.set(nextId, product);
-          setInventoryStmt.run(stock, nextId);
+          setInventoryStmt.run(nextId, stock);
           added.push(`#${nextId} ${name} — ${money(product.pricePence)} — stock ${stock}`);
         }
 
@@ -8977,7 +8977,7 @@ ${text}`
           };
           products.push(product);
           productsById.set(nextId, product);
-          setInventoryStmt.run(stock, nextId);
+          setInventoryStmt.run(nextId, stock);
           writeFileSync(
             path.join(__dirname, "public", "products.json"),
             JSON.stringify(products.map(({ priceOverridden, cataloguePricePence, ...item }) => item), null, 2)
@@ -9154,7 +9154,7 @@ ${text}`
           }
           const oldStock = Number(getLiveStock(productId) || 0);
           const newStock = mode === "add" ? oldStock + amount : amount;
-          setInventoryStmt.run(newStock, productId);
+          setInventoryStmt.run(productId, newStock);
           await recordStockChange(product, oldStock, newStock);
           updated.push(mode === "add" ? `${product.name}: ${oldStock} + ${amount} = ${newStock}` : `${product.name}: ${newStock}`);
         }
