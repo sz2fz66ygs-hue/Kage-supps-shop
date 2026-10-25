@@ -6375,14 +6375,28 @@ The review has been removed.`,
         }
 
         const list = [...orders.values()]
-          .filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped" && !(order.cleared || []).includes("dispatch"))
+          .filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered" && !(order.cleared || []).includes("dispatch") && !(order.cleared || []).includes("paid"))
           .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
 
-        return showOrderList(
-          chatId,
-          "🚚 DISPATCH QUEUE",
-          list
-        );
+        if (!list.length) return safeSendMessage(chatId, "📤 TO SEND\n\nNothing to pack.");
+        await safeSendMessage(chatId, `📤 TO SEND (${list.length})\n\nOldest first.`);
+        for (const order of list.slice(0, 15)) {
+          const items = (order.items || []).map(item => `${item.quantity} × ${item.name}`).join("\n") || "No items";
+          const when = new Date(order.createdAt || order.paidAt || 0);
+          const stamp = Number.isFinite(when.getTime())
+            ? when.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+            : "";
+          await safeSendMessage(chatId, `#${order.orderId}${stamp ? ` · ${stamp}` : ""}`);
+          await safeSendMessage(chatId, order.customerName || "No name");
+          await safeSendMessage(chatId, order.address || "No address");
+          await safeSendMessage(chatId, items, {
+            reply_markup: { inline_keyboard: [[
+              { text: "✅ Dispatched", callback_data: `disp_${order.orderId}` },
+              { text: "Clear", callback_data: `clr_dispatch_${order.orderId}` }
+            ]] }
+          });
+        }
+        return;
       }
 
       /* FIND ORDER */
@@ -9174,14 +9188,18 @@ ${text}`
             updated.push(`#${productId}: ${amount}`);
             continue;
           }
-          const oldStock = Number(getLiveStock(productId) || 0);
+          const oldStock = Number(getLiveStock(productId) ?? product?.stock ?? 0);
           const newStock = mode === "add" ? oldStock + amount : amount;
           setInventoryStmt.run(productId, newStock);
-          if (product) await recordStockChange(product, oldStock, newStock);
+          if (product) {
+            product.stock = newStock;
+            await recordStockChange(product, oldStock, newStock);
+          }
           const name = product?.name || `#${productId}`;
           updated.push(mode === "add" ? `${name}: ${oldStock} + ${amount} = ${newStock}` : `${name}: ${newStock}`);
         }
 
+        saveProductsFile();
         const addedLines = updated.filter(line => line.includes("+"));
         if (addedLines.length) await sendRestockNotices(addedLines.map(line => line.split(":")[0] + " is back in stock"));
 
