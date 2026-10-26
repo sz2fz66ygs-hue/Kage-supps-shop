@@ -1816,6 +1816,18 @@ async function sendRestockNotices(lines = [...restockQueue]) {
   }
 }
 
+async function postOrderToGroup(order) {
+  const groupId = getMetaValue("orders_group_id");
+  if (!groupId || !order) return;
+  const items = (order.items || []).map(item => `${item.quantity} × ${item.name}`).join("\n") || "No items";
+  const when = new Date(order.createdAt || Date.now());
+  const stamp = when.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  await safeSendMessage(groupId, `#${order.orderId} · ${stamp}\n${getOrderStatusText(order)}`);
+  await safeSendMessage(groupId, order.customerName || "No name");
+  await safeSendMessage(groupId, order.address || "No address");
+  await safeSendMessage(groupId, items);
+}
+
 async function notifyAdmins(message, options) {
   const ids = [...configuredAdminIds];
   if (!ids.length && adminTelegramId) ids.push(adminTelegramId);
@@ -2911,6 +2923,7 @@ app.post(
           )
           .join("\n");
 
+      await postOrderToGroup(order);
       await notifyAdmins(
 
 `🧾 NEW ORDER
@@ -4901,6 +4914,32 @@ Open the shop, check what is on promotion, and see when stock has been added. If
   );
 
   bot.onText(
+    /^\/rename(?:@\w+)?\s+(\d+)\s+(.+)$/i,
+    async (msg, match) => {
+      if (!isAdmin(msg.from?.id)) return;
+      const product = productsById.get(Number(match[1]));
+      if (!product) return safeSendMessage(msg.chat.id, "Product not found.");
+      product.name = match[2].trim();
+      saveProductsFile();
+      return safeSendMessage(msg.chat.id, `✅ #${product.id} is now ${product.name}`);
+    }
+  );
+
+  bot.onText(
+    /^\/hide(?:@\w+)?\s+(\d+)$/i,
+    async (msg, match) => {
+      if (!isAdmin(msg.from?.id)) return;
+      const product = productsById.get(Number(match[1]));
+      if (!product) return safeSendMessage(msg.chat.id, "Product not found.");
+      product.purchasable = false;
+      setInventoryStmt.run(product.id, 0);
+      product.stock = 0;
+      saveProductsFile();
+      return safeSendMessage(msg.chat.id, `✅ #${product.id} ${product.name} hidden.`);
+    }
+  );
+
+  bot.onText(
     /^\/subtitle(?:@\w+)?\s+(\d+)\s+(.+)$/i,
     async (msg, match) => {
       if (!isAdmin(msg.from?.id)) {
@@ -4975,6 +5014,16 @@ Open the shop, check what is on promotion, and see when stock has been added. If
       }
       setMetaValue("welcome_group_id", String(msg.chat.id));
       return safeSendMessage(msg.chat.id, "✅ This group will get the join welcome.");
+    }
+  );
+
+  bot.onText(
+    /^\/setordersgroup(?:@\w+)?$/i,
+    async msg => {
+      if (!isAdmin(msg.from?.id)) return;
+      if (msg.chat.type === "private") return safeSendMessage(msg.chat.id, "Send /setordersgroup in the orders chat.");
+      setMetaValue("orders_group_id", String(msg.chat.id));
+      return safeSendMessage(msg.chat.id, "✅ Orders will be posted in this chat.");
     }
   );
 
