@@ -2498,6 +2498,9 @@ app.post(
     res
   ) => {
     try {
+      if (getMetaValue("shop_open") === "0") {
+        return res.status(403).json({ error: "The shop is closed while we update stock. Please try again shortly." });
+      }
       const {
         customerName,
         telegramUsername,
@@ -3689,6 +3692,7 @@ const pendingBroadcast = new Map();
 const pendingAddCredit = new Map();
 const pendingOrderLimit = new Map();
 const pendingBulkSubtitle = new Map();
+const pendingBulkChange = new Map();
 const pendingWelcome = new Map();
 const pendingGroupWelcome = new Map();
 const pendingGroupStart = new Map();
@@ -3762,6 +3766,10 @@ if (bot) {
     );
 
     pendingBulkSubtitle.delete(
+      chatId
+    );
+
+    pendingBulkChange.delete(
       chatId
     );
 
@@ -3906,6 +3914,9 @@ if (bot) {
           ],
           [
             { text: "📊 Reports", callback_data: "admin_reports" }
+          ],
+          [
+            { text: getMetaValue("shop_open") === "0" ? "🟢 Turn bot on" : "🔴 Turn bot off", callback_data: "admin_toggle_shop" }
           ]
         ]
       }
@@ -4560,6 +4571,9 @@ Choose an option.`,
             [
               { text: "📦 Stock", callback_data: "admin_stock_section" },
               { text: "➕ Products", callback_data: "admin_products_section" }
+            ],
+            [
+              { text: "📝 Bulk change", callback_data: "admin_bulk_change" }
             ],
             [
               { text: "💷 Prices", callback_data: "admin_prices_section" },
@@ -6260,6 +6274,13 @@ The review has been removed.`,
             [{ text: "⬅️ Stock Centre", callback_data: "admin_stock" }]
           ]}
         });
+      }
+
+      if (data === "admin_bulk_change") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingBulkChange.set(chatId, true);
+        return safeSendMessage(chatId, "📝 BULK CHANGE\n\nOne product per line.\n\nChange one:\n302 +15 £3 | Rosuvastatin 10mg | 10 tabs per strip\n\nAdd stock only:\n308 +15\n\nNew product:\nPioglitazone 15mg | Pharma | 3 | 10 | 10 tabs per strip\n\n+ adds stock. - takes stock off. £ sets the price. remove hides it. Anything you leave off stays as it is. /admin to cancel.");
       }
 
       if (data === "admin_bulk_subtitle") {
@@ -9071,6 +9092,58 @@ ${text}`
         pendingWelcome.delete(chatId);
         setMetaValue("welcome_message", text.slice(0, 1000));
         return safeSendMessage(chatId, "✅ Welcome message saved. It shows on /start.");
+      }
+
+      if (pendingBulkChange.has(chatId) && isAdmin(msg.from?.id)) {
+        const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
+        const done = [];
+        const failed = [];
+        let nextId = Math.max(0, ...products.map(product => Number(product.id) || 0));
+        for (const line of lines) {
+          const [main, namePart, subtitlePart] = line.split("|").map(part => part.trim());
+          const idMatch = main.match(/^#?(\d+)\b/);
+          if (idMatch) {
+            const product = productsById.get(Number(idMatch[1]));
+            if (!product) { failed.push(`${line} (no product)`); continue; }
+            if (/\bremove\b/i.test(main)) {
+              product.purchasable = false;
+              setInventoryStmt.run(product.id, 0);
+              product.stock = 0;
+              done.push(`Removed #${product.id} ${product.name}`);
+              continue;
+            }
+            const change = main.match(/([+-])(\d+)/);
+            const price = main.match(/£\s*(\d+(?:\.\d+)?)/);
+            if (change) {
+              const oldStock = Number(getLiveStock(product.id) ?? product.stock ?? 0);
+              const delta = Number(change[2]) * (change[1] === "-" ? -1 : 1);
+              const newStock = Math.max(0, oldStock + delta);
+              setInventoryStmt.run(product.id, newStock);
+              product.stock = newStock;
+            }
+            if (price) promotionsApi.setPriceOverride(product.id, Math.round(Number(price[1]) * 100));
+            if (namePart) product.name = namePart;
+            if (subtitlePart) product.subtitle = subtitlePart;
+            done.push(`#${product.id} ${product.name}`);
+            continue;
+          }
+          const parts = line.split("|").map(part => part.trim());
+          const [name, category, priceRaw, stockRaw, subtitle = ""] = parts;
+          const price = Number(String(priceRaw || "").replace("£", ""));
+          const stock = Number(stockRaw);
+          if (!name || !category || !Number.isFinite(price) || !Number.isInteger(stock)) {
+            failed.push(line);
+            continue;
+          }
+          nextId += 1;
+          const product = { id: nextId, name, subtitle, category, section: category, pricePence: Math.round(price * 100), stock, unit: "items", purchasable: true };
+          products.push(product);
+          productsById.set(nextId, product);
+          setInventoryStmt.run(nextId, stock);
+          done.push(`Added #${nextId} ${name}`);
+        }
+        saveProductsFile();
+        return safeSendMessage(chatId, `✅ UPDATED\n\n${done.join("\n") || "None"}${failed.length ? `\n\nSkipped:\n${failed.join("\n")}` : ""}\n\nSend another, or /admin to stop.`);
       }
 
       if (pendingBulkSubtitle.has(chatId) && isAdmin(msg.from?.id)) {
