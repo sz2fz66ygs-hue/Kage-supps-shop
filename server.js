@@ -1866,7 +1866,28 @@ async function safeSendMessage(
   }
 }
 
+async function sendPaymentReminders() {
+  const wait = 30 * 60 * 1000;
+  for (const order of orders.values()) {
+    if (order.paymentStatus !== "awaiting_payment" || order.paymentReminderSent || !order.telegramId) continue;
+    const created = new Date(order.createdAt || 0).getTime();
+    if (!Number.isFinite(created) || Date.now() - created < wait) continue;
+    order.paymentReminderSent = true;
+    saveOrder(order);
+    await safeSendMessage(
+      order.telegramId,
+      `⏰ Order #${order.orderId} is still waiting for payment.\n\nStill want it? We can take 10% off if you do.\n\n10% does not apply to Pharma.`,
+      { reply_markup: { inline_keyboard: [
+        [{ text: "✅ Yes, still want", callback_data: `stillwant_${order.orderId}` }],
+        [{ text: "❌ No", callback_data: `nowant_${order.orderId}` }],
+        [{ text: "🆘 Yes, but need help with crypto", callback_data: `helpcrypto_${order.orderId}` }]
+      ] } }
+    );
+  }
+}
+
 async function runReservationCleanup() {
+  await sendPaymentReminders();
   const expired = expireOldReservations();
 
   for (const order of expired) {
@@ -7720,6 +7741,50 @@ Send your message below.`
         );
       }
 
+      if (data.startsWith("stillwant_")) {
+        const order = orders.get(Number(data.replace("stillwant_", "")));
+        if (!order) return safeSendMessage(chatId, "Order not found.");
+        const alreadyUsed = [...orders.values()].some(existing =>
+          existing.orderId !== order.orderId &&
+          existing.reminderDiscountPence &&
+          String(existing.telegramId || "") === String(order.telegramId || "")
+        );
+        if (!order.reminderDiscountPence && !alreadyUsed) {
+          const eligible = (order.items || []).reduce((sum, item) => {
+            const product = productsById.get(Number(item.id));
+            if (String(product?.category || item.category || "").toLowerCase() === "pharma") return sum;
+            return sum + Number(item.lineTotalPence || item.totalPence || (item.pricePence || 0) * (item.quantity || 0) || 0);
+          }, 0);
+          const off = Math.round(eligible * 0.1);
+          if (!off) return safeSendMessage(chatId, `✅ Order #${order.orderId} is still held. The 10% does not apply to Pharma.`);
+          order.reminderDiscountPence = off;
+          order.discountPence = Number(order.discountPence || 0) + off;
+          order.totalPence = Math.max(0, Number(order.totalPence || 0) - off);
+          saveOrder(order);
+          return safeSendMessage(chatId, `✅ Order #${order.orderId} is still held.\n\n10% off applied. New total: ${money(order.totalPence)}\n\nSend the transaction hash when you have paid.`);
+        }
+        return safeSendMessage(chatId, `✅ Order #${order.orderId} is still held. Send the transaction hash when you have paid.`);
+      }
+
+      if (data.startsWith("nowant_")) {
+        const order = orders.get(Number(data.replace("nowant_", "")));
+        if (!order || order.paymentStatus === "paid") return safeSendMessage(chatId, "That order can no longer be cancelled here.");
+        restoreReservedStock(order);
+        order.paymentStatus = "cancelled";
+        order.fulfilmentStatus = "cancelled";
+        order.cancellationReason = "Customer said they no longer want the order.";
+        saveOrder(order);
+        await notifyAdmins(`❌ Order #${order.orderId} cancelled by ${order.customerName}. They do not want it.`);
+        return safeSendMessage(chatId, `❌ Order #${order.orderId} is cancelled and the stock is released.`);
+      }
+
+      if (data.startsWith("helpcrypto_")) {
+        const order = orders.get(Number(data.replace("helpcrypto_", "")));
+        if (!order) return safeSendMessage(chatId, "Order not found.");
+        await notifyAdmins(`🆘 CRYPTO HELP\n\nOrder #${order.orderId}\n${order.customerName}\n${order.telegramUsername ? "@" + order.telegramUsername : ""}\nThey still want the order but need help paying.`);
+        return safeSendMessage(chatId, `✅ We have your order #${order.orderId}. Tap Support and we will help with the crypto.`);
+      }
+
       if (data.startsWith("received_")) {
         const orderId = Number(data.replace("received_", ""));
         const order = orders.get(orderId);
@@ -8413,6 +8478,50 @@ Support isn't configured yet.`
 
 Send your message below.`
         );
+      }
+
+      if (data.startsWith("stillwant_")) {
+        const order = orders.get(Number(data.replace("stillwant_", "")));
+        if (!order) return safeSendMessage(chatId, "Order not found.");
+        const alreadyUsed = [...orders.values()].some(existing =>
+          existing.orderId !== order.orderId &&
+          existing.reminderDiscountPence &&
+          String(existing.telegramId || "") === String(order.telegramId || "")
+        );
+        if (!order.reminderDiscountPence && !alreadyUsed) {
+          const eligible = (order.items || []).reduce((sum, item) => {
+            const product = productsById.get(Number(item.id));
+            if (String(product?.category || item.category || "").toLowerCase() === "pharma") return sum;
+            return sum + Number(item.lineTotalPence || item.totalPence || (item.pricePence || 0) * (item.quantity || 0) || 0);
+          }, 0);
+          const off = Math.round(eligible * 0.1);
+          if (!off) return safeSendMessage(chatId, `✅ Order #${order.orderId} is still held. The 10% does not apply to Pharma.`);
+          order.reminderDiscountPence = off;
+          order.discountPence = Number(order.discountPence || 0) + off;
+          order.totalPence = Math.max(0, Number(order.totalPence || 0) - off);
+          saveOrder(order);
+          return safeSendMessage(chatId, `✅ Order #${order.orderId} is still held.\n\n10% off applied. New total: ${money(order.totalPence)}\n\nSend the transaction hash when you have paid.`);
+        }
+        return safeSendMessage(chatId, `✅ Order #${order.orderId} is still held. Send the transaction hash when you have paid.`);
+      }
+
+      if (data.startsWith("nowant_")) {
+        const order = orders.get(Number(data.replace("nowant_", "")));
+        if (!order || order.paymentStatus === "paid") return safeSendMessage(chatId, "That order can no longer be cancelled here.");
+        restoreReservedStock(order);
+        order.paymentStatus = "cancelled";
+        order.fulfilmentStatus = "cancelled";
+        order.cancellationReason = "Customer said they no longer want the order.";
+        saveOrder(order);
+        await notifyAdmins(`❌ Order #${order.orderId} cancelled by ${order.customerName}. They do not want it.`);
+        return safeSendMessage(chatId, `❌ Order #${order.orderId} is cancelled and the stock is released.`);
+      }
+
+      if (data.startsWith("helpcrypto_")) {
+        const order = orders.get(Number(data.replace("helpcrypto_", "")));
+        if (!order) return safeSendMessage(chatId, "Order not found.");
+        await notifyAdmins(`🆘 CRYPTO HELP\n\nOrder #${order.orderId}\n${order.customerName}\n${order.telegramUsername ? "@" + order.telegramUsername : ""}\nThey still want the order but need help paying.`);
+        return safeSendMessage(chatId, `✅ We have your order #${order.orderId}. Tap Support and we will help with the crypto.`);
       }
 
       if (data.startsWith("received_")) {
