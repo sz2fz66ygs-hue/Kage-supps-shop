@@ -2483,6 +2483,11 @@ app.get(
         });
     }
 
+    const requester = normaliseUsername(req.query.username || "");
+    const owner = normaliseUsername(record.owner || "");
+    if (!requester || !owner || requester !== owner) {
+      return res.status(403).json({ error: "This store credit belongs to another account." });
+    }
     return res.json({
       code,
       owner:
@@ -2786,10 +2791,15 @@ app.post(
 
         const credit =
           referralEarnings.get(code);
+        const owner = normaliseUsername(credit?.owner || "");
+        const buyer = normaliseUsername(telegramUsername);
 
         if (
           credit &&
-          credit.cashOnly !== true
+          credit.cashOnly !== true &&
+          owner &&
+          buyer &&
+          owner === buyer
         ) {
           const remaining =
             Math.max(
