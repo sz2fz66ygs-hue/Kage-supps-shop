@@ -489,7 +489,7 @@ function shopCard(p) {
                   type="button"
                   ${
                     qty >=
-                    stock
+                    Math.min(stock, Number(p.maxPerOrder || 0) || stock)
                       ? "disabled"
                       : ""
                   }
@@ -669,12 +669,14 @@ function renderProducts() {
               basket[id] ||
               0;
 
+            const maxPerOrder = Number(product.maxPerOrder || 0);
+            const cap = maxPerOrder > 0 ? Math.min(stock, maxPerOrder) : stock;
             const next =
               Math.max(
                 0,
 
                 Math.min(
-                  stock,
+                  cap,
                   current +
                     delta
                 )
@@ -1659,7 +1661,7 @@ async function applyStoreCredit() {
   try {
     const res =
       await fetch(
-        `/api/referral-codes/${encodeURIComponent(code)}/earnings`
+        `/api/referral-codes/${encodeURIComponent(code)}/earnings?username=${encodeURIComponent(telegramUser?.username || "")}`
       );
 
     const data =
