@@ -2000,7 +2000,7 @@ async function verifyUsdtPayment(hash, expectedUsdt) {
   if (!Number.isFinite(expected) || expected <= 0) {
     return { ok: false, reason: "No expected USDT amount on this order.", received };
   }
-  const close = Math.abs(received - expected) <= Math.max(0.5, expected * 0.02);
+  const close = Math.abs(received - expected) <= 1;
   return {
     ok: close && received > 0,
     received,
