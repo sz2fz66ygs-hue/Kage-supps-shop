@@ -1744,9 +1744,14 @@ async function submitOrder() {
       .trim();
 
   const telegramUsername =
+    telegramUser?.username
+      ? `@${telegramUser.username}`
+      : document.getElementById("handle")?.value.trim();
+
+  const phone =
     document
       .getElementById(
-        "handle"
+        "phone"
       )
       ?.value
       .trim();
@@ -1796,10 +1801,11 @@ async function submitOrder() {
 
   if (
     !customerName ||
+    !phone ||
     !address
   ) {
     setStatus(
-      "Please add your name and delivery address.",
+      "Please add your name, phone number, and delivery address.",
       "error"
     );
 
@@ -1840,6 +1846,7 @@ async function submitOrder() {
               customerName,
 
               telegramUsername,
+              phone,
 
               telegramId:
                 telegramUser?.id ||
@@ -2766,13 +2773,24 @@ if (
       "handle"
     );
 
-  if (
-    handleInput &&
-    !handleInput.value
-  ) {
-    handleInput.value =
-      `@${telegramUser.username}`;
+  if (handleInput) {
+    handleInput.value = `@${telegramUser.username}`;
+    handleInput.readOnly = true;
+    handleInput.disabled = true;
   }
+}
+
+const addressInput = document.getElementById("address");
+if (addressInput && !document.getElementById("phone")) {
+  const label = document.createElement("label");
+  label.textContent = "Phone number";
+  const input = document.createElement("input");
+  input.id = "phone";
+  input.type = "tel";
+  input.placeholder = "Phone number for delivery";
+  input.required = true;
+  addressInput.parentElement.insertBefore(label, addressInput);
+  addressInput.parentElement.insertBefore(input, addressInput);
 }
 
 
