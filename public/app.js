@@ -2789,8 +2789,8 @@ if (addressInput && !document.getElementById("phone")) {
   input.type = "tel";
   input.placeholder = "Phone number for delivery";
   input.required = true;
-  addressInput.parentElement.insertBefore(label, addressInput);
-  addressInput.parentElement.insertBefore(input, addressInput);
+  addressInput.insertAdjacentElement("afterend", input);
+  input.insertAdjacentElement("beforebegin", label);
 }
 
 
