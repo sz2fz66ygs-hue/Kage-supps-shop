@@ -735,6 +735,21 @@ app.get("/api/promotions", (_req, res) => {
    ========================================================= */
 
 
+app.post("/api/basket-live", (req, res) => {
+  const id = String(req.body?.telegramId || req.body?.username || "").trim();
+  if (!id) return res.json({ ok: false });
+  const items = Array.isArray(req.body?.items) ? req.body.items : [];
+  if (!items.length) liveBaskets.delete(id);
+  else liveBaskets.set(id, {
+    telegramId: String(req.body?.telegramId || ""),
+    name: req.body?.name || "",
+    username: req.body?.username || "",
+    items,
+    updatedAt: new Date().toISOString()
+  });
+  res.json({ ok: true });
+});
+
 app.post("/api/basket-quote", (req, res) => {
   const items = Array.isArray(req.body?.items) ? req.body.items : [];
   const lineItems = [];
@@ -941,6 +956,7 @@ app.use(
    ========================================================= */
 
 const orders = new Map();
+const liveBaskets = new Map();
 const discountCodes = new Map();
 const referralEarnings = new Map();
 
@@ -2032,6 +2048,21 @@ function verifiedTelegramId(initData) {
   }
 }
 
+function getPersonalTen(telegramId) {
+  if (!telegramId) return null;
+  try {
+    const saved = JSON.parse(getMetaValue("personal10:" + telegramId) || "null");
+    if (!saved || saved.percent !== 10) return null;
+    if (Number(saved.expiresAt || 0) <= Date.now()) {
+      setMetaValue("personal10:" + telegramId, "");
+      return null;
+    }
+    return saved;
+  } catch {
+    return null;
+  }
+}
+
 function getCustomerCredit(telegramId) {
   if (!telegramId) return 0;
   const row = db.prepare("SELECT balance_pence FROM customer_credit WHERE telegram_id = ?").get(String(telegramId));
@@ -2768,10 +2799,20 @@ app.post(
         }
       }
 
+      let personalTenPence = 0;
+      const personalTenId = verifiedTelegramId(req.body?.initData) || "";
+      const personalTen = getPersonalTen(personalTenId);
+      if (personalTen) {
+        const remaining = Math.max(0, subtotalPence - promotionDiscountPence - discountPence - storewideDiscountPence);
+        personalTenPence = Math.round(remaining * 0.1);
+        setMetaValue("personal10:" + personalTenId, "");
+      }
+
       const totalSavingsPence =
         promotionDiscountPence +
         discountPence +
-        storewideDiscountPence;
+        storewideDiscountPence +
+        personalTenPence;
 
       let storeCreditPence = 0;
       let appliedCreditCode = null;
@@ -2837,6 +2878,7 @@ app.post(
           promotionDiscountPence -
           discountPence -
           storewideDiscountPence -
+          personalTenPence -
           storeCreditPence
         );
 
@@ -2868,6 +2910,7 @@ app.post(
         phone:
           phone ||
           "",
+        personalTenPence,
         telegramUsername:
           telegramUsername ||
           "",
@@ -5442,6 +5485,38 @@ Reserved stock is now committed to the order.`
   /* =======================================================
      /TRACKING
      ======================================================= */
+
+  bot.onText(
+    /^\/send10(?:@\w+)?(?:\s+@?(\S+))?$/i,
+    async (msg, match) => {
+      if (!isAdmin(msg.from?.id)) return;
+      const name = String(match[1] || "").replace(/^@/, "").toLowerCase();
+      if (!name) return safeSendMessage(msg.chat.id, "Send /send10 username");
+      let target = [...liveBaskets.values()].find(basket => String(basket.username || "").replace(/^@/, "").toLowerCase() === name);
+      if (!target) {
+        target = [...orders.values()].reverse().find(order => String(order.telegramUsername || "").replace(/^@/, "").toLowerCase() === name);
+      }
+      const telegramId = target?.telegramId;
+      if (!telegramId) return safeSendMessage(msg.chat.id, `Could not find @${name}. They need an open basket or a past order.`);
+      setMetaValue("personal10:" + telegramId, JSON.stringify({ percent: 10, expiresAt: Date.now() + 24 * 60 * 60 * 1000 }));
+      await safeSendMessage(telegramId, "🎁 You have 10% off your next order. It lasts 24 hours and comes off at checkout.");
+      return safeSendMessage(msg.chat.id, `✅ 10% sent to @${name}. It shows on /baskets while they have a basket open.`);
+    }
+  );
+
+  bot.onText(
+    /^\/baskets(?:@\w+)?$/i,
+    async msg => {
+      if (!isAdmin(msg.from?.id)) return;
+      if (!liveBaskets.size) return safeSendMessage(msg.chat.id, "No open baskets right now.");
+      const lines = [...liveBaskets.values()].map(basket => {
+        const items = basket.items.map(item => `${item.quantity} × ${item.name || "#" + item.id}`).join(", ");
+        const pending = getPersonalTen(basket.telegramId) ? "\n10% waiting" : "";
+        return `${basket.username ? "@" + String(basket.username).replace(/^@/, "") : basket.name || "Someone"}${pending}\n${items}`;
+      });
+      return safeSendMessage(msg.chat.id, `🛒 OPEN BASKETS\n\n${lines.join("\n\n")}`);
+    }
+  );
 
   bot.onText(
     /^\/tracking(?:@\w+)?(?:\s+#?(\d+)(?:\s+(.+))?)?$/i,
