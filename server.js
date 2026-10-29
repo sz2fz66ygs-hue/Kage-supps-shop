@@ -1825,6 +1825,7 @@ async function postOrderToGroup(order) {
   await safeSendMessage(groupId, `#${order.orderId} · ${stamp}\n${getOrderStatusText(order)}`);
   await safeSendMessage(groupId, order.customerName || "No name");
   await safeSendMessage(groupId, order.address || "No address");
+  if (order.phone) await safeSendMessage(groupId, order.phone);
   await safeSendMessage(groupId, items);
 }
 
@@ -2531,6 +2532,7 @@ app.post(
         customerName,
         telegramUsername,
         telegramId,
+        phone,
         address,
         items,
         discountCode,
@@ -2863,6 +2865,9 @@ app.post(
           String(
             customerName
           ).trim(),
+        phone:
+          phone ||
+          "",
         telegramUsername:
           telegramUsername ||
           "",
@@ -4177,6 +4182,8 @@ const cancelled =
     await safeSendMessage(chatId, `📦 ORDER #${order.orderId}\n${getOrderStatusText(order)}`);
     await safeSendMessage(chatId, order.customerName || "No name");
     await safeSendMessage(chatId, order.address || "No address");
+          if (order.phone) await safeSendMessage(chatId, order.phone);
+    if (order.phone) await safeSendMessage(chatId, order.phone);
     await safeSendMessage(chatId, items);
     return safeSendMessage(
       chatId,
@@ -5964,8 +5971,7 @@ ${productLines || "No activity in the last 7 days."}`
             { reply_markup: { inline_keyboard: [[{ text: "✅ I've received it", callback_data: `received_${orderId}` }]] } }
           );
         }
-        await safeSendMessage(chatId, `✅ Order #${orderId} marked dispatched.`);
-        return showAdminOrder(chatId, order);
+        return safeSendMessage(chatId, `✅ Order #${orderId} marked dispatched.`);
       }
 
       /* REVIEW APPROVE */
@@ -6490,6 +6496,8 @@ The review has been removed.`,
           await safeSendMessage(chatId, `#${order.orderId}${stamp ? ` · ${stamp}` : ""}`);
           await safeSendMessage(chatId, order.customerName || "No name");
           await safeSendMessage(chatId, order.address || "No address");
+          if (order.phone) await safeSendMessage(chatId, order.phone);
+    if (order.phone) await safeSendMessage(chatId, order.phone);
           await safeSendMessage(chatId, items, {
             reply_markup: { inline_keyboard: [[
               { text: "✅ Dispatched", callback_data: `disp_${order.orderId}` },
@@ -7383,8 +7391,7 @@ Customers can no longer use the store-wide promo code.`,
             { reply_markup: { inline_keyboard: [[{ text: "✅ I've received it", callback_data: `received_${orderId}` }]] } }
           );
         }
-        await notifyAdmins(`📦 Order #${orderId} marked dispatched.`);
-        return showAdminOrder(chatId, order);
+        return safeSendMessage(chatId, `✅ Order #${orderId} marked dispatched.`);
       }
 
       /* ADMIN TRACKING */
