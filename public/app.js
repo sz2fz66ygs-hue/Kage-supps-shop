@@ -331,27 +331,10 @@ function postCartEvent(
 
 function stockBadge(stock, unit = "items", category = "") {
   const n = Number(stock);
-  if (!Number.isFinite(n)) return `<span class="stock low">Stock not entered</span>`;
+  if (!Number.isFinite(n)) return "";
   if (n <= 0) return `<span class="stock out">Out of stock</span>`;
-  const cat = String(category || "").toLowerCase();
-  let label = "In stock";
-  let cls = "good";
-  if (cat === "pharma") {
-    if (n <= 5) { label = "Few left"; cls = "lowstock"; }
-    else if (n <= 15) { label = "Limited"; cls = "medium"; }
-    else { label = "Available"; cls = "good"; }
-  } else if (cat === "oils" || cat === "orals" || cat === "oral anabolics") {
-    if (n <= 5) { label = "Few left"; cls = "lowstock"; }
-    else if (n <= 10) { label = "Limited"; cls = "medium"; }
-    else { label = "Available"; cls = "good"; }
-  } else if (n <= 5) {
-    label = "Few left";
-    cls = "lowstock";
-  } else {
-    label = "Available";
-    cls = "good";
-  }
-  return `<span class="stock ${cls}">${label}</span>`;
+  if (n <= 5) return `<span class="stock lowstock">Low stock · ${n} left</span>`;
+  return `<span class="stock good">In stock</span>`;
 }
 
 
