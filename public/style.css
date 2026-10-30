@@ -70,11 +70,14 @@ body{
   top:63px;
   z-index:25;
   display:flex;
-  gap:24px;
+  gap:16px;
   overflow-x:auto;
   white-space:nowrap;
-  padding:0 16px;
-  background:var(--white);
+  padding:8px 14px;
+  background:
+    radial-gradient(ellipse at 20% 30%, rgba(255,255,255,.9) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 70%, rgba(200,166,70,.18) 0%, transparent 45%),
+    linear-gradient(135deg, #f7f3ea 0%, #fffdf8 40%, #f3ead6 70%, #fff 100%);
   border-bottom:1px solid var(--border);
   scrollbar-width:none;
 }
@@ -85,21 +88,25 @@ body{
 
 .tab{
   appearance:none;
-  border:0;
+  border:1px solid transparent;
   border-bottom:3px solid transparent;
   background:transparent;
-  padding:14px 0 12px;
+  padding:10px 12px;
   font:inherit;
   font-size:15px;
   font-weight:800;
   color:var(--muted);
+  border-radius:12px;
 }
 
 .tab.active{
   color:var(--gold-dark);
-  border-bottom-color:transparent;
-  background:var(--gold-soft);
-  border-radius:999px;
+  border-color:rgba(200,166,70,.35);
+  border-bottom-color:var(--gold);
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255,255,255,.85) 0%, transparent 55%),
+    linear-gradient(160deg, #fff 0%, #f7f0dc 60%, #efe4c4 100%);
+  border-radius:12px;
   padding-left:12px;
   padding-right:12px;
 }
