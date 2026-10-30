@@ -979,7 +979,7 @@ app.get("/kage-spin.js", (_req, res) => {
     }
     var badge = document.createElement("span");
     badge.id = "kage-spin-logo";
-    badge.style.cssText = "display:inline-flex;width:42px;height:42px;margin-left:8px;border-radius:50%;overflow:visible;vertical-align:middle;background:transparent;perspective:200px;";
+    badge.style.cssText = "display:inline-flex;width:28px;height:28px;margin-left:8px;border-radius:50%;overflow:visible;vertical-align:middle;background:transparent;perspective:200px;";
     var el = document.createElement(src ? "img" : "span");
     if (src) {
       el.src = src;
