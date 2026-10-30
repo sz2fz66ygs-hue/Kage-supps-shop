@@ -4381,6 +4381,9 @@ if (bot) {
           ],
           [
             { text: getMetaValue("shop_open") === "0" ? "🟢 Turn bot on" : "🔴 Turn bot off", callback_data: "admin_toggle_shop" }
+          ],
+          [
+            { text: "⬅️ Main menu", callback_data: "main_menu" }
           ]
         ]
       }
@@ -6501,6 +6504,31 @@ The review has been removed.`,
           q.id
         );
       } catch {}
+
+      if (data === "main_menu") {
+        const buttons = [];
+        if (webAppUrl) buttons.push([{ text: "🛍 OPEN SHOP — TAP HERE", web_app: { url: webAppUrl } }]);
+        buttons.push([
+          { text: "📦 My Orders", callback_data: "orders" },
+          { text: "❓ Help", callback_data: "help" }
+        ]);
+        buttons.push([{ text: "💬 Support", callback_data: "support" }]);
+        buttons.push([
+          { text: "💳 Store Credit", callback_data: "store_credit" },
+          { text: "🎁 Refer a friend", callback_data: "refer_friend" }
+        ]);
+        buttons.push([
+          { text: "🏷 Promotions", callback_data: "promotions" },
+          { text: "⭐ Reviews", callback_data: "reviews" },
+          { text: "ℹ️ Info", callback_data: "info" }
+        ]);
+        const groupLink = process.env.GROUP_LINK || getMetaValue("group_link");
+        if (groupLink) buttons.push([{ text: "👥 Join the group", url: groupLink }]);
+        if (isAdmin(q.from?.id)) buttons.push([{ text: "🛠 Admin Dashboard", callback_data: "admin_dashboard" }]);
+        return safeSendMessage(chatId, getMetaValue("welcome_message") || "Welcome to Kage Supps.", {
+          reply_markup: { inline_keyboard: buttons }
+        });
+      }
 
       /* ADMIN DASHBOARD */
 
