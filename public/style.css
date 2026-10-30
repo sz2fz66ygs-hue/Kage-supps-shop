@@ -636,7 +636,8 @@ main{
   font-size:13.5px;
 }
 .compound-line{
-  margin-top:2px;
+  margin-top:1px;
+  line-height:1.35;
 }
 .stock{
   margin-top:10px;

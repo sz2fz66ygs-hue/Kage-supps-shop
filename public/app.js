@@ -423,6 +423,22 @@ function blendLines(product) {
   return [];
 }
 
+
+function subtitleLines(product) {
+  const raw = String(product.subtitle || "").trim();
+  if (!raw) return [];
+  const parts = raw.split(/\s*[•·|]\s*/).map(part => part.trim()).filter(Boolean);
+  return parts.flatMap(part => {
+    const dose = part.match(/^(.+?)\s+per\s+(capsule|vial|ml|tab|tablet|strip|pen|pouch|ampoule|ampule)\b/i);
+    const pack = part.match(/(\d+\s+(?:capsules?|vials?|tabs?|tablets?|strips?|pens?|pouches?|ampoules?|ampules?|ml))\s+per\s+\w+/i);
+    const lines = [];
+    if (dose) lines.push(dose[1].trim());
+    else if (!pack) lines.push(part.replace(/\s+per\s+(capsule|vial|ml|tab|tablet|strip|pen|pouch|ampoule|ampule)\b/i, "").trim());
+    if (pack) lines.push(pack[1].trim());
+    return lines.filter(Boolean);
+  });
+}
+
 function shopCard(p) {
   const id =
     Number(
@@ -479,9 +495,7 @@ function shopCard(p) {
         ${
           blendLines(p).length
             ? blendLines(p).map(line => `<div class="sub compound-line">${escapeHtml(line)}</div>`).join("")
-            : p.subtitle
-              ? `<div class="sub">${escapeHtml(p.subtitle)}</div>`
-              : ""
+            : subtitleLines(p).map(line => `<div class="sub compound-line">${escapeHtml(line)}</div>`).join("")
         }
 
         ${Number(stock) <= 0 ? `<button type="button" class="restock-link" data-restock="${id}">Tell me when it's back</button>` : ""}
@@ -603,8 +617,23 @@ function compoundRank(name) {
   return 900;
 }
 
+function researchRank(name) {
+  const n = String(name || "").toLowerCase();
+  if (n.includes("atx") && n.includes("bam")) return 10;
+  if (n.includes("slu") && n.includes("bam")) return 11;
+  if (n.includes("atx")) return 20;
+  if (n.includes("bam")) return 21;
+  if (n.includes("slu")) return 30;
+  if (n.includes("sana")) return 31;
+  if (n.includes("dihexa")) return 40;
+  if (n.includes("noopept")) return 41;
+  return 90;
+}
+
 function compareProducts(a, b) {
   if (String(a.category || "") === "Research Compounds" && String(b.category || "") === "Research Compounds") {
+    const rank = researchRank(a.name) - researchRank(b.name);
+    if (rank) return rank;
     return String(a.name || "").localeCompare(String(b.name || ""), undefined, { numeric: true });
   }
   const rank = compoundRank(a.name) - compoundRank(b.name);
