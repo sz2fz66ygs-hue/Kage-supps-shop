@@ -66,7 +66,6 @@ const preferredSectionOrder = {
 
   Peps: [
     "Recovery",
-    "Performance",
     "Weight Management",
     "Other"
   ]
@@ -555,36 +554,36 @@ function shopSection(product) {
     if (name.includes("atx") || name.includes("bam") || name.includes("slu") || name.includes("sana") || name.includes("dihexa") || name.includes("noopept")) return "Research Compounds";
     return "Oral Anabolics";
   }
+  if (category === "Peps") {
+    if (name.includes("bpc") || name.includes("ghk")) return "Recovery";
+    if (name.includes("cagri") || name.includes("retatrutide")) return "Weight Management";
+    return "Other";
+  }
   return String(product.section || "Other").trim() || "Other";
 }
 
 function compoundRank(name) {
   const n = String(name || "").toLowerCase();
   const order = [
-    ["test e", 10],
-    ["test cyp", 11],
-    ["test 400", 12],
-    ["sust", 13],
-    ["tren a", 20],
-    ["tren e", 21],
-    ["eq", 30],
-    ["deca", 40],
-    ["npp", 41],
-    ["mast e", 50],
-    ["mast p", 51],
-    ["anavar", 60],
-    ["anadrol", 61],
-    ["dbol", 62],
-    ["superdrol", 63],
-    ["turinabol", 64],
-    ["winstrol", 65],
-    ["proviron", 66],
-    ["atx", 70],
-    ["bam", 71],
-    ["dihexa", 72],
-    ["noopept", 73],
-    ["sana", 74],
-    ["slu", 75]
+    ["test e", 10], ["test cyp", 11], ["test 400", 12], ["sust", 13],
+    ["tren a", 20], ["tren e", 21], ["eq", 30], ["deca", 40], ["npp", 41],
+    ["mast e", 50], ["mast p", 51], ["mass on", 55], ["ttm", 56],
+    ["doomsday", 57], ["inj anadrol", 58], ["inj dbol", 59], ["inj superdrol", 60],
+    ["anavar", 70], ["anadrol", 71], ["dbol", 72], ["superdrol", 73],
+    ["turinabol", 74], ["winstrol", 75], ["proviron", 76],
+    ["atx", 80], ["bam", 81], ["dihexa", 82], ["noopept", 83], ["sana", 84], ["slu", 85],
+    ["nebivolol", 100], ["rosuvastatin", 101], ["telmisartan", 102], ["eplerenone", 103], ["valsartan", 104],
+    ["empagliflozin", 110], ["imeglimin", 111], ["metformin", 112], ["orlistat", 113], ["pioglitazone", 114], ["ezetimibe", 115], ["yohimbine", 116],
+    ["arimidex", 120], ["aromasin", 121], ["cabergoline", 122], ["clen", 123], ["clomid", 124], ["estradiol", 125], ["t3", 126], ["t4", 127], ["tamoxifen", 128], ["raloxifene", 129], ["progesterone", 130],
+    ["lemborexant", 140], ["melatonin", 141], ["zopiclone", 142], ["eszopiclone", 143],
+    ["armodafinil", 150], ["modafinil", 151], ["pregabalin", 152], ["memantine", 153],
+    ["cialis", 160], ["viagra", 161],
+    ["accutane", 170], ["dutasteride", 171], ["finasteride", 172], ["tretinoin", 173], ["iso cream", 174], ["estriol", 175], ["minoxidil", 176], ["ketoconazole", 177],
+    ["amoxicillin", 180], ["azithromycin", 181], ["doxycycline", 182],
+    ["diclofenac", 190], ["naproxen", 191], ["meloxicam", 192], ["tapentadol", 193],
+    ["tresiba", 200], ["lispro", 201], ["novorapid", 202],
+    ["eperisone", 210], ["mirabegron", 211], ["ursodec", 212], ["trazodone", 213], ["amitriptyline", 214], ["mebeverine", 215], ["glutathione", 216], ["ketotifen", 217], ["baclofen", 218], ["clonidine", 219],
+    ["bpc", 230], ["ghk", 231], ["cagri", 232], ["retatrutide", 233], ["mt2", 234], ["bac water", 235]
   ];
   for (const [key, rank] of order) if (n.includes(key)) return rank;
   return 900;
