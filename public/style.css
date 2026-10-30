@@ -88,14 +88,16 @@ body{
 
 .tab{
   appearance:none;
-  border:1px solid transparent;
-  border-bottom:3px solid transparent;
-  background:transparent;
+  border:1px solid rgba(200,166,70,.35);
+  border-bottom:3px solid var(--gold);
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255,255,255,.85) 0%, transparent 55%),
+    linear-gradient(160deg, #fff 0%, #f7f0dc 60%, #efe4c4 100%);
   padding:10px 12px;
   font:inherit;
   font-size:15px;
   font-weight:800;
-  color:var(--muted);
+  color:var(--gold-dark);
   border-radius:12px;
 }
 
