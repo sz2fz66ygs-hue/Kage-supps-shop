@@ -93,7 +93,10 @@
     </section>
   </main>
 
-  <button id="basketBar" class="basket-bar" type="button" hidden>Basket <span id="basketBarTotal">£0.00</span></button>
+  <button id="basketBar" class="basket-bar" type="button" hidden>
+    <span id="basketBarLabel">£0.00 / £50</span>
+    <span class="progress-track"><span id="basketBarFill" class="progress-fill"></span></span>
+  </button>
   <script src="/app.js"></script>
 </body>
 </html>

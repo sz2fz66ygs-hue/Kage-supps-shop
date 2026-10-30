@@ -1279,10 +1279,18 @@ function renderBasket() {
     if (pill) pill.classList.toggle("has-items", basketCount() > 0);
   }
   const basketBar = document.getElementById("basketBar");
-  const basketBarTotal = document.getElementById("basketBarTotal");
+  const basketBarLabel = document.getElementById("basketBarLabel");
+  const basketBarFill = document.getElementById("basketBarFill");
   if (basketBar) {
     basketBar.hidden = basketCount() === 0;
-    if (basketBarTotal) basketBarTotal.textContent = money(totalBeforeShipping);
+    const minimum = 5000;
+    const percent = Math.min(100, Math.round((totalBeforeShipping / minimum) * 100));
+    if (basketBarLabel) {
+      basketBarLabel.textContent = totalBeforeShipping >= minimum
+        ? "Minimum reached"
+        : `${money(totalBeforeShipping)} / £50`;
+    }
+    if (basketBarFill) basketBarFill.style.width = `${percent}%`;
   }
 
   if (
