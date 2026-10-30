@@ -4370,17 +4370,15 @@ if (bot) {
     if (webAppUrl) buttons.push([{ text: "🛍 OPEN SHOP — TAP HERE", web_app: { url: webAppUrl } }]);
     buttons.push([
       { text: "📦 My Orders", callback_data: "orders" },
-      { text: "❓ Help", callback_data: "help" }
+      { text: "❓ Help & Support", callback_data: "help" }
     ]);
-    buttons.push([{ text: "💬 Support", callback_data: "support" }]);
     buttons.push([
       { text: "💳 Store Credit", callback_data: "store_credit" },
       { text: "🎁 Refer a friend", callback_data: "refer_friend" }
     ]);
     buttons.push([
       { text: "🏷 Promotions", callback_data: "promotions" },
-      { text: "⭐ Reviews", callback_data: "reviews" },
-      { text: "ℹ️ Info", callback_data: "info" }
+      { text: "⭐ Reviews", callback_data: "reviews" }
     ]);
     const groupLink = process.env.GROUP_LINK || getMetaValue("group_link");
     if (groupLink) buttons.push([{ text: "👥 Join the group", url: groupLink }]);
@@ -5080,10 +5078,7 @@ Choose an option.`,
 
       buttons.push([
         { text: "📦 My Orders", callback_data: "orders" },
-        { text: "❓ Help", callback_data: "help" }
-      ]);
-      buttons.push([
-        { text: "💬 Support", callback_data: "support" }
+        { text: "❓ Help & Support", callback_data: "help" }
       ]);
 
       buttons.push([
@@ -5112,12 +5107,6 @@ Choose an option.`,
             "⭐ Reviews",
           callback_data:
             "reviews"
-        },
-        {
-          text:
-            "ℹ️ Info",
-          callback_data:
-            "info"
         }
       ]);
 
@@ -8200,7 +8189,7 @@ This will mark the order as cancelled.`,
       }
 
       if (data === "help") {
-        return safeSendMessage(chatId, `❓ HELP
+        return safeSendMessage(chatId, `❓ HELP & SUPPORT
 
 How to pay
 1. Open the shop and add items.
@@ -8219,7 +8208,17 @@ Sent a hash after the timer
 Open the shop or send /order and your order number, then the hash. We can still approve it.
 
 Where is my order
-Tap My Orders. It shows waiting, paid, or sent, and the tracking when it has one.`, getMainMenuKeyboard(q.from?.id));
+Tap My Orders. It shows waiting, paid, or sent, and the tracking when it has one.
+
+Info
+Minimum basket £50 before discount. Delivery £5.
+
+Need something else? Tap Message support.`, {
+          reply_markup: { inline_keyboard: [
+            [{ text: "💬 Message support", callback_data: "support" }],
+            [{ text: "⬅️ Main menu", callback_data: "main_menu" }]
+          ] }
+        });
       }
 
       /* SUPPORT */
