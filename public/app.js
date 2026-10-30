@@ -2039,6 +2039,7 @@ async function submitOrder() {
         id =>
           delete basket[id]
       );
+    saveBasket();
 
     appliedCode =
       null;
@@ -2758,6 +2759,10 @@ async function confirmPayment(
       "✅ Payment submitted. We'll confirm it shortly.",
       "success"
     );
+    Object.keys(basket).forEach(id => delete basket[id]);
+    saveBasket();
+    try { localStorage.removeItem("kage-open-order"); } catch {}
+    render();
 
     /*
       Once the transaction hash has been
