@@ -985,6 +985,43 @@ function findOrdersByName(query, list) {
   }).sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
 }
 
+function splitAddressForLabel(address) {
+  const lines = String(address || "").split(/\n|,/).map(line => line.trim()).filter(Boolean);
+  const postcodeIndex = [...lines].reverse().findIndex(line => /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/i.test(line));
+  if (postcodeIndex === -1) return { lines, postcode: "" };
+  const index = lines.length - 1 - postcodeIndex;
+  return { lines: lines.filter((_, i) => i !== index), postcode: lines[index].toUpperCase() };
+}
+
+async function sendLabelParts(chatId, order) {
+  await safeSendMessage(chatId, order.customerName || "No name");
+  const split = splitAddressForLabel(order.address);
+  await safeSendMessage(chatId, split.lines.join("\n") || order.address || "No address");
+  if (split.postcode) await safeSendMessage(chatId, split.postcode);
+  if (order.phone) await safeSendMessage(chatId, order.phone);
+}
+
+function lowStockLimit() {
+  const saved = Number(getMetaValue("low_stock_limit") || 5);
+  return Number.isFinite(saved) && saved >= 0 ? saved : 5;
+}
+
+function pingLowStock(productId) {
+  const product = productsById.get(Number(productId));
+  if (!product) return;
+  const stock = getLiveStock(productId);
+  if (stock === null) return;
+  const limit = lowStockLimit();
+  const key = `lowstock_pinged:${productId}`;
+  if (stock > 0 && stock <= limit) {
+    if (getMetaValue(key) === "1") return;
+    setMetaValue(key, "1");
+    notifyAdmins(`📉 LOW STOCK\n\n#${product.id} ${product.name}\n${stock} left`).catch(() => {});
+    return;
+  }
+  if (stock > limit && getMetaValue(key) === "1") setMetaValue(key, "0");
+}
+
 const orders = new Map();
 const liveBaskets = new Map();
 const discountCodes = new Map();
@@ -1666,6 +1703,7 @@ function deductStockForOrder(order) {
   order.stockDeductedAt = new Date().toISOString();
 
   saveOrder(order);
+  for (const item of order.items || []) pingLowStock(item.id);
 
   return { ok: true };
 }
@@ -2003,6 +2041,28 @@ const deliveryReminderTimer = setInterval(() => {
 }, 60 * 60 * 1000);
 deliveryReminderTimer.unref?.();
 
+async function sendMorningSummary() {
+  const now = new Date(new Date().toLocaleString("en-GB", { timeZone: "Europe/London" }));
+  if (now.getHours() !== 9) return;
+  const today = now.toISOString().slice(0, 10);
+  if (getMetaValue("morning_summary_date") === today) return;
+  setMetaValue("morning_summary_date", today);
+  const toSend = [...orders.values()].filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered").length;
+  const needsApproval = [...orders.values()].filter(order => order.paymentStatus === "payment_submitted").length;
+  const waiting = [...orders.values()].filter(order => order.paymentStatus === "awaiting_payment").length;
+  const low = products.filter(product => {
+    const stock = getLiveStock(product.id);
+    return product.purchasable !== false && stock !== null && stock > 0 && stock <= lowStockLimit();
+  });
+  const lowLines = low.slice(0, 12).map(product => `#${product.id} ${product.name}: ${getLiveStock(product.id)}`).join("\n") || "None";
+  await notifyAdmins(`☀️ MORNING\n\n📤 To send: ${toSend}\n✅ Needs approval: ${needsApproval}\n⏳ Waiting payment: ${waiting}\n📉 Low stock:\n${lowLines}`);
+}
+
+const morningSummaryTimer = setInterval(() => {
+  sendMorningSummary().catch(err => console.error("MORNING SUMMARY ERROR:", err));
+}, 30 * 60 * 1000);
+morningSummaryTimer.unref?.();
+
 /* =========================================================
    REVIEW URL
    ========================================================= */
@@ -2254,6 +2314,8 @@ async function submitTransactionHash(order, transactionId) {
   let check = null;
   try {
     check = await verifyUsdtPayment(hash, order.usdtQuote);
+    order.autoCheck = { ok: Boolean(check.ok), reason: check.reason || "", received: check.received, expected: check.expected };
+    saveOrder(order);
     if (check.ok) {
       const paid = await markOrderPaid(order);
       autoPaid = Boolean(paid.ok);
@@ -2329,6 +2391,7 @@ async function markOrderPaid(
     order.reservationExpiresAt = null;
     order.stockDeducted = true;
     order.stockDeductedAt = order.stockReservedAt || new Date().toISOString();
+    for (const item of order.items || []) pingLowStock(item.id);
   } else if (!order.stockDeducted) {
     // Legacy order created before stock reservations were introduced.
     const stockResult = deductStockForOrder(order);
@@ -3887,6 +3950,7 @@ const pendingSupport =
 
 const pendingAdminApproveByName = new Set();
 const pendingAdminTrackingByName = new Set();
+const pendingAdminCustomer = new Set();
 const pendingAdminOrderLookup =
   new Set();
 
@@ -3931,6 +3995,7 @@ if (bot) {
   ) {
     pendingAdminApproveByName.delete(chatId);
     pendingAdminTrackingByName.delete(chatId);
+    pendingAdminCustomer.delete(chatId);
     pendingAdminOrderLookup.delete(
       chatId
     );
@@ -4286,9 +4351,7 @@ Choose an option below.`,
       : "";
 
     await safeSendMessage(chatId, `#${order.orderId}${stamp ? ` · ${stamp}` : ""}\n${getOrderStatusText(order)}\nTotal ${money(order.totalPence)}`);
-    await safeSendMessage(chatId, order.customerName || "No name");
-    await safeSendMessage(chatId, order.address || "No address");
-    if (order.phone) await safeSendMessage(chatId, order.phone);
+    await sendLabelParts(chatId, order);
 
     const extras = [
       items,
@@ -6520,6 +6583,8 @@ The review has been removed.`,
               [{ text: `✅ Needs approval (${needsApproval})`, callback_data: "admin_needs_approval" }],
               [{ text: "🚚 Send tracking by name", callback_data: "admin_tracking_by_name" }],
               [{ text: "✅ Approve by name", callback_data: "admin_approve_by_name" }],
+              [{ text: "✅ Approve all matched", callback_data: "admin_approve_matched" }],
+              [{ text: "👤 Customer", callback_data: "admin_customer_card" }],
               [{ text: `⏳ Waiting payment (${waiting})`, callback_data: "admin_payments" }],
               [{ text: "🔎 Find order", callback_data: "admin_find_order" }],
               [{ text: "🚚 Sent", callback_data: "admin_shipped_orders" }],
@@ -6609,9 +6674,7 @@ The review has been removed.`,
             ? when.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
             : "";
           await safeSendMessage(chatId, `#${order.orderId}${stamp ? ` · ${stamp}` : ""} · ${money(order.totalPence)}`);
-          await safeSendMessage(chatId, order.customerName || "No name");
-          await safeSendMessage(chatId, order.address || "No address");
-          if (order.phone) await safeSendMessage(chatId, order.phone);
+          await sendLabelParts(chatId, order);
           await safeSendMessage(chatId, items, {
             reply_markup: { inline_keyboard: [[
               { text: "✅ Dispatched", callback_data: `disp_${order.orderId}` },
@@ -6658,7 +6721,35 @@ The review has been removed.`,
         if (!isAdmin(q.from?.id)) return;
         clearAdminInputs(chatId);
         pendingAdminTrackingByName.add(chatId);
-        return safeSendMessage(chatId, "🚚 TRACKING BY NAME\n\nSend the name and tracking on one line.\n\nExample:\nAdam Rahim AB123456789GB\n\nIt marks the oldest matching To send order as dispatched.\n\n/admin to stop.");
+        return safeSendMessage(chatId, "🚚 TRACKING BY NAME\n\nSend one per line.\n\nAdam Rahim AB123456789GB\nSam Jones XY987654321GB\n\nEach one marks the oldest matching To send order as dispatched.\n\n/admin to stop.");
+      }
+
+      if (data === "admin_approve_matched") {
+        if (!isAdmin(q.from?.id)) return;
+        const waiting = [...orders.values()].filter(order => order.paymentStatus === "payment_submitted" && order.transactionId);
+        if (!waiting.length) return safeSendMessage(chatId, "No payments waiting to check.");
+        let approved = 0;
+        const failed = [];
+        for (const order of waiting) {
+          const check = await verifyUsdtPayment(order.transactionId, order.usdtQuote);
+          order.autoCheck = { ok: Boolean(check.ok), reason: check.reason || "", received: check.received, expected: check.expected };
+          saveOrder(order);
+          if (!check.ok) {
+            failed.push(`#${order.orderId} ${order.customerName}: ${check.reason || "not matched"}`);
+            continue;
+          }
+          const result = await markOrderPaid(order);
+          if (result.ok) approved += 1;
+          else failed.push(`#${order.orderId} ${order.customerName}: ${result.error}`);
+        }
+        return safeSendMessage(chatId, `✅ APPROVE MATCHED\n\nApproved: ${approved}\n${failed.length ? "\nStill waiting:\n" + failed.slice(0, 12).join("\n") : "All matched."}`);
+      }
+
+      if (data === "admin_customer_card") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingAdminCustomer.add(chatId);
+        return safeSendMessage(chatId, "👤 CUSTOMER\n\nSend the name or Telegram handle.\n\n/admin to stop.");
       }
 
       /* FIND ORDER */
@@ -9130,36 +9221,55 @@ Tap Open Shop to launch the Mini App.`
       /* TRACKING BY NAME */
 
       if (pendingAdminTrackingByName.has(chatId) && isAdmin(msg.from?.id)) {
-        const parts = text.trim().split(/\s+/);
-        if (parts.length < 2) {
-          return safeSendMessage(chatId, "Send the name and tracking on one line.\n\nExample:\nAdam Rahim AB123456789GB");
+        const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
+        const done = [];
+        const failed = [];
+        for (const line of lines) {
+          const parts = line.split(/\s+/);
+          if (parts.length < 2) {
+            failed.push(`${line}: needs a name and tracking`);
+            continue;
+          }
+          const trackingNumber = parts.at(-1);
+          const name = parts.slice(0, -1).join(" ");
+          const toSend = [...orders.values()].filter(order =>
+            order.paymentStatus === "paid" &&
+            order.fulfilmentStatus !== "shipped" &&
+            order.fulfilmentStatus !== "delivered"
+          );
+          const matches = findOrdersByName(name, toSend);
+          if (!matches.length) {
+            failed.push(`${name}: no To send order`);
+            continue;
+          }
+          if (matches.length > 1) {
+            failed.push(`${name}: more than one match`);
+            continue;
+          }
+          const order = matches[0];
+          order.trackingNumber = trackingNumber;
+          order.fulfilmentStatus = "shipped";
+          order.shippedAt = new Date().toISOString();
+          saveOrder(order);
+          if (order.telegramId) {
+            await safeSendMessage(order.telegramId, `📦 Your order has been dispatched\n\nOrder #${order.orderId}\n\nTracking:\n${trackingNumber}\n\nTap below when it arrives.`, {
+              reply_markup: { inline_keyboard: [[{ text: "✅ Received", callback_data: `received_${order.orderId}` }]] }
+            });
+          }
+          done.push(`#${order.orderId} ${order.customerName} · ${trackingNumber}`);
         }
-        const trackingNumber = parts.at(-1);
-        const name = parts.slice(0, -1).join(" ");
-        const toSend = [...orders.values()].filter(order =>
-          order.paymentStatus === "paid" &&
-          order.fulfilmentStatus !== "shipped" &&
-          order.fulfilmentStatus !== "delivered"
-        );
-        const matches = findOrdersByName(name, toSend);
-        if (!matches.length) {
-          return safeSendMessage(chatId, `No To send order for "${name}". Send another name, or /admin to stop.`);
-        }
-        if (matches.length > 1) {
-          const lines = matches.slice(0, 8).map(order => `#${order.orderId} · ${order.customerName} · ${money(order.totalPence)}`);
-          return safeSendMessage(chatId, `More than one match:\n\n${lines.join("\n")}\n\nSend a fuller name.`);
-        }
-        const order = matches[0];
-        order.trackingNumber = trackingNumber;
-        order.fulfilmentStatus = "shipped";
-        order.shippedAt = new Date().toISOString();
-        saveOrder(order);
-        if (order.telegramId) {
-          await safeSendMessage(order.telegramId, `📦 Your order has been dispatched\n\nOrder #${order.orderId}\n\nTracking:\n${trackingNumber}\n\nTap below when it arrives.`, {
-            reply_markup: { inline_keyboard: [[{ text: "✅ Received", callback_data: `received_${order.orderId}` }]] }
-          });
-        }
-        return safeSendMessage(chatId, `✅ Sent\n\n#${order.orderId}\n${order.customerName}\n${trackingNumber}\n\nSend the next name and tracking, or /admin to stop.`);
+        return safeSendMessage(chatId, `🚚 TRACKING\n\n${done.length ? "Sent:\n" + done.join("\n") : "None sent."}${failed.length ? "\n\nSkipped:\n" + failed.join("\n") : ""}\n\nSend more, or /admin to stop.`);
+      }
+
+      if (pendingAdminCustomer.has(chatId) && isAdmin(msg.from?.id)) {
+        const matches = findOrdersByName(text, [...orders.values()]).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        if (!matches.length) return safeSendMessage(chatId, "No orders for that name. Send another, or /admin to stop.");
+        const latest = matches[0];
+        const credit = getCustomerCredit(latest.telegramId);
+        const recent = matches.slice(0, 5).map(order => `#${order.orderId} · ${getOrderStatusText(order)} · ${money(order.totalPence)}`);
+        await safeSendMessage(chatId, `👤 ${latest.customerName}\n${latest.telegramUsername ? "@" + normaliseUsername(latest.telegramUsername) : "No Telegram handle"}\nStore credit: ${money(credit)}\n\nRecent:\n${recent.join("\n")}`);
+        await sendLabelParts(chatId, latest);
+        return safeSendMessage(chatId, "Send another name, or /admin to stop.");
       }
 
       /* ADMIN FIND ORDER */
