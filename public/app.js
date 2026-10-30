@@ -16,6 +16,7 @@ const telegramUser =
 
 const preferredCategoryOrder = [
   "Oils",
+  "Oral Anabolics",
   "Orals",
   "Pharma",
   "Peps"
@@ -23,9 +24,14 @@ const preferredCategoryOrder = [
 
 const categoryIcons = {
   Oils: "🛢️",
+  "Oral Anabolics": "💪",
   Orals: "💪",
   Pharma: "💊",
   Peps: "⚡"
+};
+
+const categoryLabels = {
+  Orals: "Oral Anabolics"
 };
 
 const preferredSectionOrder = {
@@ -36,9 +42,13 @@ const preferredSectionOrder = {
     "Pre-Workout Injectables"
   ],
 
+  "Oral Anabolics": [
+    "Oral Anabolics",
+    "Research Pouches"
+  ],
   Orals: [
-    "Tubs",
-    "Pouches"
+    "Oral Anabolics",
+    "Research Pouches"
   ],
 
   Pharma: [
@@ -207,6 +217,7 @@ function rebuildCatalogueNavigation() {
     ordered.map(
       name => ({
         name,
+        label: categoryLabels[name] || name,
 
         icon:
           categoryIcons[name] ||
@@ -364,7 +375,7 @@ function renderTabs() {
             data-category="${escapeHtml(c.name)}"
             type="button"
           >
-            ${c.icon} ${escapeHtml(c.name)}
+            ${c.icon} ${escapeHtml(c.label || c.name)}
           </button>
         `
       )
