@@ -581,11 +581,7 @@ function shopSection(product) {
     return "Oral Anabolics";
   }
   if (category === "Research Compounds") return "Research Compounds";
-  if (category === "Peps") {
-    if (name.includes("bpc") || name.includes("ghk")) return "Recovery";
-    if (name.includes("cagri") || name.includes("retatrutide")) return "Weight Management";
-    return "Other";
-  }
+  if (category === "Peps") return "Research Compounds";
   return String(product.section || "Other").trim() || "Other";
 }
 
@@ -617,6 +613,10 @@ function compoundRank(name) {
 }
 
 function compareProducts(a, b) {
+  const research = String(a.category || "") === "Peps" || String(a.category || "") === "Research Compounds";
+  if (research && (String(b.category || "") === "Peps" || String(b.category || "") === "Research Compounds")) {
+    return String(a.name || "").localeCompare(String(b.name || ""), undefined, { numeric: true });
+  }
   const rank = compoundRank(a.name) - compoundRank(b.name);
   if (rank) return rank;
   return String(a.name || "").localeCompare(String(b.name || ""), undefined, { numeric: true });
