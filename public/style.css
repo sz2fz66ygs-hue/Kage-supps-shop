@@ -86,10 +86,10 @@ body{
 
 .tab{
   appearance:none;
-  border:1px solid rgba(200,166,70,.4);
+  border:1px solid rgba(200,166,70,.25);
   background:
-    radial-gradient(ellipse at 30% 20%, rgba(255,255,255,.85) 0%, transparent 55%),
-    linear-gradient(160deg, #f7f0dc 0%, #efe4c4 100%);
+    radial-gradient(ellipse at 30% 20%, rgba(255,255,255,.95) 0%, transparent 55%),
+    linear-gradient(160deg, #fff 0%, #faf6ec 100%);
   padding:11px 16px;
   font:inherit;
   font-size:14px;
@@ -641,8 +641,8 @@ main{
   margin:22px 2px 8px;
   font-size:12px;
   letter-spacing:1.5px;
-  color:#fff;
-  background:var(--gold);
+  color:var(--gold-dark);
+  background:#faf6ec;
   padding:4px 10px;
   border-radius:999px;
   display:inline-block;
@@ -653,10 +653,10 @@ main{
   border-radius:18px;
   gap:12px;
   box-shadow:0 2px 8px rgba(156,125,35,.08);
-  border:1px solid rgba(200,166,70,.35);
+  border:1px solid rgba(200,166,70,.2);
   background:
-    radial-gradient(ellipse at 20% 0%, rgba(255,255,255,.8) 0%, transparent 60%),
-    linear-gradient(180deg, #fffdf8 0%, #f7f0dc 100%);
+    radial-gradient(ellipse at 20% 0%, rgba(255,255,255,.95) 0%, transparent 60%),
+    linear-gradient(180deg, #fff 0%, #faf6ec 100%);
 }
 .product-head{
   display:flex;
