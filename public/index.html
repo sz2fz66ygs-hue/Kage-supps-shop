@@ -59,27 +59,30 @@
         Discounts are applied after the basket reaches the minimum. Delivery is added by the server at checkout.
       </div>
 
-      <label for="discountCode">Affiliate code</label>
-      <div class="code-row">
-        <input id="discountCode" type="text" placeholder="e.g. Y8" autocomplete="off">
-        <button id="applyDiscount" type="button" class="code-btn">Apply</button>
-      </div>
-      <div id="discountRow"></div>
+      <button id="promoToggle" type="button" class="promo-toggle">Promo</button>
+      <div id="promoPanel" class="promo-panel" hidden>
+        <label for="discountCode">Affiliate code</label>
+        <div class="code-row">
+          <input id="discountCode" type="text" placeholder="e.g. Y8" autocomplete="off">
+          <button id="applyDiscount" type="button" class="code-btn">Apply</button>
+        </div>
+        <div id="discountRow"></div>
 
-      <label for="storewideCode">Store-wide promo</label>
-      <div class="code-row">
-        <input id="storewideCode" type="text" placeholder="e.g. WEEKEND10" autocomplete="off">
-        <button id="applyStorewide" type="button" class="code-btn">Apply</button>
+        <label for="storeCreditCode">Store credit code</label>
+        <div class="code-row">
+          <input id="storeCreditCode" type="text" placeholder="Store credit code" autocomplete="off">
+          <button id="applyStoreCredit" type="button" class="code-btn">Apply</button>
+        </div>
+        <div id="creditRow"></div>
+
+        <label for="storewideCode">Refer a friend</label>
+        <div class="code-row">
+          <input id="storewideCode" type="text" placeholder="@username" autocomplete="off">
+          <button id="applyStorewide" type="button" class="code-btn">Apply</button>
+        </div>
+        <div id="promoRow"></div>
       </div>
-      <div id="promoRow"></div>
       <div id="totalSavingsRow"></div>
-
-      <label for="storeCreditCode">Store credit code</label>
-      <div class="code-row">
-        <input id="storeCreditCode" type="text" placeholder="Store credit code" autocomplete="off">
-        <button id="applyStoreCredit" type="button" class="code-btn">Apply</button>
-      </div>
-      <div id="creditRow"></div>
 
       <div class="divider"></div>
 

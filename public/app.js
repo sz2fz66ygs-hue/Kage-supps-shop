@@ -1357,7 +1357,7 @@ function renderBasket() {
           </div>
         `
       : "";
-    promoRow.innerHTML = appliedLines + waiting + almost + storeLine;
+    promoRow.innerHTML = appliedLines + storeLine;
   }
 
   if (
@@ -3091,6 +3091,13 @@ async function confirmPayment(
 
 document
   .getElementById(
+    "promoToggle"
+  )?.addEventListener("click", () => {
+    const panel = document.getElementById("promoPanel");
+    if (panel) panel.hidden = !panel.hidden;
+  });
+
+  document.getElementById(
     "applyDiscount"
   )
   ?.addEventListener(

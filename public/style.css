@@ -799,3 +799,22 @@ input, textarea{
 }
 .min-bar[hidden]{display:none}
 .min-bar .progress-track{flex:1;height:6px;}
+
+.promo-toggle{
+  width:100%;
+  margin-top:16px;
+  border:1px solid #111;
+  border-radius:12px;
+  padding:13px;
+  background:#fff;
+  color:#111;
+  font-weight:800;
+  font-size:15px;
+}
+.promo-panel{
+  margin-top:12px;
+}
+.promo-panel[hidden]{display:none}
+.promo-panel label{
+  margin:12px 0 6px;
+}
