@@ -1168,7 +1168,6 @@ function renderBasket() {
     notice.insertAdjacentHTML("beforeend", `<br>${nextDispatchText()}`);
   }
 
-  ensureReferField();
   reportBasket();
   const basketLines =
     document.getElementById(
