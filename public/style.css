@@ -73,14 +73,11 @@ body{
   top:63px;
   z-index:25;
   display:flex;
-  gap:16px;
+  gap:10px;
   overflow-x:auto;
   white-space:nowrap;
-  padding:8px 14px;
-  background:
-    radial-gradient(ellipse at 20% 30%, rgba(255,255,255,.9) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 70%, rgba(200,166,70,.18) 0%, transparent 45%),
-    linear-gradient(135deg, #f7f3ea 0%, #fffdf8 40%, #f3ead6 70%, #fff 100%);
+  padding:12px 14px;
+  background:var(--white);
   border-bottom:1px solid var(--border);
   scrollbar-width:none;
 }
@@ -622,7 +619,7 @@ textarea{
   letter-spacing:1.4px;
 }
 .search-wrap{
-  padding:12px 16px 4px;
+  padding:12px 16px 12px;
 }
 .search-wrap input{
   width:100%;
@@ -656,8 +653,10 @@ main{
   border-radius:16px;
   gap:12px;
   box-shadow:0 1px 0 rgba(0,0,0,.02);
-  border-left:3px solid var(--gold);
-  background:linear-gradient(180deg,#fffdf8 0%,#ffffff 70%);
+  border:1px solid rgba(200,166,70,.35);
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255,255,255,.85) 0%, transparent 55%),
+    linear-gradient(160deg, #fff 0%, #f7f0dc 60%, #efe4c4 100%);
 }
 .product-head{
   display:flex;
