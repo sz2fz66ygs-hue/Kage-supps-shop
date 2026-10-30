@@ -418,6 +418,15 @@ function renderTabs() {
    PRODUCT CARD
    ========================================================= */
 
+
+function blendLines(product) {
+  const name = String(product.name || "").toLowerCase();
+  if (name.includes("mass on")) return ["Test C 200mg/ml", "EQ 250mg/ml", "Deca 150mg/ml"];
+  if (name.includes("ttm")) return ["Test E 150mg/ml", "Tren E 75mg/ml", "Mast E 150mg/ml"];
+  if (name.includes("doomsday")) return ["Test Base 50mg/ml", "Anadrol 30mg/ml", "Superdrol 20mg/ml"];
+  return [];
+}
+
 function shopCard(p) {
   const id =
     Number(
@@ -472,16 +481,14 @@ function shopCard(p) {
         </div>
 
         ${
-          p.subtitle
-            ? `
-              <div class="sub">
-                ${escapeHtml(p.subtitle)}
-              </div>
-            `
-            : ""
+          blendLines(p).length
+            ? blendLines(p).map(line => `<div class="sub compound-line">${escapeHtml(line)}</div>`).join("")
+            : p.subtitle
+              ? `<div class="sub">${escapeHtml(p.subtitle)}</div>`
+              : ""
         }
 
-        ${String(p.category || "").trim() === "Oils" ? `<div class="sub">10 ml vial</div>` : ""}
+        ${String(p.category || "").trim() === "Oils" ? `<div class="sub">${String(p.name || "").toLowerCase().includes("doomsday") ? "20 ml vial" : "10 ml vial"}</div>` : ""}
         ${stockBadge(p.stock, p.unit, p.category)}
         ${Number(stock) <= 0 ? `<button type="button" class="restock-link" data-restock="${id}">Tell me when it's back</button>` : ""}
       </div>

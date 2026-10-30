@@ -630,6 +630,9 @@ main{
   line-height:1.45;
   font-size:13.5px;
 }
+.compound-line{
+  margin-top:2px;
+}
 .stock{
   margin-top:10px;
 }
