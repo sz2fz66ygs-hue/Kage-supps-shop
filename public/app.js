@@ -633,7 +633,7 @@ function renderProducts() {
     return;
   }
 
-  const visibleProducts = products.filter(productMatchesSearch);
+  const visibleProducts = products.filter(product => product.purchasable !== false && productMatchesSearch(product));
 
   if (
     !products.length
