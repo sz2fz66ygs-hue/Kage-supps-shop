@@ -6555,6 +6555,14 @@ The review has been removed.`,
         );
       }
 
+      if (data === "admin_toggle_shop") {
+        if (!isAdmin(q.from?.id)) return;
+        const closed = getMetaValue("shop_open") === "0";
+        setMetaValue("shop_open", closed ? "1" : "0");
+        await safeSendMessage(chatId, closed ? "🟢 Shop is open." : "🔴 Shop is closed. Customers can't place orders until you turn it back on.");
+        return sendAdminDashboard(chatId);
+      }
+
       /* RECENT ORDERS */
 
       if (
