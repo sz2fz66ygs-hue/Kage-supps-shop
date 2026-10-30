@@ -1742,7 +1742,20 @@ function deductStockForOrder(order) {
   order.stockDeductedAt = new Date().toISOString();
 
   saveOrder(order);
-  for (const item of order.items || []) pingLowStock(item.id);
+  for (const item of order.items || []) {
+    pingLowStock(item.id);
+    const stock = getLiveStock(item.id);
+    if (stock === 0) {
+      const promos = promotionsApi.loadPromotions().filter(promo => promo.active && (promo.productIds || []).includes(Number(item.id)));
+      for (const promo of promos) {
+        const allOut = (promo.productIds || []).every(id => Number(getLiveStock(id) || 0) <= 0);
+        if (!allOut) continue;
+        promo.active = false;
+        promotionsApi.savePromotion(promo);
+        notifyAdmins(`🏷 PROMO ENDED\n\n${promo.name} turned off. The items in it are out of stock.`).catch(() => {});
+      }
+    }
+  }
 
   return { ok: true };
 }
@@ -2312,7 +2325,7 @@ async function submitTransactionHash(order, transactionId) {
   const hash = String(transactionId || "").trim();
 
   if (!/^0x[a-fA-F0-9]{64}$/.test(hash)) {
-    return { ok: false, error: "Enter a valid Ethereum transaction hash." };
+    return { ok: false, error: "That does not look like an Ethereum hash. It should start with 0x and be 66 characters. ERC-20 only, not TRC-20 or BEP-20." };
   }
 
   const alreadyUsed = [...orders.values()].some(existing =>
@@ -2366,7 +2379,8 @@ async function submitTransactionHash(order, transactionId) {
   await notifyAdmins(
     autoPaid
       ? `✅ PAYMENT AUTO APPROVED\n\nOrder #${order.orderId}\n${order.customerName}\n${check.received.toFixed(2)} USDT matched ${check.expected}\n${hash}`
-      : `💳 PAYMENT SUBMITTED\n\nOrder:\n#${order.orderId}\n\nCustomer:\n${order.customerName}\n\n📍 Delivery Address:\n${order.address}\n\nExpected total:\n${money(order.totalPence)}\n\nTransaction:\n${hash}\n\nAuto check: ${check?.reason || "not checked"}\n\nUse:\n/paid ${order.orderId}\n\nonce payment has been confirmed.`
+      : `💳 PAYMENT SUBMITTED\n\nOrder:\n#${order.orderId}\n\nCustomer:\n${order.customerName}\n\n📍 Delivery Address:\n${order.address}\n\nExpected total:\n${money(order.totalPence)}\n\nTransaction:\n${hash}\n\nAuto check: ${check?.reason || "not checked"}`,
+    autoPaid ? undefined : { reply_markup: { inline_keyboard: [[{ text: "✅ Mark paid", callback_data: `admin_paid_${order.orderId}` }]] } }
   );
 
   return { ok: true, afterExpiry: expiredByTimer, autoPaid };
@@ -6700,7 +6714,9 @@ The review has been removed.`,
         if (!list.length) return safeSendMessage(chatId, "📤 TO SEND\n\nNothing to pack.", {
           reply_markup: { inline_keyboard: [[{ text: "⬅️ Orders", callback_data: "admin_orders_home" }]] }
         });
-        await safeSendMessage(chatId, `📤 TO SEND (${list.length})\n\nOldest first. Tap the name, then the address, to copy for the label.`);
+        await safeSendMessage(chatId, `📤 TO SEND (${list.length})\n\nOldest first. Tap the name, then the address, to copy for the label.`, {
+          reply_markup: { inline_keyboard: [[{ text: "✅ Mark all dispatched", callback_data: "admin_dispatch_all" }]] }
+        });
         for (const order of list.slice(0, 12)) {
           const items = (order.items || []).map(item => `${item.quantity} × ${item.name}`).join("\n") || "No items";
           const when = new Date(order.paidAt || order.createdAt || 0);
@@ -7650,6 +7666,22 @@ Customers can no longer use the store-wide promo code.`,
           chatId,
           order
         );
+      }
+
+      if (data === "admin_dispatch_all") {
+        if (!isAdmin(q.from?.id)) return;
+        const list = [...orders.values()].filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered" && !(order.cleared || []).includes("dispatch"));
+        for (const order of list) {
+          order.fulfilmentStatus = "shipped";
+          order.shippedAt = new Date().toISOString();
+          saveOrder(order);
+          if (order.telegramId) {
+            await safeSendMessage(order.telegramId, `📦 Order #${order.orderId} has been dispatched.\n\nTap below when it arrives.`, {
+              reply_markup: { inline_keyboard: [[{ text: "✅ Received", callback_data: `received_${order.orderId}` }]] }
+            });
+          }
+        }
+        return safeSendMessage(chatId, `✅ Marked ${list.length} dispatched.`);
       }
 
       if (data.startsWith("admin_dispatch_")) {

@@ -80,6 +80,9 @@ document.addEventListener("click", event => {
   if (!button) return;
   watchRestock(Number(button.dataset.restock));
 });
+document.addEventListener("input", event => {
+  if (event.target?.id === "shopSearch") render();
+});
 
 try {
   Object.assign(basket, JSON.parse(localStorage.getItem("kage-basket-v1") || "{}"));
@@ -283,58 +286,26 @@ function postCartEvent(
    STOCK BADGE
    ========================================================= */
 
-function stockBadge(
-  stock,
-  unit = "items"
-) {
-  if (
-    stock === null ||
-    stock === undefined ||
-    Number.isNaN(
-      Number(
-        stock
-      )
-    )
-  ) {
-    return `
-      <span class="stock low">
-        Stock not entered
-      </span>
-    `;
+function stockBadge(stock, unit = "items", category = "") {
+  const n = Number(stock);
+  if (!Number.isFinite(n)) return `<span class="stock low">Stock not entered</span>`;
+  if (n <= 0) return `<span class="stock out">Out of stock</span>`;
+  const cat = String(category || "").toLowerCase();
+  let label = "In stock";
+  let cls = "good";
+  if (cat === "pharma") {
+    if (n <= 5) { label = "Low stock"; cls = "low"; }
+    else if (n <= 15) { label = "Medium"; cls = "low"; }
+    else { label = "Good"; cls = "good"; }
+  } else if (cat === "oils" || cat === "orals") {
+    if (n <= 5) { label = "Low stock"; cls = "low"; }
+    else if (n <= 10) { label = "Medium"; cls = "low"; }
+    else { label = "Good"; cls = "good"; }
+  } else if (n <= 5) {
+    label = "Low stock";
+    cls = "low";
   }
-
-  const n =
-    Number(
-      stock
-    );
-
-  if (
-    n <=
-    0
-  ) {
-    return `
-      <span class="stock out">
-        Out of stock
-      </span>
-    `;
-  }
-
-  if (
-    n <=
-    10
-  ) {
-    return `
-      <span class="stock low">
-        ${n} ${escapeHtml(unit)} left
-      </span>
-    `;
-  }
-
-  return `
-    <span class="stock good">
-      ${n} ${escapeHtml(unit)} in stock
-    </span>
-  `;
+  return `<span class="stock ${cls}">${label}</span>`;
 }
 
 
@@ -468,10 +439,7 @@ function shopCard(p) {
             : ""
         }
 
-        ${stockBadge(
-          p.stock,
-          p.unit
-        )}
+        ${stockBadge(p.stock, p.unit, p.category)}
         ${Number(stock) <= 0 ? `<button type="button" class="code-btn" data-restock="${id}">Tell me when it's back</button>` : ""}
       </div>
 
@@ -534,6 +502,12 @@ function shopCard(p) {
    PRODUCTS
    ========================================================= */
 
+function productMatchesSearch(product) {
+  const query = String(document.getElementById("shopSearch")?.value || "").trim().toLowerCase();
+  if (!query) return true;
+  return `${product.name} ${product.subtitle || ""} ${product.section || ""}`.toLowerCase().includes(query);
+}
+
 function renderProducts() {
   const container =
     document.getElementById(
@@ -545,6 +519,8 @@ function renderProducts() {
   ) {
     return;
   }
+
+  const visibleProducts = products.filter(productMatchesSearch);
 
   if (
     !products.length
@@ -563,7 +539,7 @@ function renderProducts() {
     !currentCategory
   ) {
     container.innerHTML =
-      products
+      visibleProducts
         .map(
           shopCard
         )
@@ -584,7 +560,7 @@ function renderProducts() {
     of sections
   ) {
     const shopItems =
-      products.filter(
+      visibleProducts.filter(
         p =>
           String(
             p.category ||
@@ -1430,6 +1406,23 @@ async function fetchProductsFrom(
 }
 
 
+function restoreDetails() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("kage-details") || "null");
+    if (!saved) return;
+    const name = document.getElementById("name");
+    const phone = document.getElementById("phone");
+    const address = document.getElementById("address");
+    if (name && !name.value) name.value = saved.name || "";
+    if (phone && !phone.value) phone.value = saved.phone || "";
+    if (address && !address.value) address.value = saved.address || "";
+  } catch {}
+  if (!localStorage.getItem("kage-seen-first")) {
+    setStatus("First order: add items, enter your name and address, then pay the exact USDT amount and paste the hash.", "");
+    localStorage.setItem("kage-seen-first", "1");
+  }
+}
+
 async function loadShopStatus() {
   try {
     const res = await fetch("/api/shop-status", { cache: "no-store" });
@@ -1537,6 +1530,7 @@ async function loadProducts() {
   loadPromotions();
   restoreOpenOrder();
   loadShopStatus();
+  restoreDetails();
 }
 
 
@@ -2030,6 +2024,13 @@ async function submitOrder() {
       "success"
     );
     try { localStorage.setItem("kage-open-order", JSON.stringify({ orderId: data.orderId })); } catch {}
+    try {
+      localStorage.setItem("kage-details", JSON.stringify({
+        name: customerName,
+        phone,
+        address
+      }));
+    } catch {}
 
     Object
       .keys(
@@ -2330,6 +2331,7 @@ function renderPaymentPanel(
       <div class="payment-quote">
         ${escapeHtml(quote)} USDT
       </div>
+      <button id="copyAmountBtn" class="gold-btn copy-wallet-btn" type="button">Copy amount</button>
 
       <div class="payment-sub">
         ${escapeHtml(
@@ -2339,6 +2341,7 @@ function renderPaymentPanel(
         <br><br>
         Usually dispatched within 1–2 days once payment is confirmed.
         If this page closes, open the shop again and this order will still be here.
+        ${localStorage.getItem("kage-seen-crypto") ? "" : "<br><br>A hash looks like 0x followed by 64 letters and numbers. Paste the whole thing."}
       </div>
 
       ${
@@ -2389,6 +2392,12 @@ function renderPaymentPanel(
 /* =========================================================
    COPY BUTTON
    ========================================================= */
+
+  document.getElementById("copyAmountBtn")?.addEventListener("click", async () => {
+    const copied = await copyWalletAddress(String(quote));
+    const status = document.getElementById("walletCopyStatus");
+    if (status) status.textContent = copied ? "Amount copied." : "Could not copy the amount.";
+  });
 
   const copyButton =
     document.getElementById(
@@ -2759,6 +2768,7 @@ async function confirmPayment(
       "✅ Payment submitted. We'll confirm it shortly.",
       "success"
     );
+    try { localStorage.setItem("kage-seen-crypto", "1"); } catch {}
     Object.keys(basket).forEach(id => delete basket[id]);
     saveBasket();
     try { localStorage.removeItem("kage-open-order"); } catch {}
