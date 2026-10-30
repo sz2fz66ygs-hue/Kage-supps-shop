@@ -522,8 +522,21 @@ function shopCard(p) {
 
       </div>
 
+      ${peopleAlsoAdd(p)}
+
     </div>
   `;
+}
+
+function peopleAlsoAdd(product) {
+  const others = products.filter(item =>
+    item.id !== product.id &&
+    item.section === product.section &&
+    item.purchasable !== false &&
+    Number(item.stock || 0) > 0
+  ).slice(0, 2);
+  if (!others.length) return "";
+  return `<div class="sub">People also add: ${others.map(item => escapeHtml(item.name)).join(", ")}</div>`;
 }
 
 
@@ -1199,6 +1212,15 @@ function renderBasket() {
     const waiting = !appliedLines && liveNames.length
       ? `<div class="discount-line">${escapeHtml(liveNames.join(", "))} is live. Add the qualifying products and it is taken off before any referral code.</div>`
       : "";
+    const almost = livePromotions.map(promo => {
+      const need = Number(promo.requiredQuantity || 0);
+      if (need < 2) return "";
+      const have = lineItems
+        .filter(item => (promo.productIds || []).includes(Number(item.id)))
+        .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+      if (have > 0 && have === need - 1) return `<div class="discount-line">Add 1 more for ${escapeHtml(promo.name)}.</div>`;
+      return "";
+    }).join("");
     const storeLine = storewideDiscount > 0
       ? `
           <div class="discount-line">
@@ -1210,7 +1232,7 @@ function renderBasket() {
           </div>
         `
       : "";
-    promoRow.innerHTML = appliedLines + waiting + storeLine;
+    promoRow.innerHTML = appliedLines + waiting + almost + storeLine;
   }
 
   if (
@@ -2411,6 +2433,7 @@ function renderPaymentPanel(
         )}
         <br><br>
         Usually dispatched within 1–2 days once payment is confirmed.
+        ${order.referralCreditDue ? "<br>£10 credit once this is confirmed." : ""}
         If this page closes, open the shop again and this order will still be here.
         ${localStorage.getItem("kage-seen-crypto") ? "" : "<br><br>A hash looks like 0x followed by 64 letters and numbers. Paste the whole thing."}
       </div>

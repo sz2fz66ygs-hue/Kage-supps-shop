@@ -2153,6 +2153,26 @@ const morningSummaryTimer = setInterval(() => {
 }, 30 * 60 * 1000);
 morningSummaryTimer.unref?.();
 
+async function sendWeeklyRegulars() {
+  const now = new Date(new Date().toLocaleString("en-GB", { timeZone: "Europe/London" }));
+  if (now.getDay() !== 1 || now.getHours() !== 9) return;
+  const week = now.toISOString().slice(0, 10);
+  if (getMetaValue("weekly_regulars_date") === week) return;
+  setMetaValue("weekly_regulars_date", week);
+  const since = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const counts = new Map();
+  for (const order of orders.values()) {
+    if (order.paymentStatus !== "paid") continue;
+    if (new Date(order.paidAt || order.createdAt || 0).getTime() < since) continue;
+    for (const item of order.items || []) {
+      const key = item.name || ("#" + item.id);
+      counts.set(key, (counts.get(key) || 0) + Number(item.quantity || 0));
+    }
+  }
+  const lines = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, qty]) => `${qty} × ${name}`).join("\n") || "None";
+  await notifyAdmins(`📈 WEEKLY REGULARS\n\nSold most in the last 7 days:\n${lines}`);
+}
+
 async function sendEveningStock() {
   const now = new Date(new Date().toLocaleString("en-GB", { timeZone: "Europe/London" }));
   if (now.getHours() !== 21) return;
@@ -2195,6 +2215,7 @@ async function nudgeOpenBaskets() {
 
 const eveningTimer = setInterval(() => {
   sendEveningStock().catch(err => console.error("EVENING STOCK ERROR:", err));
+  sendWeeklyRegulars().catch(err => console.error("WEEKLY REGULARS ERROR:", err));
   warnExpiringCredit().catch(err => console.error("CREDIT WARN ERROR:", err));
   nudgeOpenBaskets().catch(err => console.error("BASKET NUDGE ERROR:", err));
 }, 30 * 60 * 1000);
@@ -3340,6 +3361,10 @@ app.post(
               referrer_handle = excluded.referrer_handle
           `).run(String(order.telegramId), referrerId, referrerHandle, new Date().toISOString());
           order.referredByHandle = referrerHandle;
+          order.referralCreditDue = true;
+          if (referrerId) {
+            safeSendMessage(referrerId, `🎁 Credit on the way\n\n@${String(order.telegramUsername || "").replace(/^@/, "") || "A new customer"} placed order #${order.orderId}.\n\n£10 store credit once this is confirmed.`).catch(() => {});
+          }
         }
       }
 
@@ -3434,6 +3459,7 @@ ${order.reservationExpiresAt}`
       return res.json({
         ok: true,
         orderId,
+        referralCreditDue: Boolean(order.referralCreditDue),
         subtotalPence,
         discountPence,
         affiliateDiscountPence: discountPence,
@@ -3521,6 +3547,7 @@ app.get(
       storeCreditPence: order.storeCreditPence,
       shippingPence: order.shippingPence,
       totalPence: order.totalPence,
+      referralCreditDue: Boolean(order.referralCreditDue),
       quotedUsdt: order.quotedUsdt,
       trackingNumber: order.trackingNumber || null,
       reservationExpiresAt: order.reservationExpiresAt || null,
