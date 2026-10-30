@@ -419,6 +419,13 @@ function renderTabs() {
    ========================================================= */
 
 
+function vialSize(product) {
+  const name = String(product.name || "").toLowerCase();
+  if (name.includes("doomsday")) return "20 ml vial";
+  if (name.includes("mass on") || name.includes("ttm")) return "10 ml vial";
+  return "";
+}
+
 function blendLines(product) {
   const name = String(product.name || "").toLowerCase();
   if (name.includes("mass on")) return ["Test C 200mg/ml", "EQ 250mg/ml", "Deca 150mg/ml"];
@@ -488,7 +495,7 @@ function shopCard(p) {
               : ""
         }
 
-        ${String(p.category || "").trim() === "Oils" ? `<div class="sub">${String(p.name || "").toLowerCase().includes("doomsday") ? "20 ml vial" : "10 ml vial"}</div>` : ""}
+        ${vialSize(p) ? `<div class="sub">${vialSize(p)}</div>` : ""}
         ${stockBadge(p.stock, p.unit, p.category)}
         ${Number(stock) <= 0 ? `<button type="button" class="restock-link" data-restock="${id}">Tell me when it's back</button>` : ""}
       </div>
