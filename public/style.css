@@ -41,12 +41,13 @@ body{
   gap:8px;
 }
 .brand-logo{
-  height:28px;
   width:28px;
-  object-fit:contain;
-  animation:spin 8s linear infinite;
+  height:28px;
+  display:block;
+  flex-shrink:0;
+  animation:brand-logo-spin 4s linear infinite;
 }
-@keyframes spin{
+@keyframes brand-logo-spin{
   from{transform:rotate(0deg)}
   to{transform:rotate(360deg)}
 }
