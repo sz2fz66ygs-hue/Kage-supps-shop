@@ -19,6 +19,7 @@ const preferredCategoryOrder = [
   "Oral Anabolics",
   "Orals",
   "Pharma",
+  "Research Compounds",
   "Peps"
 ];
 
@@ -27,6 +28,7 @@ const categoryIcons = {
   "Oral Anabolics": "💪",
   Orals: "💪",
   Pharma: "💊",
+  "Research Compounds": "🧪",
   Peps: "⚡"
 };
 
@@ -42,11 +44,12 @@ const preferredSectionOrder = {
   ],
 
   "Oral Anabolics": [
-    "Oral Anabolics",
-    "Research Compounds"
+    "Oral Anabolics"
   ],
   Orals: [
-    "Oral Anabolics",
+    "Oral Anabolics"
+  ],
+  "Research Compounds": [
     "Research Compounds"
   ],
 
@@ -182,6 +185,14 @@ function escapeHtml(value) {
    ========================================================= */
 
 function rebuildCatalogueNavigation() {
+  products.forEach(product => {
+    const name = String(product.name || "").toLowerCase();
+    if (name.includes("atx") || name.includes("bam") || name.includes("slu") || name.includes("sana") || name.includes("dihexa") || name.includes("noopept")) {
+      product.category = "Research Compounds";
+      product.section = "Research Compounds";
+    }
+  });
+
   const foundCategories = [
     ...new Set(
       products.map(
@@ -551,9 +562,9 @@ function shopSection(product) {
     return "Oils";
   }
   if (category === "Orals" || category === "Oral Anabolics") {
-    if (name.includes("atx") || name.includes("bam") || name.includes("slu") || name.includes("sana") || name.includes("dihexa") || name.includes("noopept")) return "Research Compounds";
     return "Oral Anabolics";
   }
+  if (category === "Research Compounds") return "Research Compounds";
   if (category === "Peps") {
     if (name.includes("bpc") || name.includes("ghk")) return "Recovery";
     if (name.includes("cagri") || name.includes("retatrutide")) return "Weight Management";
