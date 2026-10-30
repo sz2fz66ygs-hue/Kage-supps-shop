@@ -463,6 +463,12 @@ const db = new DatabaseSync(
 const promotionsApi = initPromotions(db);
 
 db.exec(`
+CREATE TABLE IF NOT EXISTS restock_alerts (
+  product_id INTEGER NOT NULL,
+  telegram_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (product_id, telegram_id)
+);
 CREATE TABLE IF NOT EXISTS orders (
   id INTEGER PRIMARY KEY,
   json TEXT NOT NULL
@@ -685,6 +691,25 @@ function getLiveStock(productId) {
   return Number(row.stock);
 }
 
+
+function addRestockAlert(productId, telegramId) {
+  if (!productId || !telegramId) return;
+  db.prepare(`
+    INSERT OR IGNORE INTO restock_alerts (product_id, telegram_id, created_at)
+    VALUES (?, ?, ?)
+  `).run(Number(productId), String(telegramId), new Date().toISOString());
+}
+
+async function notifyRestockIfBack(productId, oldStock, newStock) {
+  if (!(Number(oldStock) <= 0 && Number(newStock) > 0)) return;
+  const product = productsById.get(Number(productId));
+  const rows = db.prepare("SELECT telegram_id FROM restock_alerts WHERE product_id = ?").all(Number(productId));
+  db.prepare("DELETE FROM restock_alerts WHERE product_id = ?").run(Number(productId));
+  for (const row of rows) {
+    await safeSendMessage(row.telegram_id, `📦 Back in stock\n\n${product?.name || "An item"} is available again.\n\nOpen the shop to order.`);
+  }
+}
+
 function getLiveProducts() {
   return products.map(product => {
     const liveStock = getLiveStock(
@@ -719,6 +744,20 @@ app.get("/products.json", (_req, res) => {
 
 app.get("/api/products", (_req, res) => {
   res.json(getLiveProducts());
+});
+
+app.get("/api/shop-status", (_req, res) => {
+  res.json({ open: getMetaValue("shop_open") !== "0" });
+});
+
+app.post("/api/restock-alerts", (req, res) => {
+  const telegramId = verifiedTelegramId(req.body?.initData);
+  const productId = Number(req.body?.productId);
+  if (!telegramId || !Number.isInteger(productId)) {
+    return res.status(400).json({ error: "Open the shop from Telegram to set a restock alert." });
+  }
+  addRestockAlert(productId, telegramId);
+  res.json({ ok: true });
 });
 
 app.get("/api/store-credit", (req, res) => {
@@ -3368,28 +3407,30 @@ app.get(
         });
     }
 
+    const open = order.paymentStatus === "awaiting_payment" || order.paymentStatus === "payment_submitted";
     return res.json({
-      orderId:
-        order.orderId,
-      paymentStatus:
-        order.paymentStatus,
-      fulfilmentStatus:
-        order.fulfilmentStatus,
-      subtotalPence:
-        order.subtotalPence,
-      discountPence:
-        order.discountPence,
-      storeCreditPence:
-        order.storeCreditPence,
-      shippingPence:
-        order.shippingPence,
-      totalPence:
-        order.totalPence,
-      quotedUsdt:
-        order.quotedUsdt,
-      trackingNumber:
-        order.trackingNumber ||
-        null
+      orderId: order.orderId,
+      paymentStatus: order.paymentStatus,
+      fulfilmentStatus: order.fulfilmentStatus,
+      subtotalPence: order.subtotalPence,
+      discountPence: order.discountPence,
+      storeCreditPence: order.storeCreditPence,
+      shippingPence: order.shippingPence,
+      totalPence: order.totalPence,
+      quotedUsdt: order.quotedUsdt,
+      trackingNumber: order.trackingNumber || null,
+      reservationExpiresAt: order.reservationExpiresAt || null,
+      reservationMinutes: STOCK_RESERVATION_MINUTES,
+      status: order.paymentStatus,
+      payment: open ? {
+        method: "crypto",
+        network: "ERC-20",
+        address: receivingAddress,
+        quote: { USDT: order.quotedUsdt || "QUOTE_PENDING" },
+        instructions: receivingAddress
+          ? `Send ${order.quotedUsdt || "the quoted"} USDT using Ethereum ERC-20 only, then submit the transaction hash. It can take a few minutes to confirm.`
+          : "Payment address is not configured."
+      } : null
     });
   }
 );
@@ -4880,18 +4921,11 @@ Choose an option.`,
       }
 
       buttons.push([
-        {
-          text:
-            "📦 My Orders",
-          callback_data:
-            "orders"
-        },
-        {
-          text:
-            "💬 Support",
-          callback_data:
-            "support"
-        }
+        { text: "📦 My Orders", callback_data: "orders" },
+        { text: "❓ Help", callback_data: "help" }
+      ]);
+      buttons.push([
+        { text: "💬 Support", callback_data: "support" }
       ]);
 
       buttons.push([
@@ -7973,6 +8007,29 @@ This will mark the order as cancelled.`,
         return;
       }
 
+      if (data === "help") {
+        return safeSendMessage(chatId, `❓ HELP
+
+How to pay
+1. Open the shop and add items.
+2. Enter your name and address, then Continue to payment.
+3. Send the exact USDT amount to the wallet shown, on Ethereum ERC-20 only.
+4. Paste the transaction hash and tap I've paid.
+It can take a few minutes to confirm.
+
+If the app closes
+Open the shop again. Your unpaid order stays there with the wallet and amount.
+
+Cancel
+Tap My Orders, or send /cancel, before the payment window ends. That releases the stock.
+
+Sent a hash after the timer
+Open the shop or send /order and your order number, then the hash. We can still approve it.
+
+Where is my order
+Tap My Orders. It shows waiting, paid, or sent, and the tracking when it has one.`);
+      }
+
       /* SUPPORT */
 
       if (
@@ -9583,6 +9640,7 @@ ${text}`
               const newStock = Math.max(0, oldStock + delta);
               setInventoryStmt.run(product.id, newStock);
               product.stock = newStock;
+              notifyRestockIfBack(product.id, oldStock, newStock).catch(() => {});
             }
             if (price) promotionsApi.setPriceOverride(product.id, Math.round(Number(price[1]) * 100));
             if (namePart) product.name = namePart;

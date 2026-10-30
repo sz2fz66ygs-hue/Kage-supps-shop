@@ -75,6 +75,12 @@ let categories = [];
 let sectionOrder = {};
 
 const basket = {};
+document.addEventListener("click", event => {
+  const button = event.target.closest("[data-restock]");
+  if (!button) return;
+  watchRestock(Number(button.dataset.restock));
+});
+
 try {
   Object.assign(basket, JSON.parse(localStorage.getItem("kage-basket-v1") || "{}"));
 } catch {}
@@ -466,6 +472,7 @@ function shopCard(p) {
           p.stock,
           p.unit
         )}
+        ${Number(stock) <= 0 ? `<button type="button" class="code-btn" data-restock="${id}">Tell me when it's back</button>` : ""}
       </div>
 
       <div>
@@ -1423,6 +1430,56 @@ async function fetchProductsFrom(
 }
 
 
+async function loadShopStatus() {
+  try {
+    const res = await fetch("/api/shop-status", { cache: "no-store" });
+    const data = await res.json();
+    if (data.open === false) {
+      const productsContainer = document.getElementById("products");
+      if (productsContainer) {
+        productsContainer.insertAdjacentHTML("afterbegin", `<div class="catalogue-error">Back shortly. The shop is closed while stock is being updated.</div>`);
+      }
+      const checkoutBtn = document.getElementById("checkoutBtn");
+      if (checkoutBtn) checkoutBtn.disabled = true;
+    }
+  } catch {}
+}
+
+async function restoreOpenOrder() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem("kage-open-order") || "null"); } catch {}
+  if (!saved?.orderId) return;
+  try {
+    const res = await fetch(`/api/orders/${saved.orderId}`, { cache: "no-store" });
+    if (!res.ok) {
+      localStorage.removeItem("kage-open-order");
+      return;
+    }
+    const order = await res.json();
+    if (order.paymentStatus !== "awaiting_payment" && order.paymentStatus !== "payment_submitted") {
+      localStorage.removeItem("kage-open-order");
+      return;
+    }
+    setStatus(`Order #${order.orderId} is still open — total ${money(order.totalPence)}.`, "success");
+    renderPaymentPanel(order);
+    document.getElementById("paymentPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch {}
+}
+
+async function watchRestock(productId) {
+  try {
+    const res = await fetch("/api/restock-alerts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productId, initData: tg?.initData || "" })
+    });
+    const data = await res.json();
+    setStatus(res.ok ? "We'll message you when it's back." : (data.error || "Could not set the alert."), res.ok ? "success" : "error");
+  } catch {
+    setStatus("Couldn't reach the server.", "error");
+  }
+}
+
 async function loadProducts() {
   const productsContainer =
     document.getElementById(
@@ -1478,6 +1535,8 @@ async function loadProducts() {
   rebuildCatalogueNavigation();
   render();
   loadPromotions();
+  restoreOpenOrder();
+  loadShopStatus();
 }
 
 
@@ -1873,6 +1932,30 @@ async function submitOrder() {
   }
 
   setStatus(
+    "Checking stock…"
+  );
+
+  try {
+    const fresh = await fetchProductsFrom("/api/products");
+    const short = [];
+    for (const item of items) {
+      const product = fresh.find(entry => Number(entry.id) === Number(item.id));
+      const available = Number(product?.stock ?? 0);
+      if (!product || available < item.quantity) {
+        short.push(`${product?.name || "An item"}: only ${Math.max(0, available)} left`);
+        if (available <= 0) delete basket[item.id];
+        else basket[item.id] = available;
+      }
+    }
+    if (short.length) {
+      saveBasket();
+      render();
+      setStatus(`Stock changed before checkout.\n${short.join("\n")}\nYour basket has been updated.`, "error");
+      return;
+    }
+  } catch {}
+
+  setStatus(
     "Placing your order…"
   );
 
@@ -1946,6 +2029,7 @@ async function submitOrder() {
       `Order #${data.orderId} created — total ${money(data.totalPence)} including shipping.`,
       "success"
     );
+    try { localStorage.setItem("kage-open-order", JSON.stringify({ orderId: data.orderId })); } catch {}
 
     Object
       .keys(
@@ -2208,11 +2292,11 @@ function renderPaymentPanel(
     <div class="payment-panel">
 
       <div class="payment-title">
-        Send USDT (ERC-20)
+        Send the exact amount
       </div>
 
       <div class="payment-network">
-        Ethereum Mainnet
+        USDT on Ethereum, ERC-20 only
       </div>
 
       <div class="payment-wallet-label">
@@ -2251,6 +2335,9 @@ function renderPaymentPanel(
           order.payment.instructions ||
           ""
         )}
+        <br><br>
+        Usually dispatched within 1–2 days once payment is confirmed.
+        If this page closes, open the shop again and this order will still be here.
       </div>
 
       ${
@@ -2286,7 +2373,7 @@ function renderPaymentPanel(
         class="gold-btn"
         type="button"
       >
-        I've paid — submit transaction
+        I've paid
       </button>
 
       <div
