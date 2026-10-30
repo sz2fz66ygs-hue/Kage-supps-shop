@@ -420,10 +420,10 @@ function renderTabs() {
 
 
 function vialSize(product) {
+  if (String(product.category || "").trim() !== "Oils") return "";
   const name = String(product.name || "").toLowerCase();
   if (name.includes("doomsday")) return "20 ml vial";
-  if (name.includes("mass on") || name.includes("ttm")) return "10 ml vial";
-  return "";
+  return "10 ml vial";
 }
 
 function blendLines(product) {
