@@ -36,6 +36,19 @@ body{
   font-weight:900;
   letter-spacing:1px;
   font-size:20px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.brand-logo{
+  height:28px;
+  width:28px;
+  object-fit:contain;
+  animation:spin 8s linear infinite;
+}
+@keyframes spin{
+  from{transform:rotate(0deg)}
+  to{transform:rotate(360deg)}
 }
 
 .cart-pill{

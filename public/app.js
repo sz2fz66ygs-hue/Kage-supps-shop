@@ -739,21 +739,19 @@ function renderProducts() {
     !html
   ) {
     const fallback =
-      products.filter(
+      visibleProducts.filter(
         p =>
           String(
             p.category ||
             "Other"
           ).trim() ===
           currentCategory
-      );
+      ).sort(compareProducts);
 
     html =
-      fallback
-        .map(
-          shopCard
-        )
-        .join("");
+      fallback.length
+        ? `<div class="section-title">${escapeHtml(currentCategory)}</div>${fallback.map(shopCard).join("")}`
+        : "";
   }
 
   container.innerHTML =
