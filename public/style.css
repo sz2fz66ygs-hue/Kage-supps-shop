@@ -16,7 +16,7 @@
 body{
   margin:0;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  background:var(--off);
+  background:#fbf7ef;
   color:var(--text);
 }
 
@@ -28,11 +28,8 @@ body{
   align-items:center;
   justify-content:space-between;
   padding:14px 16px 10px;
-  background:
-    radial-gradient(ellipse at 20% 30%, rgba(255,255,255,.9) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 70%, rgba(200,166,70,.18) 0%, transparent 45%),
-    linear-gradient(135deg, #f7f3ea 0%, #fffdf8 40%, #f3ead6 70%, #fff 100%);
-  border-bottom:1px solid var(--border);
+  background:#fbf7ef;
+  border-bottom:1px solid rgba(200,166,70,.2);
 }
 
 .brand{
@@ -77,8 +74,8 @@ body{
   overflow-x:auto;
   white-space:nowrap;
   padding:12px 14px;
-  background:var(--white);
-  border-bottom:1px solid var(--border);
+  background:#fbf7ef;
+  border-bottom:1px solid rgba(200,166,70,.2);
   scrollbar-width:none;
 }
 
@@ -624,9 +621,9 @@ textarea{
 .search-wrap input{
   width:100%;
   padding:14px 16px;
-  border:1px solid var(--border);
+  border:1px solid rgba(200,166,70,.25);
   border-radius:16px;
-  background:#fff;
+  background:#fffdf8;
   font:inherit;
   font-size:16px;
 }
@@ -653,10 +650,10 @@ main{
   border-radius:16px;
   gap:12px;
   box-shadow:0 1px 0 rgba(0,0,0,.02);
-  border:1px solid rgba(200,166,70,.35);
+  border:1px solid rgba(200,166,70,.25);
   background:
-    radial-gradient(ellipse at 30% 20%, rgba(255,255,255,.85) 0%, transparent 55%),
-    linear-gradient(160deg, #fff 0%, #f7f0dc 60%, #efe4c4 100%);
+    radial-gradient(ellipse at 20% 0%, rgba(255,255,255,.7) 0%, transparent 60%),
+    linear-gradient(180deg, #fffdf8 0%, #f8f1de 100%);
 }
 .product-head{
   display:flex;
