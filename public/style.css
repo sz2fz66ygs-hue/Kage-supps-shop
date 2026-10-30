@@ -556,3 +556,19 @@ textarea{
   user-select: text !important;
   -webkit-touch-callout: default !important;
 }
+.star-btn{
+  border:0;
+  background:transparent;
+  color:#b89b5e;
+  font-size:16px;
+  padding:0 4px;
+  line-height:1;
+}
+.restock-link{
+  border:0;
+  background:transparent;
+  color:#b89b5e;
+  font-size:13px;
+  padding:4px 0;
+  text-decoration:underline;
+}

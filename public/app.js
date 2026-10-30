@@ -30,11 +30,11 @@ const categoryIcons = {
 
 const preferredSectionOrder = {
   Oils: [
+    "Blends",
+    "Injectables",
     "Test",
     "Tren",
-    "Other",
-    "Injectables",
-    "Blends"
+    "Other"
   ],
 
   Orals: [
@@ -455,7 +455,7 @@ function shopCard(p) {
       <div>
         <h3>
           ${escapeHtml(p.name)}
-          <button type="button" data-fav="${id}" class="code-btn">${(JSON.parse(localStorage.getItem("kage-favs") || "[]")).includes(String(id)) ? "★" : "☆"}</button>
+          <button type="button" data-fav="${id}" class="star-btn">${(JSON.parse(localStorage.getItem("kage-favs") || "[]")).includes(String(id)) ? "★" : "☆"}</button>
         </h3>
 
         ${
@@ -469,7 +469,7 @@ function shopCard(p) {
         }
 
         ${stockBadge(p.stock, p.unit, p.category)}
-        ${Number(stock) <= 0 ? `<button type="button" class="code-btn" data-restock="${id}">Tell me when it's back</button>` : ""}
+        ${Number(stock) <= 0 ? `<button type="button" class="restock-link" data-restock="${id}">Tell me when it's back</button>` : ""}
       </div>
 
       <div>
@@ -522,21 +522,8 @@ function shopCard(p) {
 
       </div>
 
-      ${peopleAlsoAdd(p)}
-
     </div>
   `;
-}
-
-function peopleAlsoAdd(product) {
-  const others = products.filter(item =>
-    item.id !== product.id &&
-    item.section === product.section &&
-    item.purchasable !== false &&
-    Number(item.stock || 0) > 0
-  ).slice(0, 2);
-  if (!others.length) return "";
-  return `<div class="sub">People also add: ${others.map(item => escapeHtml(item.name)).join(", ")}</div>`;
 }
 
 
@@ -1424,16 +1411,16 @@ function renderSaved() {
   if (!panel) return;
   const favs = JSON.parse(localStorage.getItem("kage-favs") || "[]").map(Number);
   const items = products.filter(product => favs.includes(Number(product.id)));
+  if (!items.length) {
+    panel.hidden = true;
+    panel.innerHTML = "";
+    return;
+  }
   panel.hidden = false;
   panel.innerHTML = `
     <div class="section-title">Saved</div>
-    ${items.length ? items.map(shopCard).join("") : `<div class="sub">Star an item to keep it here. Out of stock items can alert you when they return.</div>`}
-    <button type="button" class="code-btn" id="watchCategory">Alert me when this category is back</button>
+    ${items.map(shopCard).join("")}
   `;
-  document.getElementById("watchCategory")?.addEventListener("click", () => {
-    if (!currentCategory) return setStatus("Open a category first.", "error");
-    watchRestockCategory(currentCategory);
-  });
 }
 
 async function watchRestockCategory(category) {
