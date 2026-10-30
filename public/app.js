@@ -30,17 +30,31 @@ const categoryIcons = {
 
 const preferredSectionOrder = {
   Oils: [
-    "Pre-Workout",
-    "Oils",
+    "Test",
+    "Tren",
+    "Other",
+    "Injectables",
     "Blends"
   ],
 
   Orals: [
-    "Orals"
+    "Tubs",
+    "Strips",
+    "Pouches"
   ],
 
   Pharma: [
-    "General Pharma"
+    "Cardiovascular",
+    "Metabolic",
+    "Hormones & Related",
+    "Sleep",
+    "Neurology & Wakefulness",
+    "Sexual Health",
+    "Hair & Skin",
+    "Antibiotics",
+    "Pain",
+    "Insulin",
+    "Other Pharma"
   ],
 
   Peps: [
@@ -985,7 +999,41 @@ function storeCreditForRemaining(
    BASKET RENDER
    ========================================================= */
 
+function reportBasket() {
+  const items = Object.entries(basket).map(([id, quantity]) => ({
+    id: Number(id),
+    name: products.find(product => Number(product.id) === Number(id))?.name || "",
+    quantity
+  })).filter(item => item.quantity > 0);
+  fetch("/api/basket-live", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      telegramId: telegramUser?.id || "",
+      username: telegramUser?.username || "",
+      name: telegramUser?.first_name || "",
+      items
+    })
+  }).catch(() => {});
+}
+
+function ensureReferField() {
+  if (document.getElementById("referHandle")) return;
+  const address = document.getElementById("address");
+  if (!address) return;
+  const wrap = document.createElement("div");
+  wrap.style.margin = "12px 0";
+  wrap.innerHTML = `
+    <label for="referHandle" style="display:block;font-weight:700;margin-bottom:6px;">Friend's Telegram handle</label>
+    <input id="referHandle" placeholder="@theirhandle" style="width:100%;padding:12px;border:1px solid #e6dcc8;border-radius:12px;font-size:16px;" />
+    <div style="font-size:13px;color:#6f6a62;margin-top:6px;">Only for your first order. They get £10 store credit when you pay.</div>
+  `;
+  address.parentNode.insertBefore(wrap, address.nextSibling);
+}
+
 function renderBasket() {
+  ensureReferField();
+  reportBasket();
   const basketLines =
     document.getElementById(
       "basketLines"
@@ -1866,6 +1914,10 @@ async function submitOrder() {
 
               storeCreditCode:
                 appliedStoreCredit?.code ||
+                undefined,
+
+              referredByHandle:
+                document.getElementById("referHandle")?.value.trim() ||
                 undefined,
 
               initData:

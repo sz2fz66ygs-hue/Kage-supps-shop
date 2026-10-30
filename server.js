@@ -505,6 +505,22 @@ CREATE TABLE IF NOT EXISTS customer_credit (
   balance_pence INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS user_handles (
+  username TEXT PRIMARY KEY,
+  telegram_id TEXT NOT NULL,
+  first_seen_at TEXT NOT NULL,
+  joined_group_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS referrals (
+  referee_telegram_id TEXT PRIMARY KEY,
+  referrer_telegram_id TEXT,
+  referrer_handle TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  credited INTEGER NOT NULL DEFAULT 0,
+  order_id INTEGER
+);
+
 CREATE TABLE IF NOT EXISTS product_costs (
   product_id INTEGER PRIMARY KEY,
   cost_pence INTEGER NOT NULL
@@ -944,6 +960,7 @@ app.use((req, res, next) => {
     next();
   }
 });
+
 
 app.use(
   express.static(
@@ -1710,6 +1727,25 @@ if (token) {
         }
       );
 
+    bot.on("message", msg => {
+      if (msg.from) rememberUser(msg.from);
+    });
+
+    bot.on("new_chat_members", msg => {
+      for (const member of msg.new_chat_members || []) {
+        rememberUser(member);
+        if (member.username || member.id) {
+          const username = String(member.username || "").replace(/^@/, "").toLowerCase();
+          const key = username || ("id:" + member.id);
+          db.prepare(`
+            INSERT INTO user_handles (username, telegram_id, first_seen_at, joined_group_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(username) DO UPDATE SET joined_group_at = COALESCE(user_handles.joined_group_at, excluded.joined_group_at)
+          `).run(key, String(member.id), new Date().toISOString(), new Date().toISOString());
+        }
+      }
+    });
+
     bot.on(
       "polling_error",
       err => {
@@ -2078,6 +2114,76 @@ function addCustomerCredit(telegramId, pence) {
   return getCustomerCredit(telegramId);
 }
 
+const REFERRAL_CREDIT_PENCE = 1000;
+const REFERRAL_LAUNCH = getMetaValue("referral_launch_at") || new Date().toISOString();
+if (!getMetaValue("referral_launch_at")) setMetaValue("referral_launch_at", REFERRAL_LAUNCH);
+
+function rememberUser(from) {
+  if (!from?.id) return;
+  const username = String(from.username || "").replace(/^@/, "").toLowerCase();
+  const telegramId = String(from.id);
+  const existing = db.prepare("SELECT first_seen_at FROM user_handles WHERE telegram_id = ?").get(telegramId);
+  const firstSeen = existing?.first_seen_at || new Date().toISOString();
+  if (username) {
+    db.prepare(`
+      INSERT INTO user_handles (username, telegram_id, first_seen_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(username) DO UPDATE SET telegram_id = excluded.telegram_id
+    `).run(username, telegramId, firstSeen);
+  }
+  if (!existing) {
+    db.prepare(`
+      INSERT OR IGNORE INTO user_handles (username, telegram_id, first_seen_at)
+      VALUES (?, ?, ?)
+    `).run(username || ("id:" + telegramId), telegramId, firstSeen);
+  }
+}
+
+function findUserByHandle(handle) {
+  const username = String(handle || "").replace(/^@/, "").trim().toLowerCase();
+  if (!username) return null;
+  return db.prepare("SELECT telegram_id, first_seen_at, joined_group_at FROM user_handles WHERE username = ?").get(username);
+}
+
+function hasPreviousPaidOrder(telegramId, excludeOrderId) {
+  if (!telegramId) return false;
+  return [...orders.values()].some(order =>
+    String(order.telegramId || "") === String(telegramId) &&
+    order.paymentStatus === "paid" &&
+    Number(order.orderId) !== Number(excludeOrderId)
+  );
+}
+
+function isNewCustomerForReferral(telegramId) {
+  if (!telegramId) return false;
+  if (hasPreviousPaidOrder(telegramId)) return false;
+  const row = db.prepare("SELECT first_seen_at, joined_group_at FROM user_handles WHERE telegram_id = ?").get(String(telegramId));
+  if (!row) return false;
+  const seen = row.joined_group_at || row.first_seen_at;
+  return seen && seen >= REFERRAL_LAUNCH;
+}
+
+async function creditReferralIfEligible(order) {
+  if (!order?.telegramId || order.referralCredited) return;
+  const referral = db.prepare("SELECT * FROM referrals WHERE referee_telegram_id = ?").get(String(order.telegramId));
+  if (!referral || referral.credited) return;
+  if (hasPreviousPaidOrder(order.telegramId, order.orderId)) {
+    db.prepare("UPDATE referrals SET credited = 1 WHERE referee_telegram_id = ?").run(String(order.telegramId));
+    return;
+  }
+  if (!isNewCustomerForReferral(order.telegramId)) return;
+  const referrerId = referral.referrer_telegram_id;
+  if (!referrerId || String(referrerId) === String(order.telegramId)) return;
+  addCustomerCredit(referrerId, REFERRAL_CREDIT_PENCE);
+  db.prepare("UPDATE referrals SET credited = 1, order_id = ? WHERE referee_telegram_id = ?").run(order.orderId, String(order.telegramId));
+  order.referralCredited = true;
+  saveOrder(order);
+  await safeSendMessage(
+    referrerId,
+    `🎁 Referral credit\n\n@${String(order.telegramUsername || "").replace(/^@/, "") || "A new customer"} placed their first order (#${order.orderId}).\n\n£10 store credit has been added to your account.`
+  );
+}
+
 function takeCustomerCredit(telegramId, pence) {
   const next = Math.max(0, getCustomerCredit(telegramId) - Math.round(pence));
   db.prepare(`
@@ -2195,6 +2301,7 @@ async function markOrderPaid(
       }
     }
 
+    await creditReferralIfEligible(order);
     return { ok: true, recovered: true };
   }
 
@@ -2236,6 +2343,8 @@ async function markOrderPaid(
   ) {
     creditReferralForOrder(order);
   }
+
+  await creditReferralIfEligible(order);
 
   const itemLines =
     order.items
@@ -2568,7 +2677,8 @@ app.post(
         items,
         discountCode,
         storewideCode,
-        storeCreditCode
+        storeCreditCode,
+        referredByHandle
       } =
         req.body || {};
 
@@ -2992,6 +3102,22 @@ app.post(
             Number(credit.balancePence || 0) - storeCreditPence
           );
           saveReferralEarnings(appliedCreditCode, credit);
+        }
+      }
+
+      const referrerHandle = String(referredByHandle || "").replace(/^@/, "").trim().toLowerCase();
+      if (referrerHandle && order.telegramId && !hasPreviousPaidOrder(order.telegramId) && isNewCustomerForReferral(order.telegramId)) {
+        const referrer = findUserByHandle(referrerHandle);
+        const referrerId = referrer?.telegram_id || null;
+        if (!referrerId || String(referrerId) !== String(order.telegramId)) {
+          db.prepare(`
+            INSERT INTO referrals (referee_telegram_id, referrer_telegram_id, referrer_handle, created_at, credited)
+            VALUES (?, ?, ?, ?, 0)
+            ON CONFLICT(referee_telegram_id) DO UPDATE SET
+              referrer_telegram_id = COALESCE(excluded.referrer_telegram_id, referrals.referrer_telegram_id),
+              referrer_handle = excluded.referrer_handle
+          `).run(String(order.telegramId), referrerId, referrerHandle, new Date().toISOString());
+          order.referredByHandle = referrerHandle;
         }
       }
 
@@ -3772,6 +3898,7 @@ const pendingAddCredit = new Map();
 const pendingOrderLimit = new Map();
 const pendingBulkSubtitle = new Map();
 const pendingBulkChange = new Map();
+const pendingSections = new Map();
 const pendingWelcome = new Map();
 const pendingGroupWelcome = new Map();
 const pendingGroupStart = new Map();
@@ -3848,6 +3975,7 @@ if (bot) {
       chatId
     );
 
+    pendingSections.delete(chatId);
     pendingBulkChange.delete(
       chatId
     );
@@ -4821,6 +4949,12 @@ Choose an option.`,
             "💳 Store Credit",
           callback_data:
             "store_credit"
+        },
+        {
+          text:
+            "🎁 Refer a friend",
+          callback_data:
+            "refer_friend"
         }
       ]);
       buttons.push([
@@ -6357,6 +6491,17 @@ The review has been removed.`,
         );
       }
 
+      if (data === "refer_friend") {
+        return safeSendMessage(
+          chatId,
+          `🎁 REFER A FRIEND\n\nShare your Telegram handle with someone who has never ordered.\n\nThey enter your handle in the shop on their first order.\n\nWhen that order is paid, you get £10 store credit.\n\nThey can only do this once, on their first order.\n\nOnly customers who start using the bot from now on are eligible.`
+        );
+      }
+
+      if (data === "admin_sections") {
+        pendingSections.set(chatId, true);
+        return safeSendMessage(chatId, "🗂 SET SECTIONS\n\nOne per line. Format:\nID Section name\n\nExamples:\n203 Tubs\n424 Strips\n303 Cardiovascular\n420 Antibiotics\n\n/admin to stop.");
+      }
       if (data === "admin_stock_section") return sendStockSection(chatId);
       if (data === "admin_products_section") {
         if (!isAdmin(q.from?.id)) return;
@@ -9295,13 +9440,29 @@ ${text}`
         return safeSendMessage(chatId, "✅ Welcome message saved. It shows on /start.");
       }
 
+      if (pendingSections.has(chatId) && isAdmin(msg.from?.id)) {
+        const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
+        const done = [];
+        const failed = [];
+        for (const line of lines) {
+          const match = line.match(/^#?(\d+)\s+(.+)$/);
+          if (!match) { failed.push(line); continue; }
+          const product = productsById.get(Number(match[1]));
+          if (!product) { failed.push(line + " (no product)"); continue; }
+          product.section = match[2].trim();
+          done.push(`#${product.id} ${product.name} → ${product.section}`);
+        }
+        saveProductsFile();
+        return safeSendMessage(chatId, `✅ SECTIONS SET\n\n${done.join("\n") || "None"}${failed.length ? "\n\nSkipped:\n" + failed.join("\n") : ""}\n\nSend another, or /admin to stop.`);
+      }
+
       if (pendingBulkChange.has(chatId) && isAdmin(msg.from?.id)) {
         const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
         const done = [];
         const failed = [];
         let nextId = Math.max(0, ...products.map(product => Number(product.id) || 0));
         for (const line of lines) {
-          const [main, namePart, subtitlePart] = line.split("|").map(part => part.trim());
+          const [main, namePart, subtitlePart, sectionPart] = line.split("|").map(part => part.trim());
           const idMatch = main.match(/^#?(\d+)\b/);
           if (idMatch) {
             const product = productsById.get(Number(idMatch[1]));
@@ -9325,6 +9486,7 @@ ${text}`
             if (price) promotionsApi.setPriceOverride(product.id, Math.round(Number(price[1]) * 100));
             if (namePart) product.name = namePart;
             if (subtitlePart) product.subtitle = subtitlePart;
+            if (sectionPart) product.section = sectionPart;
             done.push(`#${product.id} ${product.name}`);
             continue;
           }
