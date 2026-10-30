@@ -580,9 +580,6 @@ function shopSection(product) {
     if (
       name.includes("doomsday") ||
       name.startsWith("inj ") ||
-      name.includes("inj anadrol") ||
-      name.includes("inj dbol") ||
-      name.includes("inj superdrol") ||
       name.includes("anadrol") ||
       name.includes("superdrol") ||
       name.includes("dbol") ||
