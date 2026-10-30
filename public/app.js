@@ -37,9 +37,8 @@ const preferredSectionOrder = {
   ],
 
   Orals: [
-    "Pouches",
     "Tubs",
-    "Strips"
+    "Pouches"
   ],
 
   Pharma: [
@@ -601,7 +600,7 @@ function renderProducts() {
             "Other"
           ).trim() ===
             section
-      );
+      ).sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), undefined, { numeric: true }));
 
     if (
       !shopItems.length
