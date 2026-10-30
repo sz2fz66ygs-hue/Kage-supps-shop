@@ -30,17 +30,16 @@ const categoryIcons = {
 
 const preferredSectionOrder = {
   Oils: [
+    "Oils",
     "Blends",
-    "Injectables",
-    "Test",
-    "Tren",
-    "Other"
+    "PWO Injectables",
+    "Pre-Workout Injectables"
   ],
 
   Orals: [
+    "Pouches",
     "Tubs",
-    "Strips",
-    "Pouches"
+    "Strips"
   ],
 
   Pharma: [
