@@ -650,9 +650,7 @@ main{
   gap:12px;
   box-shadow:0 2px 8px rgba(156,125,35,.08);
   border:1px solid #111;
-  background:
-    radial-gradient(ellipse at 20% 0%, rgba(255,255,255,.95) 0%, transparent 60%),
-    linear-gradient(180deg, #fff 0%, #faf6ec 100%);
+  background:#fff;
 }
 .product-head{
   display:flex;
