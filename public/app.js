@@ -93,12 +93,6 @@ document.addEventListener("input", event => {
   if (event.target?.id === "shopSearch") render();
 });
 document.addEventListener("click", event => {
-  const infoBtn = event.target.closest("[data-info]");
-  if (infoBtn) {
-    const product = products.find(item => Number(item.id) === Number(infoBtn.dataset.info));
-    if (product) openInfo(product);
-    return;
-  }
   const star = event.target.closest("[data-fav]");
   if (!star) return;
   const id = String(star.dataset.fav);
@@ -445,93 +439,6 @@ function blendLines(product) {
   return [];
 }
 
-
-function productInfo(product) {
-  const name = String(product.name || "").toLowerCase();
-  const rules = [
-    [/testosterone enanthate|testosterone cypionate|sustanon|test 400|testosterone 400/, "Used to raise testosterone for size, strength and recovery. Used for both cutting and bulking."],
-    [/trenbolone/, "Used for hard muscle, strength and a drier look. Better for cutting."],
-    [/boldenone|eq/, "Used for lean gains, appetite and endurance. Used for both, more often in a lean bulk."],
-    [/nandrolone decanoate|deca/, "Used for size, joints and recovery. Better for bulking."],
-    [/nandrolone phenylpropionate|npp/, "Used for size and recovery with less water. Used for both."],
-    [/drostanolone|mast /, "Used for a harder, drier look. Better for cutting."],
-    [/doomsday/, "Pre-workout blend used for strength and aggression in the gym. Used for both."],
-    [/mass on/, "Blend used for overall size and mass. Better for bulking."],
-    [/ttm/, "Blend used for a leaner, harder look. Better for cutting."],
-    [/anadrol/, "Used for fast size and strength. Better for bulking."],
-    [/dianabol/, "Used for size, strength and fullness. Better for bulking."],
-    [/superdrol/, "Used for dry size and strength. Better for cutting."],
-    [/anavar/, "Used for lean gains and a harder look with less water. Better for cutting."],
-    [/turinabol/, "Used for lean, quality gains. Used for both."],
-    [/winstrol/, "Used for a dry, hard look. Better for cutting."],
-    [/proviron/, "Used to feel harder and support free testosterone. Better for cutting."],
-    [/nebivolol/, "Used for blood pressure and heart rate. Used on cycle to keep blood pressure and pulse down."],
-    [/rosuvastatin|ezetimibe/, "Used for cholesterol. Used on cycle to keep cholesterol in range."],
-    [/telmisartan|valsartan/, "Used for blood pressure. Telmisartan is also used for a leaner look and better insulin sensitivity."],
-    [/eplerenone/, "Used for blood pressure and water balance. Used on cycle for water and blood pressure."],
-    [/empagliflozin|metformin|imeglimin/, "Used for blood sugar. Used for a leaner look and better insulin sensitivity."],
-    [/orlistat/, "Used to block fat absorption. Used when cutting."],
-    [/yohimbine/, "Used for stubborn fat and energy. Used when cutting."],
-    [/pioglitazone/, "Used for insulin sensitivity. Used for a fuller look and better carb use."],
-    [/arimidex|aromasin/, "Used to control oestrogen. Used on cycle to stop water, gyno and high oestrogen."],
-    [/cabergoline/, "Used for prolactin. Used on 19-nor compounds to keep prolactin down."],
-    [/clomid|tamoxifen|raloxifene/, "Used after a cycle to recover natural testosterone. Tamoxifen and Raloxifene are also used for gyno."],
-    [/estradiol|progesterone|estriol/, "Used for hormone levels. Used when hormones are low."],
-    [/^t3|^t4/, "Used for thyroid and metabolism. Used when cutting to raise metabolism."],
-    [/clenbuterol/, "Used for fat loss. Used when cutting."],
-    [/dutasteride|finasteride/, "Used for hair. Used to protect hair on cycle."],
-    [/lemborexant|melatonin|zopiclone|eszopiclone/, "Used for sleep. Used on cycle when sleep is poor."],
-    [/armodafinil|modafinil/, "Used for focus and staying awake. Used for training and long days."],
-    [/pregabalin/, "Used for sleep, calm and nerve pain. Used for sleep and recovery."],
-    [/memantine/, "Used for focus and tolerance. Used to keep stimulants working."],
-    [/trazodone|amitriptyline/, "Used for sleep and mood. Used on cycle for sleep."],
-    [/cialis|viagra|tadalafil|sildenafil/, "Used for blood flow. Cialis is also used daily for pumps and blood pressure."],
-    [/accutane|isotretinoin/, "Used for skin and acne. Used for cycle acne."],
-    [/minoxidil/, "Used for hair and blood flow. Used for hair and pumps."],
-    [/ketoconazole/, "Used for scalp and skin. Used for scalp and hair."],
-    [/glutathione/, "Used for recovery and skin. Used for recovery and a clearer look."],
-    [/eperisone|mebeverine|baclofen/, "Used for muscle tightness and cramps. Used for pumps, cramps and tightness."],
-    [/tapentadol|diclofenac|naproxen|meloxicam/, "Used for pain. Used for training pain and joints."],
-    [/ketotifen/, "Used for allergies and appetite. Used to reset stimulant tolerance and raise appetite."],
-    [/doxycycline|amoxicillin|azithromycin/, "Antibiotic used for infections."],
-    [/mirabegron/, "Used for the bladder."],
-    [/ursodec/, "Used for the liver and digestion. Used on orals for liver support."],
-    [/clonidine/, "Used for blood pressure and sleep. Used on cycle to bring blood pressure down and help sleep."],
-    [/tresiba|lispro|novorapid/, "Insulin used for blood sugar and recovery. Used for fullness and recovery."],
-    [/slu-pp-332/, "Research compound. Mouse studies showed it switched on an endurance gene programme, raised running distance and lowered fat mass without cutting food. Used for cardio and fat loss. No human studies."],
-    [/bam-15/, "Research compound. Mouse studies showed it raised energy use and cut fat while keeping lean mass. Used when cutting. No human studies."],
-    [/atx-304/, "Research compound. Early human data showed better lipids, less liver fat and a higher resting metabolism. Used for fat metabolism."],
-    [/sana/, "Research compound used for energy and metabolism. Used for energy and a leaner look."],
-    [/dihexa/, "Research compound used for focus and memory. Used for focus."],
-    [/noopept/, "Research compound used for focus. Used for focus and mental clarity."],
-    [/bpc-157/, "Research compound. Animal studies showed faster healing of tendons, ligaments and gut tissue. Used for joints and recovery."],
-    [/cagri/, "Research compound used for appetite and fat loss. Used when cutting."],
-    [/retatrutide/, "Research compound. Human trials showed strong fat loss through appetite and blood sugar. Used for fat loss."],
-    [/ghk-cu/, "Research compound. Studies showed better skin repair and collagen. Used for skin and healing."],
-    [/mt2|melanotan/, "Research compound used for tanning and appetite. Used for tanning."],
-    [/bac water/, "Used to mix research compounds."]
-  ];
-  for (const [pattern, info] of rules) if (pattern.test(name)) return info;
-  return "Used in bodybuilding. Tap for the short note on what people use it for.";
-}
-
-function openInfo(product) {
-  let modal = document.getElementById("infoModal");
-  if (!modal) {
-    modal = document.createElement("div");
-    modal.id = "infoModal";
-    modal.className = "info-modal";
-    modal.innerHTML = `<div class="info-sheet"><button type="button" class="info-close" aria-label="Close">×</button><div class="info-title"></div><p class="info-text"></p></div>`;
-    document.body.appendChild(modal);
-    modal.addEventListener("click", event => {
-      if (event.target === modal || event.target.closest(".info-close")) modal.hidden = true;
-    });
-  }
-  modal.querySelector(".info-title").textContent = product.name || "Product";
-  modal.querySelector(".info-text").textContent = productInfo(product);
-  modal.hidden = false;
-}
-
 function shopCard(p) {
   const id =
     Number(
@@ -583,7 +490,6 @@ function shopCard(p) {
       <div class="product-body">
         <div class="product-head">
           <h3>${escapeHtml(p.name)}</h3>
-          <button type="button" class="info-btn" data-info="${id}" aria-label="Info">i</button>
         </div>
 
         ${
