@@ -40,7 +40,7 @@ const preferredSectionOrder = {
   Oils: [
     "Oils",
     "Blends",
-    "PWO Injectables"
+    "Injectable PWOs"
   ],
 
   "Oral Anabolics": [
@@ -577,7 +577,19 @@ function shopSection(product) {
   const name = String(product.name || "").toLowerCase();
   if (category === "Oils") {
     if (name.includes("mass on") || name.includes("ttm")) return "Blends";
-    if (name.includes("doomsday") || name.startsWith("inj ") || name.includes("inj anadrol") || name.includes("inj dbol") || name.includes("inj superdrol")) return "PWO Injectables";
+    if (
+      name.includes("doomsday") ||
+      name.startsWith("inj ") ||
+      name.includes("inj anadrol") ||
+      name.includes("inj dbol") ||
+      name.includes("inj superdrol") ||
+      name.includes("anadrol") ||
+      name.includes("superdrol") ||
+      name.includes("dbol") ||
+      name.includes("dianabol") ||
+      String(product.section || "").toLowerCase().includes("pwo") ||
+      String(product.section || "").toLowerCase().includes("pre-workout")
+    ) return "Injectable PWOs";
     return "Oils";
   }
   if (category === "Orals" || category === "Oral Anabolics") {
