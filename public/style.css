@@ -135,7 +135,7 @@ main{
   display:grid;
   grid-template-columns:1fr auto;
   gap:14px;
-  align-items:start;
+  align-items:stretch;
 }
 
 .product h3{
@@ -354,13 +354,13 @@ textarea{
 }
 
 .code-btn{
-  border:1px solid var(--gold);
-  border-radius:14px;
-  padding:13px 15px;
+  border:1px solid #111;
+  border-radius:12px;
+  padding:12px 14px;
   background:var(--white);
-  color:var(--gold-dark);
+  color:#111;
   font:inherit;
-  font-weight:900;
+  font-weight:800;
 }
 
 .discount-line{
@@ -682,10 +682,12 @@ main{
   display:flex;
   flex-direction:column;
   align-items:flex-end;
-  justify-content:space-between;
-  gap:8px;
-  min-width:80px;
-  height:100%;
+  justify-content:flex-start;
+  gap:10px;
+  min-width:76px;
+}
+.product-buy .star-btn{
+  margin-top:auto;
 }
 .price{
   font-size:18px;
@@ -701,13 +703,13 @@ main{
   font-size:16px;
 }
 .star-btn{
-  width:32px;
-  height:32px;
+  width:28px;
+  height:28px;
   border-radius:50%;
-  border:1px solid var(--border);
+  border:1px solid #111;
   background:#fff;
   color:#b89b5e;
-  font-size:16px;
+  font-size:14px;
   padding:0;
   flex:0 0 auto;
 }
