@@ -50,7 +50,8 @@ const preferredSectionOrder = {
     "Oral Anabolics"
   ],
   "Research Compounds": [
-    "Research Compounds"
+    "Metabolic",
+    "Cognitive"
   ],
 
   Pharma: [
@@ -584,8 +585,11 @@ function shopSection(product) {
   if (category === "Orals" || category === "Oral Anabolics") {
     return "Oral Anabolics";
   }
-  if (category === "Research Compounds") return "Research Compounds";
-  if (category === "Peps") return "Research Compounds";
+  if (category === "Research Compounds") {
+    if (name.includes("dihexa") || name.includes("noopept")) return "Cognitive";
+    return "Metabolic";
+  }
+  if (category === "Peps") return String(product.section || "Other").trim() || "Other";
   return String(product.section || "Other").trim() || "Other";
 }
 
