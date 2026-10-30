@@ -33,6 +33,10 @@
           <h2>Your basket</h2>
         </div>
         <div id="basketTotal" class="basket-total">£0.00</div>
+        <div id="minProgress" class="min-progress" hidden>
+          <span id="minProgressLabel" class="min-progress-label"></span>
+          <span class="progress-track"><span id="minProgressFill" class="progress-fill"></span></span>
+        </div>
       </div>
 
       <div id="basketLines" class="basket-lines">Your basket is empty.</div>
@@ -93,10 +97,7 @@
     </section>
   </main>
 
-  <button id="basketBar" class="basket-bar" type="button" hidden>
-    <span id="basketBarLabel">£0.00 / £50</span>
-    <span class="progress-track"><span id="basketBarFill" class="progress-fill"></span></span>
-  </button>
+
   <script src="/app.js"></script>
 </body>
 </html>

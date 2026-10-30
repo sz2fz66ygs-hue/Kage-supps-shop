@@ -1278,19 +1278,19 @@ function renderBasket() {
     const pill = document.getElementById("cartJump");
     if (pill) pill.classList.toggle("has-items", basketCount() > 0);
   }
-  const basketBar = document.getElementById("basketBar");
-  const basketBarLabel = document.getElementById("basketBarLabel");
-  const basketBarFill = document.getElementById("basketBarFill");
-  if (basketBar) {
-    basketBar.hidden = basketCount() === 0;
+  const minProgress = document.getElementById("minProgress");
+  const minProgressLabel = document.getElementById("minProgressLabel");
+  const minProgressFill = document.getElementById("minProgressFill");
+  if (minProgress) {
     const minimum = 5000;
-    const percent = Math.min(100, Math.round((totalBeforeShipping / minimum) * 100));
-    if (basketBarLabel) {
-      basketBarLabel.textContent = totalBeforeShipping >= minimum
-        ? "Minimum reached"
-        : `${money(totalBeforeShipping)} / £50`;
+    const show = basketCount() > 0 && totalBeforeShipping < minimum;
+    minProgress.hidden = !show;
+    if (show) {
+      const percent = Math.min(100, Math.round((totalBeforeShipping / minimum) * 100));
+      const short = minimum - totalBeforeShipping;
+      if (minProgressLabel) minProgressLabel.textContent = `${money(short)} to the £50 minimum`;
+      if (minProgressFill) minProgressFill.style.width = `${percent}%`;
     }
-    if (basketBarFill) basketBarFill.style.width = `${percent}%`;
   }
 
   if (
