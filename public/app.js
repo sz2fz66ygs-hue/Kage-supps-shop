@@ -1268,8 +1268,7 @@ function renderBasket() {
   ) {
     cartCount.textContent =
       basketCount();
-    const pill = document.getElementById("basketBar")?.addEventListener("click", () => document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth" }));
-  document.getElementById("cartJump");
+    const pill = document.getElementById("cartJump");
     if (pill) pill.classList.toggle("has-items", basketCount() > 0);
   }
   const basketBar = document.getElementById("basketBar");
@@ -3110,6 +3109,24 @@ document
 document
   .getElementById(
     "cartJump"
+  )
+  ?.addEventListener(
+    "click",
+    () => {
+      document
+        .getElementById(
+          "checkout"
+        )
+        ?.scrollIntoView({
+          behavior:
+            "smooth"
+        });
+    }
+  );
+
+document
+  .getElementById(
+    "basketBar"
   )
   ?.addEventListener(
     "click",
