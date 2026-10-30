@@ -5140,11 +5140,12 @@ Choose an option.`,
 Open the shop, check what is on promotion, and see when stock has been added. If you need us, tap Support.`}
 
 🛍 Open Shop
-🏷 Promotions
 📦 My Orders
-💬 Support
-⭐ Reviews
-ℹ️ Info${groupLink ? "\n👥 Join the group" : ""}${
+❓ Help & Support
+💳 Store Credit
+🎁 Refer a friend
+🏷 Promotions
+⭐ Reviews${groupLink ? "\n👥 Join the group" : ""}${
   isAdmin(msg.from?.id)
     ? "\n🛠 Admin Dashboard"
     : ""

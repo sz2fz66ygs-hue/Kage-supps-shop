@@ -354,9 +354,7 @@ function renderTabs() {
     return;
   }
 
-  const favCount = JSON.parse(localStorage.getItem("kage-favs") || "[]").length;
   tabs.innerHTML =
-    `<button class="tab ${currentCategory === "Favourites" ? "active" : ""}" data-category="Favourites" type="button">★ Favourites</button>` +
     categories
       .map(
         c => `
@@ -373,7 +371,8 @@ function renderTabs() {
           </button>
         `
       )
-      .join("");
+      .join("") +
+    `<button class="tab ${currentCategory === "Favourites" ? "active" : ""}" data-category="Favourites" type="button">★ Favourites</button>`;
 
   document
     .querySelectorAll(
