@@ -44,11 +44,11 @@ const preferredSectionOrder = {
 
   "Oral Anabolics": [
     "Oral Anabolics",
-    "Research Pouches"
+    "Research Compounds"
   ],
   Orals: [
     "Oral Anabolics",
-    "Research Pouches"
+    "Research Compounds"
   ],
 
   Pharma: [
@@ -546,6 +546,45 @@ function productMatchesSearch(product) {
   return `${product.name} ${product.subtitle || ""} ${product.section || ""}`.toLowerCase().includes(query);
 }
 
+
+function compoundRank(name) {
+  const n = String(name || "").toLowerCase();
+  const order = [
+    ["test e", 10],
+    ["test cyp", 11],
+    ["test 400", 12],
+    ["sust", 13],
+    ["tren a", 20],
+    ["tren e", 21],
+    ["eq", 30],
+    ["deca", 40],
+    ["npp", 41],
+    ["mast e", 50],
+    ["mast p", 51],
+    ["anavar", 60],
+    ["anadrol", 61],
+    ["dbol", 62],
+    ["superdrol", 63],
+    ["turinabol", 64],
+    ["winstrol", 65],
+    ["proviron", 66],
+    ["atx", 70],
+    ["bam", 71],
+    ["dihexa", 72],
+    ["noopept", 73],
+    ["sana", 74],
+    ["slu", 75]
+  ];
+  for (const [key, rank] of order) if (n.includes(key)) return rank;
+  return 900;
+}
+
+function compareProducts(a, b) {
+  const rank = compoundRank(a.name) - compoundRank(b.name);
+  if (rank) return rank;
+  return String(a.name || "").localeCompare(String(b.name || ""), undefined, { numeric: true });
+}
+
 function renderProducts() {
   const container =
     document.getElementById(
@@ -611,7 +650,7 @@ function renderProducts() {
             "Other"
           ).trim() ===
             section
-      ).sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), undefined, { numeric: true }));
+      ).sort(compareProducts);
 
     if (
       !shopItems.length
