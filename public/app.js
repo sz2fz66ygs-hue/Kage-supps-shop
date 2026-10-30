@@ -495,7 +495,6 @@ function shopCard(p) {
               : ""
         }
 
-        ${vialSize(p) ? `<div class="sub">${vialSize(p)}</div>` : ""}
         ${stockBadge(p.stock, p.unit, p.category)}
         ${Number(stock) <= 0 ? `<button type="button" class="restock-link" data-restock="${id}">Tell me when it's back</button>` : ""}
       </div>
