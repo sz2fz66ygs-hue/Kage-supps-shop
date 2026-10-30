@@ -110,7 +110,7 @@ main{
   display:grid;
   grid-template-columns:1fr auto;
   gap:14px;
-  align-items:center;
+  align-items:start;
 }
 
 .product h3{
@@ -637,12 +637,14 @@ main{
   display:flex;
   flex-direction:column;
   align-items:flex-end;
-  gap:10px;
+  justify-content:flex-start;
+  gap:8px;
   min-width:108px;
 }
 .price{
   font-size:18px;
   letter-spacing:-.3px;
+  margin-top:2px;
 }
 .qty{
   margin-top:0;

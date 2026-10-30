@@ -469,7 +469,6 @@ function shopCard(p) {
       <div class="product-body">
         <div class="product-head">
           <h3>${escapeHtml(p.name)}</h3>
-          <button type="button" data-fav="${id}" class="star-btn" aria-label="Save">${(JSON.parse(localStorage.getItem("kage-favs") || "[]")).includes(String(id)) ? "★" : "☆"}</button>
         </div>
 
         ${
@@ -482,6 +481,7 @@ function shopCard(p) {
             : ""
         }
 
+        ${String(p.category || "").trim() === "Oils" ? `<div class="sub">10 ml vial</div>` : ""}
         ${stockBadge(p.stock, p.unit, p.category)}
         ${Number(stock) <= 0 ? `<button type="button" class="restock-link" data-restock="${id}">Tell me when it's back</button>` : ""}
       </div>
@@ -533,6 +533,8 @@ function shopCard(p) {
             `
             : ""
         }
+
+        <button type="button" data-fav="${id}" class="star-btn" aria-label="Save">${(JSON.parse(localStorage.getItem("kage-favs") || "[]")).includes(String(id)) ? "★" : "☆"}</button>
 
       </div>
 
