@@ -452,11 +452,11 @@ function shopCard(p) {
   return `
     <div class="product">
 
-      <div>
-        <h3>
-          ${escapeHtml(p.name)}
-          <button type="button" data-fav="${id}" class="star-btn">${(JSON.parse(localStorage.getItem("kage-favs") || "[]")).includes(String(id)) ? "★" : "☆"}</button>
-        </h3>
+      <div class="product-body">
+        <div class="product-head">
+          <h3>${escapeHtml(p.name)}</h3>
+          <button type="button" data-fav="${id}" class="star-btn" aria-label="Save">${(JSON.parse(localStorage.getItem("kage-favs") || "[]")).includes(String(id)) ? "★" : "☆"}</button>
+        </div>
 
         ${
           p.subtitle
@@ -472,7 +472,7 @@ function shopCard(p) {
         ${Number(stock) <= 0 ? `<button type="button" class="restock-link" data-restock="${id}">Tell me when it's back</button>` : ""}
       </div>
 
-      <div>
+      <div class="product-buy">
 
         <div class="price">
           ${priceText}
