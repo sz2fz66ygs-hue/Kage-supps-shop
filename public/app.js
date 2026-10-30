@@ -38,8 +38,7 @@ const preferredSectionOrder = {
   Oils: [
     "Oils",
     "Blends",
-    "PWO Injectables",
-    "Pre-Workout Injectables"
+    "PWO Injectables"
   ],
 
   "Oral Anabolics": [
@@ -244,11 +243,7 @@ function rebuildCatalogueNavigation() {
           )
           .map(
             p =>
-              String(
-                p.section ||
-                "Other"
-              ).trim() ||
-              "Other"
+              shopSection(p)
           )
       )
     ];
@@ -547,6 +542,22 @@ function productMatchesSearch(product) {
 }
 
 
+
+function shopSection(product) {
+  const category = String(product.category || "").trim();
+  const name = String(product.name || "").toLowerCase();
+  if (category === "Oils") {
+    if (name.includes("mass on") || name.includes("ttm")) return "Blends";
+    if (name.includes("doomsday") || name.startsWith("inj ") || name.includes("inj anadrol") || name.includes("inj dbol") || name.includes("inj superdrol")) return "PWO Injectables";
+    return "Oils";
+  }
+  if (category === "Orals" || category === "Oral Anabolics") {
+    if (name.includes("atx") || name.includes("bam") || name.includes("slu") || name.includes("sana") || name.includes("dihexa") || name.includes("noopept")) return "Research Compounds";
+    return "Oral Anabolics";
+  }
+  return String(product.section || "Other").trim() || "Other";
+}
+
 function compoundRank(name) {
   const n = String(name || "").toLowerCase();
   const order = [
@@ -645,10 +656,7 @@ function renderProducts() {
           ).trim() ===
             currentCategory &&
 
-          String(
-            p.section ||
-            "Other"
-          ).trim() ===
+          shopSection(p) ===
             section
       ).sort(compareProducts);
 
