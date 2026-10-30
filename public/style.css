@@ -138,9 +138,14 @@ main{
   color:#0b7a4d;
 }
 
-.low{
+.medium{
   background:#fff2c8;
   color:#8e6013;
+}
+
+.lowstock{
+  background:#fde2df;
+  color:#a5362f;
 }
 
 .out{

@@ -336,16 +336,16 @@ function stockBadge(stock, unit = "items", category = "") {
   let label = "In stock";
   let cls = "good";
   if (cat === "pharma") {
-    if (n <= 5) { label = "Low stock"; cls = "low"; }
-    else if (n <= 15) { label = "Medium"; cls = "low"; }
-    else { label = "Good"; cls = "good"; }
-  } else if (cat === "oils" || cat === "orals") {
-    if (n <= 5) { label = "Low stock"; cls = "low"; }
-    else if (n <= 10) { label = "Medium"; cls = "low"; }
-    else { label = "Good"; cls = "good"; }
+    if (n <= 5) { label = "Low stock"; cls = "lowstock"; }
+    else if (n <= 15) { label = "Medium"; cls = "medium"; }
+    else { label = "In stock"; cls = "good"; }
+  } else if (cat === "oils" || cat === "orals" || cat === "oral anabolics") {
+    if (n <= 5) { label = "Low stock"; cls = "lowstock"; }
+    else if (n <= 10) { label = "Medium"; cls = "medium"; }
+    else { label = "In stock"; cls = "good"; }
   } else if (n <= 5) {
     label = "Low stock";
-    cls = "low";
+    cls = "lowstock";
   }
   return `<span class="stock ${cls}">${label}</span>`;
 }
@@ -592,7 +592,7 @@ function shopSection(product) {
 function compoundRank(name) {
   const n = String(name || "").toLowerCase();
   const order = [
-    ["test e", 10], ["test cyp", 11], ["test 400", 12], ["sust", 13],
+    ["test e", 10], ["testosterone cypionate", 11], ["test cyp", 11], ["test c)", 11], ["test 400", 12], ["sust", 13],
     ["tren a", 20], ["tren e", 21], ["eq", 30], ["deca", 40], ["npp", 41],
     ["mast e", 50], ["mast p", 51], ["mass on", 55], ["ttm", 56],
     ["doomsday", 57], ["inj anadrol", 58], ["inj dbol", 59], ["inj superdrol", 60],
