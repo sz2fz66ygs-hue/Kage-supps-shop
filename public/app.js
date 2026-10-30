@@ -428,15 +428,17 @@ function subtitleLines(product) {
   const raw = String(product.subtitle || "").trim();
   if (!raw) return [];
   const parts = raw.split(/\s*[•·|]\s*/).map(part => part.trim()).filter(Boolean);
-  return parts.flatMap(part => {
-    const dose = part.match(/^(.+?)\s+per\s+(capsule|vial|ml|tab|tablet|strip|pen|pouch|ampoule|ampule)\b/i);
-    const pack = part.match(/(\d+\s+(?:capsules?|vials?|tabs?|tablets?|strips?|pens?|pouches?|ampoules?|ampules?|ml))\s+per\s+\w+/i);
-    const lines = [];
-    if (dose) lines.push(dose[1].trim());
-    else if (!pack) lines.push(part.replace(/\s+per\s+(capsule|vial|ml|tab|tablet|strip|pen|pouch|ampoule|ampule)\b/i, "").trim());
-    if (pack) lines.push(pack[1].trim());
-    return lines.filter(Boolean);
-  });
+  const lines = [];
+  for (const part of parts) {
+    const pack = part.match(/^(\d+\s+(?:capsules?|vials?|tabs?|tablets?|strips?|pens?|pouches?|ampoules?|ampules?|ml))\s+per\s+\w+/i);
+    if (pack) {
+      lines.push(pack[1].trim());
+      continue;
+    }
+    const dose = part.match(/^(.+?)\s+per\s+(?:capsule|vial|ml|tab|tablet|strip|pen|pouch|ampoule|ampule)\b/i);
+    lines.push((dose ? dose[1] : part).trim());
+  }
+  return [...new Set(lines.filter(Boolean))];
 }
 
 function shopCard(p) {
