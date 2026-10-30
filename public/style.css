@@ -692,3 +692,17 @@ input, textarea{
   margin-top:20px;
   padding:16px;
 }
+
+
+.product{
+  position:relative;
+  padding-bottom:42px;
+}
+.stock-corner{
+  position:absolute;
+  left:16px;
+  bottom:14px;
+}
+.stock-corner .stock{
+  margin-top:0;
+}

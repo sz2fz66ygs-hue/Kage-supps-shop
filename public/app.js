@@ -336,16 +336,19 @@ function stockBadge(stock, unit = "items", category = "") {
   let label = "In stock";
   let cls = "good";
   if (cat === "pharma") {
-    if (n <= 5) { label = "Low stock"; cls = "lowstock"; }
-    else if (n <= 15) { label = "Medium"; cls = "medium"; }
-    else { label = "In stock"; cls = "good"; }
+    if (n <= 5) { label = "Few left"; cls = "lowstock"; }
+    else if (n <= 15) { label = "Limited"; cls = "medium"; }
+    else { label = "Available"; cls = "good"; }
   } else if (cat === "oils" || cat === "orals" || cat === "oral anabolics") {
-    if (n <= 5) { label = "Low stock"; cls = "lowstock"; }
-    else if (n <= 10) { label = "Medium"; cls = "medium"; }
-    else { label = "In stock"; cls = "good"; }
+    if (n <= 5) { label = "Few left"; cls = "lowstock"; }
+    else if (n <= 10) { label = "Limited"; cls = "medium"; }
+    else { label = "Available"; cls = "good"; }
   } else if (n <= 5) {
-    label = "Low stock";
+    label = "Few left";
     cls = "lowstock";
+  } else {
+    label = "Available";
+    cls = "good";
   }
   return `<span class="stock ${cls}">${label}</span>`;
 }
@@ -367,7 +370,9 @@ function renderTabs() {
     return;
   }
 
+  const favCount = JSON.parse(localStorage.getItem("kage-favs") || "[]").length;
   tabs.innerHTML =
+    `<button class="tab ${currentCategory === "Favourites" ? "active" : ""}" data-category="Favourites" type="button">★ Favourites</button>` +
     categories
       .map(
         c => `
@@ -495,8 +500,8 @@ function shopCard(p) {
               : ""
         }
 
-        ${stockBadge(p.stock, p.unit, p.category)}
         ${Number(stock) <= 0 ? `<button type="button" class="restock-link" data-restock="${id}">Tell me when it's back</button>` : ""}
+        <div class="stock-corner">${stockBadge(p.stock, p.unit, p.category)}</div>
       </div>
 
       <div class="product-buy">
@@ -644,6 +649,15 @@ function renderProducts() {
       </div>
     `;
 
+    return;
+  }
+
+  if (currentCategory === "Favourites") {
+    const favs = JSON.parse(localStorage.getItem("kage-favs") || "[]").map(Number);
+    const saved = visibleProducts.filter(product => favs.includes(Number(product.id)));
+    container.innerHTML = saved.length
+      ? `<div class="section-title">Favourites</div>${saved.map(shopCard).join("")}`
+      : `<div class="catalogue-error">Tap the star on a product to save it here.</div>`;
     return;
   }
 
@@ -1489,18 +1503,8 @@ function renderBasket() {
 function renderSaved() {
   const panel = document.getElementById("savedPanel");
   if (!panel) return;
-  const favs = JSON.parse(localStorage.getItem("kage-favs") || "[]").map(Number);
-  const items = products.filter(product => favs.includes(Number(product.id)));
-  if (!items.length) {
-    panel.hidden = true;
-    panel.innerHTML = "";
-    return;
-  }
-  panel.hidden = false;
-  panel.innerHTML = `
-    <div class="section-title">Saved</div>
-    ${items.map(shopCard).join("")}
-  `;
+  panel.hidden = true;
+  panel.innerHTML = "";
 }
 
 async function watchRestockCategory(category) {
