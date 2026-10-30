@@ -54,7 +54,7 @@ body{
 }
 
 .cart-pill{
-  border:1px solid var(--gold);
+  border:1px solid #111;
   background:var(--white);
   color:var(--gold-dark);
   border-radius:999px;
@@ -644,6 +644,7 @@ main{
   color:var(--gold-dark);
   background:#faf6ec;
   padding:4px 10px;
+  border:1px solid #111;
   border-radius:999px;
   display:inline-block;
 }
