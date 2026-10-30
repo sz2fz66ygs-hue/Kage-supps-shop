@@ -101,15 +101,10 @@ body{
 }
 
 .tab.active{
-  color:var(--gold-dark);
-  border-color:rgba(200,166,70,.35);
-  border-bottom-color:var(--gold);
-  background:
-    radial-gradient(ellipse at 30% 20%, rgba(255,255,255,.85) 0%, transparent 55%),
-    linear-gradient(160deg, #fff 0%, #f7f0dc 60%, #efe4c4 100%);
-  border-radius:12px;
-  padding-left:12px;
-  padding-right:12px;
+  color:#111;
+  border-color:#111;
+  background:linear-gradient(160deg, #f7f0dc 0%, #efe4c4 100%);
+  border-radius:999px;
 }
 
 main{
@@ -451,10 +446,10 @@ textarea{
 .catalogue-error{
   margin:16px 0;
   padding:16px;
-  border:1px solid #e7c4c1;
+  border:1px solid #111;
   border-radius:14px;
-  background:#fff3f2;
-  color:#8f302b;
+  background:#faf6ec;
+  color:#111;
   font-weight:700;
 }
 
@@ -623,7 +618,7 @@ textarea{
 .search-wrap input{
   width:100%;
   padding:14px 16px;
-  border:1px solid var(--border);
+  border:1px solid #111;
   border-radius:16px;
   background:#fff;
   font:inherit;
@@ -641,8 +636,8 @@ main{
   margin:22px 2px 8px;
   font-size:12px;
   letter-spacing:1.5px;
-  color:var(--gold-dark);
-  background:#faf6ec;
+  color:#111;
+  background:#fff;
   padding:4px 10px;
   border:1px solid #111;
   border-radius:999px;
