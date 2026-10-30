@@ -1278,18 +1278,22 @@ function renderBasket() {
     const pill = document.getElementById("cartJump");
     if (pill) pill.classList.toggle("has-items", basketCount() > 0);
   }
+  const minimum = 5000;
+  const showMin = basketCount() > 0 && totalBeforeShipping < minimum;
+  const percent = Math.min(100, Math.round((totalBeforeShipping / minimum) * 100));
+  const short = Math.max(0, minimum - totalBeforeShipping);
+
   const minProgress = document.getElementById("minProgress");
-  const minProgressLabel = document.getElementById("minProgressLabel");
-  const minProgressFill = document.getElementById("minProgressFill");
-  if (minProgress) {
-    const minimum = 5000;
-    const show = basketCount() > 0 && totalBeforeShipping < minimum;
-    minProgress.hidden = !show;
-    if (show) {
-      const percent = Math.min(100, Math.round((totalBeforeShipping / minimum) * 100));
-      const short = minimum - totalBeforeShipping;
-      if (minProgressLabel) minProgressLabel.textContent = `${money(short)} to the £50 minimum`;
-      if (minProgressFill) minProgressFill.style.width = `${percent}%`;
+  if (minProgress) minProgress.hidden = true;
+
+  const minBar = document.getElementById("minBar");
+  const minBarLabel = document.getElementById("minBarLabel");
+  const minBarFill = document.getElementById("minBarFill");
+  if (minBar) {
+    minBar.hidden = !showMin;
+    if (showMin) {
+      if (minBarLabel) minBarLabel.textContent = `${money(short)} to £50`;
+      if (minBarFill) minBarFill.style.width = `${percent}%`;
     }
   }
 
