@@ -4364,6 +4364,30 @@ if (bot) {
     }
   }
 
+
+  function getMainMenuKeyboard(fromId) {
+    const buttons = [];
+    if (webAppUrl) buttons.push([{ text: "🛍 OPEN SHOP — TAP HERE", web_app: { url: webAppUrl } }]);
+    buttons.push([
+      { text: "📦 My Orders", callback_data: "orders" },
+      { text: "❓ Help", callback_data: "help" }
+    ]);
+    buttons.push([{ text: "💬 Support", callback_data: "support" }]);
+    buttons.push([
+      { text: "💳 Store Credit", callback_data: "store_credit" },
+      { text: "🎁 Refer a friend", callback_data: "refer_friend" }
+    ]);
+    buttons.push([
+      { text: "🏷 Promotions", callback_data: "promotions" },
+      { text: "⭐ Reviews", callback_data: "reviews" },
+      { text: "ℹ️ Info", callback_data: "info" }
+    ]);
+    const groupLink = process.env.GROUP_LINK || getMetaValue("group_link");
+    if (groupLink) buttons.push([{ text: "👥 Join the group", url: groupLink }]);
+    if (isAdmin(fromId)) buttons.push([{ text: "🛠 Admin Dashboard", callback_data: "admin_dashboard" }]);
+    return { reply_markup: { inline_keyboard: buttons } };
+  }
+
   function getAdminDashboardOptions() {
     return {
       reply_markup: {
@@ -6506,28 +6530,7 @@ The review has been removed.`,
       } catch {}
 
       if (data === "main_menu") {
-        const buttons = [];
-        if (webAppUrl) buttons.push([{ text: "🛍 OPEN SHOP — TAP HERE", web_app: { url: webAppUrl } }]);
-        buttons.push([
-          { text: "📦 My Orders", callback_data: "orders" },
-          { text: "❓ Help", callback_data: "help" }
-        ]);
-        buttons.push([{ text: "💬 Support", callback_data: "support" }]);
-        buttons.push([
-          { text: "💳 Store Credit", callback_data: "store_credit" },
-          { text: "🎁 Refer a friend", callback_data: "refer_friend" }
-        ]);
-        buttons.push([
-          { text: "🏷 Promotions", callback_data: "promotions" },
-          { text: "⭐ Reviews", callback_data: "reviews" },
-          { text: "ℹ️ Info", callback_data: "info" }
-        ]);
-        const groupLink = process.env.GROUP_LINK || getMetaValue("group_link");
-        if (groupLink) buttons.push([{ text: "👥 Join the group", url: groupLink }]);
-        if (isAdmin(q.from?.id)) buttons.push([{ text: "🛠 Admin Dashboard", callback_data: "admin_dashboard" }]);
-        return safeSendMessage(chatId, getMetaValue("welcome_message") || "Welcome to Kage Supps.", {
-          reply_markup: { inline_keyboard: buttons }
-        });
+        return safeSendMessage(chatId, getMetaValue("welcome_message") || "Welcome to Kage Supps.", getMainMenuKeyboard(q.from?.id));
       }
 
       /* ADMIN DASHBOARD */
@@ -6631,14 +6634,16 @@ The review has been removed.`,
         const balance = getCustomerCredit(q.from?.id);
         return safeSendMessage(
           chatId,
-          `💳 STORE CREDIT\n\nYou have ${money(balance)}.\n\nIt is taken off automatically when you place an order. You can still enter a store credit code in the shop if you have one.`
+          `💳 STORE CREDIT\n\nYou have ${money(balance)}.\n\nIt is taken off automatically when you place an order. You can still enter a store credit code in the shop if you have one.`,
+          getMainMenuKeyboard(q.from?.id)
         );
       }
 
       if (data === "refer_friend") {
         return safeSendMessage(
           chatId,
-          `🎁 REFER A FRIEND\n\nShare your Telegram handle with someone who has never ordered.\n\nThey enter your handle in the shop on their first order.\n\nWhen that order is paid, you get £10 store credit.\n\nThey can only do this once, on their first order.\n\nOnly customers who start using the bot from now on are eligible.`
+          `🎁 REFER A FRIEND\n\nShare your Telegram handle with someone who has never ordered.\n\nThey enter your handle in the shop on their first order.\n\nWhen that order is paid, you get £10 store credit.\n\nThey can only do this once, on their first order.\n\nOnly customers who start using the bot from now on are eligible.`,
+          getMainMenuKeyboard(q.from?.id)
         );
       }
 
@@ -7828,7 +7833,7 @@ Customers can no longer use the store-wide promo code.`,
             });
           }
         }
-        return safeSendMessage(chatId, `✅ Marked ${list.length} dispatched.`);
+        return safeSendMessage(chatId, `✅ Marked ${list.length} dispatched.`, { reply_markup: { inline_keyboard: [[{ text: "⬅️ Orders", callback_data: "admin_orders_home" }]] } });
       }
 
       if (data.startsWith("admin_dispatch_")) {
@@ -8183,7 +8188,7 @@ This will mark the order as cancelled.`,
             buttons.length ? { reply_markup: { inline_keyboard: buttons } } : undefined
           );
         }
-        return;
+        return safeSendMessage(chatId, "⬅️ Back to the menu.", getMainMenuKeyboard(q.from?.id));
       }
 
       if (data === "help") {
@@ -8206,7 +8211,7 @@ Sent a hash after the timer
 Open the shop or send /order and your order number, then the hash. We can still approve it.
 
 Where is my order
-Tap My Orders. It shows waiting, paid, or sent, and the tracking when it has one.`);
+Tap My Orders. It shows waiting, paid, or sent, and the tracking when it has one.`, getMainMenuKeyboard(q.from?.id));
       }
 
       /* SUPPORT */
@@ -8234,7 +8239,8 @@ Support isn't configured yet.`
 
 `💬 Support
 
-Send your message below.`
+Send your message below.`,
+          getMainMenuKeyboard(q.from?.id)
         );
       }
 
@@ -8300,7 +8306,7 @@ Send your message below.`
       if (data === "promotions") {
         const promos = promotionsApi.loadPromotions().filter(promo => promo.active);
         if (!promos.length) {
-          return safeSendMessage(chatId, "🏷 Promotions\n\nNo promotions are running right now.");
+          return safeSendMessage(chatId, "🏷 Promotions\n\nNo promotions are running right now.", getMainMenuKeyboard(q.from?.id));
         }
         const lines = promos.map(promo => {
           const rule = promo.type === "fixed_bundle"
@@ -8310,7 +8316,7 @@ Send your message below.`
               : `${promo.discountPercent}% off`;
           return `${promo.name}\n${rule}`;
         });
-        return safeSendMessage(chatId, `🏷 RUNNING PROMOTIONS\n\n${lines.join("\n\n")}`);
+        return safeSendMessage(chatId, `🏷 RUNNING PROMOTIONS\n\n${lines.join("\n\n")}`, getMainMenuKeyboard(q.from?.id));
       }
 
       /* REVIEWS */
@@ -9086,7 +9092,8 @@ Send your message below.`
         if (!rows.length) {
           return safeSendMessage(
             chatId,
-            "⭐ Reviews\n\nNo approved reviews yet."
+            "⭐ Reviews\n\nNo approved reviews yet.",
+            getMainMenuKeyboard(q.from?.id)
           );
         }
 
@@ -9094,10 +9101,11 @@ Send your message below.`
           `${"⭐".repeat(Math.max(1, Math.min(5, Number(review.rating) || 0)))} ${review.display_name}\n${review.review_text}`
         );
 
-        return sendLongMessage(
+        await sendLongMessage(
           chatId,
           `⭐ REVIEWS\n\n${lines.join("\n\n")}`
         );
+        return safeSendMessage(chatId, "⬅️ Back to the menu.", getMainMenuKeyboard(q.from?.id));
       }
 
       /* INFO */
@@ -9117,7 +9125,8 @@ Minimum basket:
 Delivery:
 £5
 
-Tap Open Shop to launch the Mini App.`
+Tap Open Shop to launch the Mini App.`,
+          getMainMenuKeyboard(q.from?.id)
         );
       }
     }
