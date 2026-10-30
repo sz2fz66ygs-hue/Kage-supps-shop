@@ -2043,7 +2043,7 @@ deliveryReminderTimer.unref?.();
 
 async function sendMorningSummary() {
   const now = new Date(new Date().toLocaleString("en-GB", { timeZone: "Europe/London" }));
-  if (now.getHours() !== 9) return;
+  if (now.getHours() !== 6) return;
   const today = now.toISOString().slice(0, 10);
   if (getMetaValue("morning_summary_date") === today) return;
   setMetaValue("morning_summary_date", today);
