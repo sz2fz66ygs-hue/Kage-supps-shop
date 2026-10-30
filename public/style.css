@@ -46,6 +46,10 @@ body{
   padding:9px 13px;
   font-weight:800;
 }
+.cart-pill.has-items{
+  background:var(--gold);
+  color:#fff;
+}
 
 .tabs{
   position:sticky;
@@ -79,7 +83,11 @@ body{
 
 .tab.active{
   color:var(--gold-dark);
-  border-bottom-color:var(--gold);
+  border-bottom-color:transparent;
+  background:var(--gold-soft);
+  border-radius:999px;
+  padding-left:12px;
+  padding-right:12px;
 }
 
 main{
@@ -612,6 +620,9 @@ main{
   font-size:12px;
   letter-spacing:1.5px;
   color:var(--gold-dark);
+  padding-bottom:6px;
+  border-bottom:1px solid var(--gold);
+  display:inline-block;
 }
 .product{
   padding:14px 16px;
@@ -619,7 +630,8 @@ main{
   border-radius:16px;
   gap:12px;
   box-shadow:0 1px 0 rgba(0,0,0,.02);
-  border-left:3px solid var(--gold-soft);
+  border-left:3px solid var(--gold);
+  background:linear-gradient(180deg,#fffdf8 0%,#ffffff 70%);
 }
 .product-head{
   display:flex;
@@ -708,3 +720,21 @@ input, textarea{
 .stock-corner .stock{
   margin-top:0;
 }
+
+.basket-bar{
+  position:fixed;
+  left:14px;
+  right:14px;
+  bottom:14px;
+  z-index:40;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:var(--gold);
+  color:#fff;
+  border-radius:999px;
+  padding:14px 18px;
+  font-weight:800;
+  box-shadow:0 8px 24px rgba(156,125,35,.28);
+}
+.basket-bar[hidden]{display:none}
