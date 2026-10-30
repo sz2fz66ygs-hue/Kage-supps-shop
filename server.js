@@ -463,6 +463,12 @@ const db = new DatabaseSync(
 const promotionsApi = initPromotions(db);
 
 db.exec(`
+CREATE TABLE IF NOT EXISTS category_alerts (
+  category TEXT NOT NULL,
+  telegram_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (category, telegram_id)
+);
 CREATE TABLE IF NOT EXISTS restock_alerts (
   product_id INTEGER NOT NULL,
   telegram_id TEXT NOT NULL,
@@ -708,6 +714,13 @@ async function notifyRestockIfBack(productId, oldStock, newStock) {
   for (const row of rows) {
     await safeSendMessage(row.telegram_id, `📦 Back in stock\n\n${product?.name || "An item"} is available again.\n\nOpen the shop to order.`);
   }
+  const category = String(product?.category || "");
+  if (!category) return;
+  const watchers = db.prepare("SELECT telegram_id FROM category_alerts WHERE category = ?").all(category);
+  db.prepare("DELETE FROM category_alerts WHERE category = ?").run(category);
+  for (const row of watchers) {
+    await safeSendMessage(row.telegram_id, `📦 ${category} is back\n\n${product.name} is in stock.\n\nOpen the shop to order.`);
+  }
 }
 
 function getLiveProducts() {
@@ -753,11 +766,41 @@ app.get("/api/shop-status", (_req, res) => {
 app.post("/api/restock-alerts", (req, res) => {
   const telegramId = verifiedTelegramId(req.body?.initData);
   const productId = Number(req.body?.productId);
-  if (!telegramId || !Number.isInteger(productId)) {
-    return res.status(400).json({ error: "Open the shop from Telegram to set a restock alert." });
+  const category = String(req.body?.category || "").trim();
+  if (!telegramId) return res.status(400).json({ error: "Open the shop from Telegram to set a restock alert." });
+  if (category) {
+    db.prepare("INSERT OR IGNORE INTO category_alerts (category, telegram_id, created_at) VALUES (?, ?, ?)").run(category, String(telegramId), new Date().toISOString());
+    return res.json({ ok: true });
   }
+  if (!Number.isInteger(productId)) return res.status(400).json({ error: "Choose an item." });
   addRestockAlert(productId, telegramId);
   res.json({ ok: true });
+});
+
+app.post("/api/orders/:id/add-items", async (req, res) => {
+  const order = orders.get(Number(req.params.id));
+  const telegramId = verifiedTelegramId(req.body?.initData);
+  if (!order) return res.status(404).json({ error: "Order not found." });
+  if (order.paymentStatus !== "awaiting_payment") return res.status(400).json({ error: "You can only add items before you pay." });
+  if (telegramId && String(order.telegramId || "") !== String(telegramId)) return res.status(403).json({ error: "This is not your order." });
+  const items = Array.isArray(req.body?.items) ? req.body.items : [];
+  let addedPence = 0;
+  for (const raw of items) {
+    const product = productsById.get(Number(raw.id));
+    const quantity = Number(raw.quantity);
+    if (!product || !Number.isInteger(quantity) || quantity < 1) continue;
+    const live = getLiveStock(product.id);
+    if (live !== null && quantity > live) return res.status(400).json({ error: `Not enough stock for ${product.name}.` });
+    const price = getEffectivePricePence(product, promotionsApi.getPriceOverride);
+    order.items.push({ id: product.id, name: product.name, quantity, pricePence: price, lineTotalPence: price * quantity });
+    addedPence += price * quantity;
+  }
+  if (!addedPence) return res.status(400).json({ error: "Nothing to add." });
+  order.subtotalPence = Number(order.subtotalPence || 0) + addedPence;
+  order.totalPence = Number(order.totalPence || 0) + addedPence;
+  order.quotedUsdt = await getUsdtQuote(order.totalPence);
+  saveOrder(order);
+  res.json({ ok: true, orderId: order.orderId, totalPence: order.totalPence, quotedUsdt: order.quotedUsdt });
 });
 
 app.get("/api/store-credit", (req, res) => {
@@ -779,7 +822,8 @@ app.get("/api/promotions", (_req, res) => {
         discountPence: promo.discountPence || 0,
         bundlePricePence: promo.bundlePricePence || 0,
         stackWithAffiliate: promo.stackWithAffiliate !== false,
-        maxUnits: Number(promo.maxUnits || 0)
+        maxUnits: Number(promo.maxUnits || 0),
+        endsAt: promo.endsAt || null
       }))
   );
 });
@@ -797,6 +841,8 @@ app.post("/api/basket-live", (req, res) => {
   if (!items.length) liveBaskets.delete(id);
   else liveBaskets.set(id, {
     telegramId: String(req.body?.telegramId || ""),
+    updatedAt: new Date().toISOString(),
+    nudged: false,
     name: req.body?.name || "",
     username: req.body?.username || "",
     items,
@@ -1922,23 +1968,15 @@ async function recordStockChange(product, oldStock, newStock) {
     new Date().toISOString()
   );
 
-  const groupId = getMetaValue("stock_group_id");
-  if (groupId) {
-    await safeSendMessage(
-      groupId,
-      `📦 STOCK ADDED\n\n${product.name}\n+${added} now in stock\n${Number(oldStock || 0)} → ${Number(newStock)}`
-    );
-  }
+  // Stock posts are manual. Use Send restock message when you want customers told.
 
 }
 
 const restockQueue = new Set();
 let restockTimer = null;
 
-function queueRestockNotice(line) {
-  restockQueue.add(line);
-  clearTimeout(restockTimer);
-  restockTimer = setTimeout(sendRestockNotices, 4000);
+function queueRestockNotice() {
+  // Manual only. The admin Send restock message button still works.
 }
 
 async function sendCustomerBroadcast(message) {
@@ -2115,6 +2153,53 @@ const morningSummaryTimer = setInterval(() => {
 }, 30 * 60 * 1000);
 morningSummaryTimer.unref?.();
 
+async function sendEveningStock() {
+  const now = new Date(new Date().toLocaleString("en-GB", { timeZone: "Europe/London" }));
+  if (now.getHours() !== 21) return;
+  const today = now.toISOString().slice(0, 10);
+  if (getMetaValue("evening_stock_date") === today) return;
+  setMetaValue("evening_stock_date", today);
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const sold = [...orders.values()].filter(order => order.paymentStatus === "paid" && new Date(order.paidAt || order.createdAt || 0) >= start);
+  const soldLines = sold.slice(0, 20).map(order => `#${order.orderId} ${money(order.totalPence)}`).join("\n") || "None";
+  const out = products.filter(product => product.purchasable !== false && Number(getLiveStock(product.id) || 0) <= 0).slice(0, 20);
+  const outLines = out.map(product => `#${product.id} ${product.name}`).join("\n") || "None";
+  await notifyAdmins(`🌙 9PM STOCK\n\nPaid today:\n${soldLines}\n\nOut of stock:\n${outLines}`);
+}
+
+async function warnExpiringCredit() {
+  const rows = db.prepare("SELECT telegram_id, balance_pence, added_at FROM customer_credit WHERE balance_pence > 0 AND added_at IS NOT NULL").all();
+  for (const row of rows) {
+    const age = Date.now() - new Date(row.added_at).getTime();
+    const days = age / 86400000;
+    if (days >= 30) {
+      db.prepare("UPDATE customer_credit SET balance_pence = 0 WHERE telegram_id = ?").run(row.telegram_id);
+      await safeSendMessage(row.telegram_id, "Your store credit has expired after 30 days.");
+    } else if (days >= 25 && getMetaValue("credit_warn:" + row.telegram_id) !== row.added_at) {
+      setMetaValue("credit_warn:" + row.telegram_id, row.added_at);
+      await safeSendMessage(row.telegram_id, `Your £${(row.balance_pence / 100).toFixed(2)} store credit expires in ${Math.max(1, Math.ceil(30 - days))} days.`);
+    }
+  }
+}
+
+async function nudgeOpenBaskets() {
+  const now = Date.now();
+  for (const [id, basket] of liveBaskets.entries()) {
+    if (!basket?.telegramId || basket.nudged) continue;
+    if (now - new Date(basket.updatedAt || 0).getTime() < 2 * 60 * 60 * 1000) continue;
+    basket.nudged = true;
+    await safeSendMessage(basket.telegramId, "🛒 Your basket is still here.\n\nOpen the shop if you still want it. It will be cleared if you leave it.");
+  }
+}
+
+const eveningTimer = setInterval(() => {
+  sendEveningStock().catch(err => console.error("EVENING STOCK ERROR:", err));
+  warnExpiringCredit().catch(err => console.error("CREDIT WARN ERROR:", err));
+  nudgeOpenBaskets().catch(err => console.error("BASKET NUDGE ERROR:", err));
+}, 30 * 60 * 1000);
+eveningTimer.unref?.();
+
 /* =========================================================
    REVIEW URL
    ========================================================= */
@@ -2233,12 +2318,17 @@ function getCustomerCredit(telegramId) {
   return Number(row?.balance_pence || 0);
 }
 
+try { db.exec("ALTER TABLE customer_credit ADD COLUMN added_at TEXT"); } catch {}
+
 function addCustomerCredit(telegramId, pence) {
+  const amount = Math.round(pence);
   db.prepare(`
-    INSERT INTO customer_credit (telegram_id, balance_pence)
-    VALUES (?, ?)
-    ON CONFLICT(telegram_id) DO UPDATE SET balance_pence = customer_credit.balance_pence + excluded.balance_pence
-  `).run(String(telegramId), Math.round(pence));
+    INSERT INTO customer_credit (telegram_id, balance_pence, added_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(telegram_id) DO UPDATE SET
+      balance_pence = customer_credit.balance_pence + excluded.balance_pence,
+      added_at = CASE WHEN excluded.balance_pence > 0 THEN excluded.added_at ELSE customer_credit.added_at END
+  `).run(String(telegramId), amount, new Date().toISOString());
   return getCustomerCredit(telegramId);
 }
 
@@ -7072,8 +7162,9 @@ Choose a period.`,
         const state = pendingPromotionCreate.get(chatId);
         if (!state || state.stage !== "onebuyer") return;
         state.oneBuyer = data === "admin_promo_one_yes";
-        state.stage = "confirm";
+        state.stage = "end";
         pendingPromotionCreate.set(chatId, state);
+        return safeSendMessage(chatId, "When does this promotion end?\n\nSend a date like 2026-11-02, or tonight, or - for no end date.");
         const draft = {
           id: "new",
           name: state.name,
@@ -7132,6 +7223,7 @@ Choose a period.`,
           stackWithAffiliate: state.stackWithAffiliate !== false,
           maxUnits: Number(state.maxUnits || 0),
           oneBuyer: Boolean(state.oneBuyer),
+          endsAt: state.endsAt || null,
           active: true,
           createdAt: new Date().toISOString()
         });
@@ -9078,6 +9170,43 @@ Tap Open Shop to launch the Mini App.`
                 { text: "No", callback_data: "admin_promo_stack_no" }
               ]]
             }
+          });
+        }
+
+        if (state.stage === "end") {
+          const raw = text.trim().toLowerCase();
+          if (raw === "-" || raw === "none") state.endsAt = null;
+          else if (raw === "tonight") {
+            const end = new Date();
+            end.setHours(23, 59, 0, 0);
+            state.endsAt = end.toISOString();
+          } else if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+            state.endsAt = new Date(raw + "T23:59:00").toISOString();
+          } else {
+            return safeSendMessage(chatId, "Send a date like 2026-11-02, tonight, or -.");
+          }
+          state.stage = "confirm";
+          pendingPromotionCreate.set(chatId, state);
+          const draft = {
+            id: "new",
+            name: state.name,
+            type: state.type,
+            productIds: state.productIds,
+            requiredQuantity: state.requiredQuantity,
+            discountPercent: state.discountPercent,
+            discountPence: state.discountPence,
+            bundlePricePence: state.bundlePricePence,
+            stackWithAffiliate: state.stackWithAffiliate,
+            maxUnits: state.maxUnits,
+            oneBuyer: state.oneBuyer,
+            endsAt: state.endsAt,
+            active: true
+          };
+          return safeSendMessage(chatId, `Save this promotion?\n\n${formatPromotion(draft, money)}\nEnds: ${state.endsAt ? new Date(state.endsAt).toLocaleString("en-GB") : "no end date"}`, {
+            reply_markup: { inline_keyboard: [[
+              { text: "✅ Save", callback_data: "admin_promo_save" },
+              { text: "Cancel", callback_data: "admin_promotions" }
+            ]] }
           });
         }
 

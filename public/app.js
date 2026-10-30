@@ -83,6 +83,34 @@ document.addEventListener("click", event => {
 document.addEventListener("input", event => {
   if (event.target?.id === "shopSearch") render();
 });
+document.addEventListener("click", event => {
+  const star = event.target.closest("[data-fav]");
+  if (!star) return;
+  const id = String(star.dataset.fav);
+  const favs = new Set(JSON.parse(localStorage.getItem("kage-favs") || "[]"));
+  if (favs.has(id)) favs.delete(id); else favs.add(id);
+  localStorage.setItem("kage-favs", JSON.stringify([...favs]));
+  render();
+});
+
+function nextDispatchText() {
+  const now = new Date(new Date().toLocaleString("en-GB", { timeZone: "Europe/London" }));
+  const day = now.getDay();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const slots = [
+    { day: 1, cutoff: 12 * 60, label: "Monday 12pm" },
+    { day: 3, cutoff: 12 * 60, label: "Wednesday 12pm" },
+    { day: 5, cutoff: 10 * 60, label: "Friday 10am" }
+  ];
+  for (let offset = 0; offset < 8; offset++) {
+    const check = (day + offset) % 7;
+    const slot = slots.find(item => item.day === check);
+    if (!slot) continue;
+    if (offset === 0 && mins >= slot.cutoff) continue;
+    return offset === 0 ? `Posts ${slot.label} if you pay before the cutoff.` : `Next post is ${slot.label}.`;
+  }
+  return "Posts Monday, Wednesday and Friday.";
+}
 
 try {
   Object.assign(basket, JSON.parse(localStorage.getItem("kage-basket-v1") || "{}"));
@@ -427,6 +455,7 @@ function shopCard(p) {
       <div>
         <h3>
           ${escapeHtml(p.name)}
+          <button type="button" data-fav="${id}" class="code-btn">${(JSON.parse(localStorage.getItem("kage-favs") || "[]")).includes(String(id)) ? "★" : "☆"}</button>
         </h3>
 
         ${
@@ -1015,6 +1044,12 @@ function ensureReferField() {
 }
 
 function renderBasket() {
+  const notice = document.querySelector(".shop-notice");
+  if (notice && !notice.dataset.dispatch) {
+    notice.dataset.dispatch = "1";
+    notice.insertAdjacentHTML("beforeend", `<br>${nextDispatchText()}`);
+  }
+
   ensureReferField();
   reportBasket();
   const basketLines =
@@ -1243,7 +1278,11 @@ function renderBasket() {
       </div>
     `
     : livePromotions.length
-      ? `<div class="discount-line">${escapeHtml(livePromotions.map(promo => promo.name).join(", "))} is live. The saving shows here once the basket qualifies.</div>`
+      ? `<div class="discount-line">${escapeHtml(livePromotions.map(promo => {
+          const end = promo.endsAt ? new Date(promo.endsAt) : null;
+          const soon = end && end - Date.now() < 24 * 60 * 60 * 1000;
+          return promo.name + (soon ? " (ends tonight)" : end ? " (ends " + end.toLocaleDateString("en-GB") + ")" : "");
+        }).join(", "))} is live. The saving shows here once the basket qualifies.</div>`
       : "";
 
   basketLines.innerHTML =
@@ -1358,10 +1397,42 @@ function renderBasket() {
    RENDER EVERYTHING
    ========================================================= */
 
+function renderSaved() {
+  const panel = document.getElementById("savedPanel");
+  if (!panel) return;
+  const favs = JSON.parse(localStorage.getItem("kage-favs") || "[]").map(Number);
+  const items = products.filter(product => favs.includes(Number(product.id)));
+  panel.hidden = false;
+  panel.innerHTML = `
+    <div class="section-title">Saved</div>
+    ${items.length ? items.map(shopCard).join("") : `<div class="sub">Star an item to keep it here. Out of stock items can alert you when they return.</div>`}
+    <button type="button" class="code-btn" id="watchCategory">Alert me when this category is back</button>
+  `;
+  document.getElementById("watchCategory")?.addEventListener("click", () => {
+    if (!currentCategory) return setStatus("Open a category first.", "error");
+    watchRestockCategory(currentCategory);
+  });
+}
+
+async function watchRestockCategory(category) {
+  try {
+    const res = await fetch("/api/restock-alerts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category, initData: tg?.initData || "" })
+    });
+    const data = await res.json();
+    setStatus(res.ok ? `We'll message you when ${category} is back.` : (data.error || "Could not set that."), res.ok ? "success" : "error");
+  } catch {
+    setStatus("Couldn't reach the server.", "error");
+  }
+}
+
 function render() {
   renderTabs();
   renderProducts();
   renderBasket();
+  renderSaved();
 }
 
 
@@ -2379,6 +2450,8 @@ function renderPaymentPanel(
       >
         I've paid
       </button>
+      <button id="addToOrderBtn" class="code-btn" type="button" style="margin-top:8px;">Add current basket to this order</button>
+      <div class="payment-sub">Posts Monday 12pm, Wednesday 12pm, Friday 10am. ${nextDispatchText()}</div>
 
       <div
         id="paymentStatus"
@@ -2392,6 +2465,24 @@ function renderPaymentPanel(
 /* =========================================================
    COPY BUTTON
    ========================================================= */
+
+  document.getElementById("addToOrderBtn")?.addEventListener("click", async () => {
+    const items = Object.entries(basket).map(([id, quantity]) => ({ id: Number(id), quantity: Number(quantity) }));
+    if (!items.length) return setStatus("Add items to the basket first.", "error");
+    const res = await fetch(`/api/orders/${order.orderId}/add-items`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items, initData: tg?.initData || "" })
+    });
+    const data = await res.json();
+    if (!res.ok) return setStatus(data.error || "Could not add those items.", "error");
+    Object.keys(basket).forEach(id => delete basket[id]);
+    saveBasket();
+    setStatus(`Added. Order #${data.orderId} is now ${money(data.totalPence)}.`, "success");
+    order.totalPence = data.totalPence;
+    order.payment.quote.USDT = data.quotedUsdt;
+    renderPaymentPanel(order);
+  });
 
   document.getElementById("copyAmountBtn")?.addEventListener("click", async () => {
     const copied = await copyWalletAddress(String(quote));
