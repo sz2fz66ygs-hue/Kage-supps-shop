@@ -605,19 +605,21 @@ textarea{
   top:58px;
 }
 main{
-  padding:8px 16px 40px;
+  padding:6px 14px 32px;
 }
 .section-title{
-  margin:28px 2px 12px;
+  margin:22px 2px 8px;
   font-size:12px;
-  letter-spacing:2px;
+  letter-spacing:1.5px;
+  color:var(--gold-dark);
 }
 .product{
-  padding:18px;
-  margin-bottom:14px;
-  border-radius:20px;
-  gap:16px;
+  padding:14px 16px;
+  margin-bottom:10px;
+  border-radius:16px;
+  gap:12px;
   box-shadow:0 1px 0 rgba(0,0,0,.02);
+  border-left:3px solid var(--gold-soft);
 }
 .product-head{
   display:flex;
@@ -647,8 +649,8 @@ main{
   flex-direction:column;
   align-items:flex-end;
   justify-content:flex-start;
-  gap:8px;
-  min-width:108px;
+  gap:6px;
+  min-width:92px;
 }
 .price{
   font-size:18px;
@@ -695,14 +697,13 @@ input, textarea{
 }
 
 
-.product{
-  position:relative;
-  padding-bottom:42px;
+.product-body{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
 }
 .stock-corner{
-  position:absolute;
-  left:16px;
-  bottom:14px;
+  margin-top:8px;
 }
 .stock-corner .stock{
   margin-top:0;
