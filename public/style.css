@@ -110,7 +110,7 @@ body{
 main{
   max-width:720px;
   margin:0 auto;
-  padding:16px 18px 24px;
+  padding:16px 18px 80px;
 }
 
 .section-title{
@@ -800,7 +800,7 @@ input, textarea{
   box-shadow:0 -2px 12px rgba(0,0,0,.15);
 }
 .min-bar[hidden]{display:none}
-.min-bar .progress-track{flex:1;height:6px;}
+.min-bar .progress-track{flex:1;height:6px;background:#333;}
 
 .promo-toggle{
   width:100%;
