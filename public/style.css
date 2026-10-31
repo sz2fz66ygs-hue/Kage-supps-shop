@@ -783,21 +783,21 @@ input, textarea{
 
 .min-bar{
   position:fixed;
-  left:14px;
-  right:14px;
-  bottom:14px;
+  left:0;
+  right:0;
+  bottom:0;
   z-index:40;
   display:flex;
   align-items:center;
   gap:12px;
-  background:#fff;
-  color:#111;
-  border:1px solid #111;
-  border-radius:12px;
-  padding:10px 14px;
+  background:#111;
+  color:#fff;
+  border:none;
+  border-radius:0;
+  padding:12px 16px;
   font-weight:700;
-  font-size:13px;
-  box-shadow:0 4px 16px rgba(0,0,0,.1);
+  font-size:14px;
+  box-shadow:0 -2px 12px rgba(0,0,0,.15);
 }
 .min-bar[hidden]{display:none}
 .min-bar .progress-track{flex:1;height:6px;}
