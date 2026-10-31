@@ -1,6 +1,6 @@
 :root{
-  --gold:#d4af37;
-  --gold-dark:#b8860b;
+  --gold:#ffd700;
+  --gold-dark:#daa520;
   --gold-soft:#f7f0dc;
   --white:#ffffff;
   --off:#fbfaf7;
@@ -181,7 +181,7 @@ main{
 .price{
   font-size:20px;
   font-weight:900;
-  color:var(--gold-dark);
+  color:#daa520 !important;
   text-align:right;
 }
 
@@ -433,7 +433,7 @@ textarea{
   margin-top:9px;
   font-size:20px;
   font-weight:900;
-  color:var(--gold-dark);
+  color:#daa520 !important;
 }
 
 .status.success{
