@@ -24,12 +24,12 @@ const preferredCategoryOrder = [
 ];
 
 const categoryIcons = {
-  Oils: "🛢️",
-  "Oral Anabolics": "💪",
-  Orals: "💪",
-  Pharma: "💊",
-  "Research Compounds": "🧪",
-  Peps: "⚡"
+  Oils: "",
+  "Oral Anabolics": "",
+  Orals: "",
+  Pharma: "",
+  "Research Compounds": "",
+  Peps: ""
 };
 
 const categoryLabels = {
@@ -231,7 +231,7 @@ function rebuildCatalogueNavigation() {
 
         icon:
           categoryIcons[name] ||
-          "•"
+          ""
       })
     );
 
