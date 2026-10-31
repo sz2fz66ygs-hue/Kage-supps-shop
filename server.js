@@ -886,6 +886,10 @@ app.post("/api/basket-quote", (req, res) => {
 });
 
 
+app.get("/api/theme", (_req, res) => {
+  res.json({ theme: getSeasonalTheme() });
+});
+
 app.get("/kage-basket.js", (_req, res) => {
   res.type("application/javascript");
   res.send(`(function () {
@@ -945,6 +949,12 @@ app.get("/kage-basket.js", (_req, res) => {
   }
   refresh();
   setInterval(refresh, 4000);
+  fetch("/api/theme").then(function (response) { return response.json(); }).then(function (data) {
+    if (!data || !data.theme || data.theme.id !== "halloween") return;
+    var style = document.createElement("style");
+    style.textContent = ":root{--gold:#e8a317;--gold-dark:#c47d0a;--gold-soft:#fff3d6}body{background:#1a1208;color:#f5e6c8}.topbar{background:#1a1208;border-bottom-color:#3d2a14}.card,.product-card{background:#2a1f10;border-color:#4a3520;color:#f5e6c8}.price{color:#e8a317 !important}.good{background:#3d2a14;color:#e8a317}.tabs button,.section-chip{background:#2a1f10;border-color:#4a3520;color:#f5e6c8}.tabs button.active{background:#4a3520;color:#e8a317}.btn,.button,.primary{background:#e8a317;color:#1a1208}.min-bar{background:#2a1f10;border-color:#4a3520}.promo-banner{background:#2a1f10;border-color:#4a3520;color:#f5e6c8}";
+    document.head.appendChild(style);
+  }).catch(function () {});
 })();`);
 });
 
@@ -1167,6 +1177,20 @@ function money(pence) {
   return `£${(
     Number(pence || 0) / 100
   ).toFixed(2)}`;
+}
+
+function getSeasonalTheme(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(now);
+  const month = parts.find(part => part.type === "month")?.value;
+  const day = parts.find(part => part.type === "day")?.value;
+  if (month === "10" && day === "31") {
+    return { id: "halloween", label: "Halloween" };
+  }
+  return null;
 }
 
 function normaliseCode(value) {
