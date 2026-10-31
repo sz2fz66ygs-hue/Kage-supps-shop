@@ -188,7 +188,7 @@ function escapeHtml(value) {
 function rebuildCatalogueNavigation() {
   products.forEach(product => {
     const name = String(product.name || "").toLowerCase();
-    if (name.includes("atx") || name.includes("bam") || name.includes("slu") || name.includes("sana") || name.includes("dihexa") || name.includes("noopept")) {
+    if (name.includes("atx") || name.includes("bam") || name.includes("slu") || name.includes("sana") || name.includes("dihexa") || name.includes("noopept") || name.includes("tak-653") || name.includes("mk-777") || name.includes("9-me-bc")) {
       product.category = "Research Compounds";
       product.section = "Research Compounds";
     }
@@ -593,7 +593,7 @@ function shopSection(product) {
     return "Oral Anabolics";
   }
   if (category === "Research Compounds") {
-    if (name.includes("dihexa") || name.includes("noopept")) return "Cognitive";
+    if (name.includes("dihexa") || name.includes("noopept") || name.includes("tak-653") || name.includes("mk-777") || name.includes("9-me-bc")) return "Cognitive";
     return "Metabolic";
   }
   if (category === "Peps") return String(product.section || "Other").trim() || "Other";
