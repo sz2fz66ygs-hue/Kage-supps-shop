@@ -952,12 +952,8 @@ app.get("/kage-basket.js", (_req, res) => {
   fetch("/api/theme").then(function (response) { return response.json(); }).then(function (data) {
     if (!data || !data.theme || data.theme.id !== "halloween") return;
     var style = document.createElement("style");
-    style.textContent = ":root{--gold:#e8a317;--gold-dark:#c47d0a;--gold-soft:#fff3d6}body{background:#1a1208;color:#f5e6c8}.topbar{background:#1a1208;border-bottom-color:#3d2a14}.card,.product-card{background:#2a1f10;border-color:#4a3520;color:#f5e6c8}.price{color:#e8a317 !important}.good{background:#3d2a14;color:#e8a317}.tabs button,.section-chip{background:#2a1f10;border-color:#4a3520;color:#f5e6c8}.tabs button.active{background:#4a3520;color:#e8a317}.btn,.button,.primary{background:#e8a317;color:#1a1208}.min-bar{background:#2a1f10;border-color:#4a3520}.promo-banner{background:#2a1f10;border-color:#4a3520;color:#f5e6c8}#kage-pumpkin{position:fixed;top:12px;right:12px;font-size:28px;z-index:9999;pointer-events:none}";
+    style.textContent = ":root{--gold:#ff8c00;--gold-dark:#e07000}.price{color:#ff8c00 !important}.card,.product-card{border-color:#111}.tabs button,.section-chip{border-color:#111}.min-bar{border-color:#111}.promo-banner{border-color:#111}.topbar{border-bottom-color:#111}";
     document.head.appendChild(style);
-    var pumpkin = document.createElement("div");
-    pumpkin.id = "kage-pumpkin";
-    pumpkin.textContent = "🎃";
-    document.body.appendChild(pumpkin);
   }).catch(function () {});
 })();`);
 });
