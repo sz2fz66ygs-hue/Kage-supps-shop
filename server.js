@@ -886,11 +886,6 @@ app.post("/api/basket-quote", (req, res) => {
 });
 
 
-app.get("/api/theme", (_req, res) => {
-  res.json({ theme: getSeasonalTheme() });
-});
-
-
 app.get("/kage-basket.js", (_req, res) => {
   res.type("application/javascript");
   res.send(`(function () {
@@ -1014,12 +1009,6 @@ app.get("/kage-spin.js", (_req, res) => {
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", begin);
   else begin();
-  fetch("/api/theme").then(function (response) { return response.json(); }).then(function (data) {
-    if (!data || !data.theme || data.theme.id !== "halloween") return;
-    var style = document.createElement("style");
-    style.textContent = "body{animation:kageHalloween 8s linear infinite}@keyframes kageHalloween{0%{filter:hue-rotate(0deg)}50%{filter:hue-rotate(35deg)}100%{filter:hue-rotate(0deg)}}";
-    document.head.appendChild(style);
-  }).catch(function () {});
 })();`);
 });
 
@@ -1173,26 +1162,6 @@ if (savedNextOrderId) {
    HELPERS
    ========================================================= */
 
-
-function getSeasonalTheme(now = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    month: "2-digit",
-    day: "2-digit"
-  }).formatToParts(now);
-  const month = parts.find(part => part.type === "month")?.value;
-  const day = parts.find(part => part.type === "day")?.value;
-
-  if (month === "10" && day === "31") {
-    return {
-      id: "halloween",
-      label: "Halloween",
-      greeting: "🎃 Happy Halloween"
-    };
-  }
-
-  return null;
-}
 
 function money(pence) {
   return `£${(
