@@ -952,7 +952,7 @@ app.get("/kage-basket.js", (_req, res) => {
   fetch("/api/theme").then(function (response) { return response.json(); }).then(function (data) {
     if (!data || !data.theme || data.theme.id !== "halloween") return;
     var style = document.createElement("style");
-    style.textContent = ":root{--gold:#ff8c00;--gold-dark:#e07000}.price{color:#ff8c00 !important}.card,.product-card{border-color:#111}.tabs button,.section-chip{border-color:#111}.min-bar{border-color:#111}.promo-banner{border-color:#111}.topbar{border-bottom-color:#111}";
+    style.textContent = ":root{--gold:#ff8c00;--gold-dark:#e07000}body{background:#111;color:#ff8c00}.topbar{background:#111;border-bottom:2px solid #ff8c00}.card,.product-card{background:#1a1a1a;border:2px solid #111;color:#ff8c00}.price{color:#ff8c00 !important}.good{background:#2a1a00;color:#ff8c00}.tabs button,.section-chip{background:#1a1a1a;border:2px solid #111;color:#ff8c00}.tabs button.active{background:#ff8c00;color:#111}.btn,.button,.primary{background:#ff8c00;color:#111}.min-bar{background:#1a1a1a;border-top:2px solid #ff8c00}.promo-banner{background:#1a1a1a;border:2px solid #ff8c00;color:#ff8c00}.search{background:#1a1a1a;border:2px solid #111;color:#ff8c00}";
     document.head.appendChild(style);
   }).catch(function () {});
 })();`);
@@ -1188,7 +1188,7 @@ function getSeasonalTheme(now = new Date()) {
   const month = parts.find(part => part.type === "month")?.value;
   const day = parts.find(part => part.type === "day")?.value;
   if (month === "10" && day === "31") {
-    return { id: "halloween", label: "Halloween" };
+    return { id: "halloween", label: "Halloween", greeting: "🎃 Happy Halloween" };
   }
   return null;
 }
