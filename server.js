@@ -9855,7 +9855,8 @@ ${text}`
         for (const line of lines) {
           const [main, namePart, subtitlePart, sectionPart] = line.split("|").map(part => part.trim());
           const idMatch = main.match(/^#?(\d+)\b/);
-          if (idMatch) {
+          const isIdLine = idMatch && /^#?\d+(\s+([+-]\d+|£\s*\d+(?:\.\d+)?|remove)\b)*$/i.test(main);
+          if (isIdLine) {
             const product = productsById.get(Number(idMatch[1]));
             if (!product) { failed.push(`${line} (no product)`); continue; }
             if (/\bremove\b/i.test(main)) {
