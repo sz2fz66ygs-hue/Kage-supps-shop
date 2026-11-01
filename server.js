@@ -2144,7 +2144,7 @@ async function autoApprovePendingPayments() {
     try {
       order.autoApproveTriedRecently = true;
       saveOrder(order);
-      const check = await verifyUsdtPayment(order.transactionId, order.usdtQuote);
+      const check = await verifyUsdtPayment(order.transactionId, order.quotedUsdt || order.usdtQuote);
       order.autoCheck = { ok: Boolean(check.ok), reason: check.reason || "", received: check.received, expected: check.expected };
       saveOrder(order);
       if (check.ok) {
@@ -2539,7 +2539,7 @@ async function submitTransactionHash(order, transactionId) {
   let autoPaid = false;
   let check = null;
   try {
-    check = await verifyUsdtPayment(hash, order.usdtQuote);
+    check = await verifyUsdtPayment(hash, order.quotedUsdt || order.usdtQuote);
     order.autoCheck = { ok: Boolean(check.ok), reason: check.reason || "", received: check.received, expected: check.expected };
     saveOrder(order);
     if (check.ok) {
@@ -6993,7 +6993,7 @@ The review has been removed.`,
         let approved = 0;
         const failed = [];
         for (const order of waiting) {
-          const check = await verifyUsdtPayment(order.transactionId, order.usdtQuote);
+          const check = await verifyUsdtPayment(order.transactionId, order.quotedUsdt || order.usdtQuote);
           order.autoCheck = { ok: Boolean(check.ok), reason: check.reason || "", received: check.received, expected: check.expected };
           saveOrder(order);
           if (!check.ok) {
