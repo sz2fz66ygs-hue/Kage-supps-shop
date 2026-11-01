@@ -4109,6 +4109,7 @@ const pendingSections = new Map();
 const pendingWelcome = new Map();
 const pendingGroupWelcome = new Map();
 const pendingGroupStart = new Map();
+const pendingPartialRefund = new Map();
 
 const pendingPriceChange =
   new Map();
@@ -4201,6 +4202,7 @@ if (bot) {
     pendingGroupStart.delete(
       chatId
     );
+    pendingPartialRefund.delete(chatId);
   }
 
   function getOrderStatusText(
@@ -4481,6 +4483,10 @@ Choose an option below.`,
     }
     buttons.push(extras);
 
+    if (order.paymentStatus === "paid") {
+      buttons.push([{ text: "💸 Partial Refund", callback_data: `partial_refund_${order.orderId}` }]);
+    }
+
     if (order.paymentStatus === "awaiting_payment") {
       buttons.push([{ text: "❌ Cancel", callback_data: `admin_cancel_${order.orderId}` }]);
     }
@@ -4488,6 +4494,34 @@ Choose an option below.`,
     buttons.push([{ text: "⬅️ Orders", callback_data: "admin_orders_home" }]);
 
     return { reply_markup: { inline_keyboard: buttons } };
+  }
+
+  async function showPartialRefundSelection(chatId, orderId) {
+    const state = pendingPartialRefund.get(chatId);
+    if (!state || state.orderId !== orderId) return;
+    const order = orders.get(orderId);
+    if (!order) return safeSendMessage(chatId, "Order not found.");
+    const items = order.items || [];
+    const selected = state.selected || new Set();
+    const lines = items.map((item, idx) => {
+      const tick = selected.has(idx) ? "☑" : "☐";
+      const lineTotal = item.lineTotalPence || (item.pricePence * item.quantity);
+      return `${tick} ${item.quantity} × ${item.name} — ${money(lineTotal)}`;
+    });
+    const totalSelected = items.reduce((sum, item, idx) => {
+      if (!selected.has(idx)) return sum;
+      return sum + (item.lineTotalPence || item.pricePence * item.quantity);
+    }, 0);
+    const text = `💸 PARTIAL REFUND #${orderId}\n\nSelect items to refund as store credit:\n\n${lines.join("\n")}\n\nSelected total: ${money(totalSelected)}\n\nTap items to toggle. Confirm when done.`;
+    const keyboard = items.map((item, idx) => [{
+      text: `${selected.has(idx) ? "☑" : "☐"} ${item.name.slice(0, 30)}`,
+      callback_data: `pr_toggle_${orderId}_${idx}`
+    }]);
+    keyboard.push([
+      { text: "✅ Confirm refund", callback_data: `pr_confirm_${orderId}` },
+      { text: "❌ Cancel", callback_data: `pr_cancel_${orderId}` }
+    ]);
+    return safeSendMessage(chatId, text, { reply_markup: { inline_keyboard: keyboard } });
   }
 
   async function showAdminOrder(chatId, order) {
@@ -7721,6 +7755,47 @@ Customers can no longer use the store-wide promo code.`,
         );
       }
 
+      /* PARTIAL REFUND */
+
+      if (data.startsWith("partial_refund_")) {
+        if (!isAdmin(q.from?.id)) return;
+        const orderId = Number(data.replace("partial_refund_", ""));
+        const order = orders.get(orderId);
+        if (!order) return safeSendMessage(chatId, "Order not found.");
+        pendingPartialRefund.set(chatId, { orderId, selected: new Set(), stage: "select" });
+        return showPartialRefundSelection(chatId, orderId);
+      }
+
+      if (data.startsWith("pr_toggle_")) {
+        if (!isAdmin(q.from?.id)) return;
+        const parts = data.replace("pr_toggle_", "").split("_");
+        const orderId = Number(parts[0]);
+        const idx = Number(parts[1]);
+        const state = pendingPartialRefund.get(chatId);
+        if (!state || state.orderId !== orderId) return;
+        if (state.selected.has(idx)) state.selected.delete(idx);
+        else state.selected.add(idx);
+        pendingPartialRefund.set(chatId, state);
+        return showPartialRefundSelection(chatId, orderId);
+      }
+
+      if (data.startsWith("pr_confirm_")) {
+        if (!isAdmin(q.from?.id)) return;
+        const orderId = Number(data.replace("pr_confirm_", ""));
+        const state = pendingPartialRefund.get(chatId);
+        if (!state || state.orderId !== orderId) return;
+        if (state.selected.size === 0) return safeSendMessage(chatId, "Select at least one item first.");
+        state.stage = "message";
+        pendingPartialRefund.set(chatId, state);
+        return safeSendMessage(chatId, "Send the message for the customer.\n\nIt will be sent with the refunded items and credit amount.\n\nSend /skip for a default message.");
+      }
+
+      if (data.startsWith("pr_cancel_")) {
+        if (!isAdmin(q.from?.id)) return;
+        pendingPartialRefund.delete(chatId);
+        return safeSendMessage(chatId, "Partial refund cancelled.");
+      }
+
       /* ADMIN MARK PAID */
 
       if (
@@ -8474,6 +8549,47 @@ Customers can no longer use the store-wide promo code.`,
         );
       }
 
+      /* PARTIAL REFUND */
+
+      if (data.startsWith("partial_refund_")) {
+        if (!isAdmin(q.from?.id)) return;
+        const orderId = Number(data.replace("partial_refund_", ""));
+        const order = orders.get(orderId);
+        if (!order) return safeSendMessage(chatId, "Order not found.");
+        pendingPartialRefund.set(chatId, { orderId, selected: new Set(), stage: "select" });
+        return showPartialRefundSelection(chatId, orderId);
+      }
+
+      if (data.startsWith("pr_toggle_")) {
+        if (!isAdmin(q.from?.id)) return;
+        const parts = data.replace("pr_toggle_", "").split("_");
+        const orderId = Number(parts[0]);
+        const idx = Number(parts[1]);
+        const state = pendingPartialRefund.get(chatId);
+        if (!state || state.orderId !== orderId) return;
+        if (state.selected.has(idx)) state.selected.delete(idx);
+        else state.selected.add(idx);
+        pendingPartialRefund.set(chatId, state);
+        return showPartialRefundSelection(chatId, orderId);
+      }
+
+      if (data.startsWith("pr_confirm_")) {
+        if (!isAdmin(q.from?.id)) return;
+        const orderId = Number(data.replace("pr_confirm_", ""));
+        const state = pendingPartialRefund.get(chatId);
+        if (!state || state.orderId !== orderId) return;
+        if (state.selected.size === 0) return safeSendMessage(chatId, "Select at least one item first.");
+        state.stage = "message";
+        pendingPartialRefund.set(chatId, state);
+        return safeSendMessage(chatId, "Send the message for the customer.\n\nIt will be sent with the refunded items and credit amount.\n\nSend /skip for a default message.");
+      }
+
+      if (data.startsWith("pr_cancel_")) {
+        if (!isAdmin(q.from?.id)) return;
+        pendingPartialRefund.delete(chatId);
+        return safeSendMessage(chatId, "Partial refund cancelled.");
+      }
+
       /* ADMIN MARK PAID */
 
       if (
@@ -9105,6 +9221,41 @@ Tap Open Shop to launch the Mini App.`,
     async msg => {
       const chatId =
         msg.chat?.id;
+
+      // Handle partial refund message input (including /skip)
+      if (chatId && pendingPartialRefund.has(chatId) && isAdmin(msg.from?.id) && msg.text) {
+        const state = pendingPartialRefund.get(chatId);
+        if (state.stage === "message") {
+          const text = String(msg.text).trim();
+          const order = orders.get(state.orderId);
+          if (!order) {
+            pendingPartialRefund.delete(chatId);
+            return safeSendMessage(chatId, "Order not found.");
+          }
+          const items = order.items || [];
+          const selectedItems = [...state.selected].map(idx => items[idx]).filter(Boolean);
+          const totalPence = selectedItems.reduce((sum, item) => sum + (item.lineTotalPence || (item.pricePence * item.quantity) || 0), 0);
+          const itemList = selectedItems.map(item => `${item.quantity} × ${item.name}`).join("\n");
+          let customerMsg;
+          if (text.toLowerCase() === "/skip" || text === "") {
+            customerMsg = `We've refunded the following items as store credit:\n\n${itemList}\n\n${money(totalPence)} has been added to your store credit. Sorry for the inconvenience.`;
+          } else {
+            customerMsg = `${text}\n\nRefunded items:\n${itemList}\nStore credit added: ${money(totalPence)}`;
+          }
+          if (order.telegramId) {
+            addCustomerCredit(String(order.telegramId), totalPence);
+            await safeSendMessage(order.telegramId, customerMsg).catch(() => {});
+          }
+          if (!Array.isArray(order.adminNotes)) order.adminNotes = [];
+          order.adminNotes.push({
+            text: `Partial refund ${money(totalPence)}: ${selectedItems.map(i => i.name).join(", ")}`,
+            at: new Date().toISOString()
+          });
+          saveOrder(order);
+          pendingPartialRefund.delete(chatId);
+          return safeSendMessage(chatId, `✅ Partial refund done for #${state.orderId}.\n${money(totalPence)} credit added and message sent.`);
+        }
+      }
 
       if (
         !chatId ||
