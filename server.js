@@ -1108,12 +1108,17 @@ async function sendLabelParts(chatId, order) {
 }
 
 function extractStrength(name, subtitle) {
-  const text = `${name || ""} ${subtitle || ""}`;
-  // Prefer a clear mg or mg/ml value
-  const mgml = text.match(/(\d+(?:\.\d+)?)\s*mg\s*\/\s*ml/i);
+  const source = subtitle || name || "";
+  // Prefer mg/ml first, then plain mg
+  const mgml = source.match(/(\d+(?:\.\d+)?)\s*mg\s*\/\s*ml/i);
   if (mgml) return `${mgml[1]}mg/ml`;
-  const mg = text.match(/(\d+(?:\.\d+)?)\s*mg/i);
+  const mg = source.match(/(\d+(?:\.\d+)?)\s*mg/i);
   if (mg) return `${mg[1]}mg`;
+  // Fallback: check the name if subtitle had nothing useful
+  if (subtitle && name) {
+    const fromName = name.match(/(\d+(?:\.\d+)?)\s*mg(?:\s*\/\s*ml)?/i);
+    if (fromName) return fromName[0].replace(/\s+/g, "");
+  }
   return "";
 }
 
@@ -1125,7 +1130,10 @@ function formatOrderItem(item) {
   const pricePence = item.pricePence || product?.pricePence || 0;
   const lineTotal = item.lineTotalPence || (pricePence * qty);
   const strength = extractStrength(name, subtitle);
-  const strengthPart = strength && !name.toLowerCase().includes(strength.toLowerCase()) ? ` (${strength})` : "";
+  // Only add the strength in brackets if it is not already in the name
+  const strengthPart = strength && !name.toLowerCase().includes(strength.replace(/\s/g, "").toLowerCase())
+    ? ` (${strength})`
+    : "";
   const price = pricePence ? ` — ${money(pricePence)} each` : "";
   const total = lineTotal ? ` (${money(lineTotal)})` : "";
   return `${qty} × ${name}${strengthPart}${price}${total}`;
