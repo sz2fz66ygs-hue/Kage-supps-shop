@@ -135,6 +135,7 @@ let appliedCode = null;
 let appliedStorewideCode = null;
 let appliedStoreCredit = null;
 let livePromotions = [];
+let spendThresholdPromo = { active: false, minPence: 15000, percent: 15 };
 
 let paymentCountdownTimer = null;
 
@@ -935,10 +936,18 @@ function calculatePromotionDiscount(lineItems, promotions) {
 
 async function loadPromotions() {
   try {
-    const res = await fetch("/api/promotions", { cache: "no-store" });
-    if (!res.ok) return;
-    const data = await res.json();
-    livePromotions = Array.isArray(data) ? data : [];
+    const [promoRes, spendRes] = await Promise.all([
+      fetch("/api/promotions", { cache: "no-store" }),
+      fetch("/api/spend-threshold", { cache: "no-store" })
+    ]);
+    if (promoRes.ok) {
+      const data = await promoRes.json();
+      livePromotions = Array.isArray(data) ? data : [];
+    }
+    if (spendRes.ok) {
+      const spend = await spendRes.json();
+      if (spend && typeof spend === "object") spendThresholdPromo = spend;
+    }
     renderBasket();
   } catch {}
 }
@@ -1240,6 +1249,11 @@ function renderBasket() {
   const afterPromotion =
     Math.max(0, subtotal - promotionDiscount);
 
+  let spendThresholdDiscount = 0;
+  if (spendThresholdPromo.active && subtotal >= spendThresholdPromo.minPence) {
+    spendThresholdDiscount = Math.round(subtotal * (spendThresholdPromo.percent / 100));
+  }
+
   const affiliateDiscount =
     discountForSubtotal(
       afterPromotion
@@ -1253,9 +1267,10 @@ function renderBasket() {
   const totalSavings =
     promotionDiscount +
     affiliateDiscount +
-    storewideDiscount;
+    storewideDiscount +
+    spendThresholdDiscount;
 
-  const afterCodes = Math.max(0, afterPromotion - affiliateDiscount - storewideDiscount);
+  const afterCodes = Math.max(0, afterPromotion - affiliateDiscount - storewideDiscount - spendThresholdDiscount);
   const codeCredit = storeCreditForRemaining(afterCodes);
   const personalCredit = Math.min(Math.max(0, personalCreditPence), Math.max(0, afterCodes - codeCredit));
   const credit = codeCredit + personalCredit;
@@ -1266,6 +1281,7 @@ function renderBasket() {
       afterPromotion -
       affiliateDiscount -
       storewideDiscount -
+      spendThresholdDiscount -
       credit
     );
 
@@ -1356,7 +1372,16 @@ function renderBasket() {
           </div>
         `
       : "";
-    promoRow.innerHTML = appliedLines + storeLine;
+    let spendLine = "";
+    if (spendThresholdPromo.active) {
+      if (spendThresholdDiscount > 0) {
+        spendLine = `<div class="discount-line">Spend threshold: ${spendThresholdPromo.percent}% off applied −${money(spendThresholdDiscount)}</div>`;
+      } else if (subtotal > 0 && subtotal < spendThresholdPromo.minPence) {
+        const more = spendThresholdPromo.minPence - subtotal;
+        spendLine = `<div class="discount-line">Spend ${money(more)} more for ${spendThresholdPromo.percent}% off</div>`;
+      }
+    }
+    promoRow.innerHTML = appliedLines + storeLine + spendLine;
   }
 
   if (

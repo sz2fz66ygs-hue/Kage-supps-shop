@@ -828,6 +828,15 @@ app.get("/api/promotions", (_req, res) => {
   );
 });
 
+app.get("/api/spend-threshold", (_req, res) => {
+  const promo = getSpendThresholdPromo();
+  res.json({
+    active: promo.active,
+    minPence: promo.minPence,
+    percent: promo.percent
+  });
+});
+
 
 /* =========================================================
    SPINNING LOGO IN THE MINI APP
@@ -876,11 +885,16 @@ app.post("/api/basket-quote", (req, res) => {
     promotionsApi.loadPromotions().filter(promo => promo.active)
   );
 
+  const spendPromo = getSpendThresholdPromo();
+  const spendThresholdDiscountPence = spendThresholdDiscountForSubtotal(subtotalPence, spendPromo);
+
   return res.json({
     subtotalPence,
     promotionDiscountPence: promotionResult.promotionDiscountPence,
     appliedPromotions: promotionResult.applied,
-    totalBeforeCodesPence: Math.max(0, subtotalPence - promotionResult.promotionDiscountPence),
+    spendThresholdDiscountPence,
+    spendThreshold: spendPromo.active ? { minPence: spendPromo.minPence, percent: spendPromo.percent, applied: spendThresholdDiscountPence > 0 } : null,
+    totalBeforeCodesPence: Math.max(0, subtotalPence - promotionResult.promotionDiscountPence - spendThresholdDiscountPence),
     note: "Promotion is applied before referral codes, store credit, and shipping."
   });
 });
@@ -921,18 +935,26 @@ app.get("/kage-basket.js", (_req, res) => {
   }
   function render(promos, quote) {
     place();
-    if (!promos.length) {
-      box.textContent = "No promotion is live.";
-      return;
+    var lines = "";
+    if (promos && promos.length) {
+      var names = promos.map(function (promo) { return promo.name; }).join(", ");
+      lines = names + " is live. It is taken off before any referral code. ";
     }
-    var names = promos.map(function (promo) { return promo.name; }).join(", ");
-    var lines = names + " is live. It is taken off before any referral code.";
+    if (quote && quote.spendThreshold && quote.spendThreshold.minPence) {
+      var st = quote.spendThreshold;
+      if (st.applied) {
+        lines += st.percent + "% off applied! ";
+      } else if (quote.subtotalPence < st.minPence) {
+        var more = st.minPence - (quote.subtotalPence || 0);
+        lines += "Spend " + money(more) + " more for " + st.percent + "% off. ";
+      }
+    }
     if (quote && quote.promotionDiscountPence > 0) {
-      lines += " Basket " + money(quote.subtotalPence) + " − " + money(quote.promotionDiscountPence) + " = " + money(quote.totalBeforeCodesPence) + " before referral.";
-    } else {
-      lines += " Add a qualifying product and the saving shows here before you enter your name or address.";
+      lines += "Basket " + money(quote.subtotalPence) + " − " + money(quote.promotionDiscountPence) + " = " + money(quote.totalBeforeCodesPence) + " before referral.";
+    } else if (!lines) {
+      lines = "No promotion is live.";
     }
-    box.textContent = lines;
+    box.textContent = lines.trim() || "Add items to see offers.";
   }
   function refresh() {
     fetch("/api/promotions").then(function (response) { return response.json(); }).then(function (promos) {
@@ -1302,6 +1324,25 @@ function storewideDiscountForSubtotal(subtotalPence, promo = getStorewidePromo()
     Number(subtotalPence),
     Math.max(0, discount)
   );
+}
+
+function getSpendThresholdPromo() {
+  const active = String(getMetaValue("spendThreshold:active", "false")) === "true";
+  const minPence = Number(getMetaValue("spendThreshold:minPence", "15000")) || 15000;
+  const percent = Number(getMetaValue("spendThreshold:percent", "15")) || 15;
+  return {
+    active,
+    minPence: Math.max(0, Math.round(minPence)),
+    percent: Math.max(0, Math.min(100, percent))
+  };
+}
+
+function spendThresholdDiscountForSubtotal(subtotalPence, promo = getSpendThresholdPromo()) {
+  if (!promo || !promo.active) return 0;
+  const sub = Number(subtotalPence) || 0;
+  if (sub < promo.minPence) return 0;
+  const discount = Math.round(sub * (promo.percent / 100));
+  return Math.min(sub, Math.max(0, discount));
 }
 
 function getAffiliateEarningsText() {
@@ -3105,11 +3146,14 @@ app.post(
         }
       }
 
+      const spendPromo = getSpendThresholdPromo();
+      const spendThresholdDiscountPence = spendThresholdDiscountForSubtotal(subtotalPence, spendPromo);
+
       let personalTenPence = 0;
       const personalTenId = verifiedTelegramId(req.body?.initData) || "";
       const personalTen = getPersonalTen(personalTenId);
       if (personalTen) {
-        const remaining = Math.max(0, subtotalPence - promotionDiscountPence - discountPence - storewideDiscountPence);
+        const remaining = Math.max(0, subtotalPence - promotionDiscountPence - discountPence - storewideDiscountPence - spendThresholdDiscountPence);
         personalTenPence = Math.round(remaining * 0.1);
         setMetaValue("personal10:" + personalTenId, "");
       }
@@ -3118,6 +3162,7 @@ app.post(
         promotionDiscountPence +
         discountPence +
         storewideDiscountPence +
+        spendThresholdDiscountPence +
         personalTenPence;
 
       let storeCreditPence = 0;
@@ -3127,7 +3172,7 @@ app.post(
       const creditOwner = verifiedId || "";
       if (!storeCreditCode && creditOwner) {
         const personal = getCustomerCredit(creditOwner);
-        const remaining = Math.max(0, subtotalPence - promotionDiscountPence - discountPence - storewideDiscountPence);
+        const remaining = Math.max(0, subtotalPence - promotionDiscountPence - discountPence - storewideDiscountPence - spendThresholdDiscountPence);
         storeCreditPence = Math.min(remaining, personal);
         if (storeCreditPence > 0) appliedCreditCode = `tg:${creditOwner}`;
       }
@@ -3156,7 +3201,8 @@ app.post(
               subtotalPence -
               promotionDiscountPence -
               discountPence -
-              storewideDiscountPence
+              storewideDiscountPence -
+              spendThresholdDiscountPence
             );
 
           storeCreditPence =
@@ -3184,6 +3230,7 @@ app.post(
           promotionDiscountPence -
           discountPence -
           storewideDiscountPence -
+          spendThresholdDiscountPence -
           personalTenPence -
           storeCreditPence
         );
@@ -3235,6 +3282,7 @@ app.post(
         promotionDiscountPence,
         appliedPromotions,
         storewideDiscountPence,
+        spendThresholdDiscountPence,
         totalSavingsPence,
         storeCreditPence,
         shippingPence,
@@ -4110,6 +4158,7 @@ const pendingWelcome = new Map();
 const pendingGroupWelcome = new Map();
 const pendingGroupStart = new Map();
 const pendingPartialRefund = new Map();
+const pendingSpendThreshold = new Map();
 
 const pendingPriceChange =
   new Map();
@@ -4203,6 +4252,7 @@ if (bot) {
       chatId
     );
     pendingPartialRefund.delete(chatId);
+    pendingSpendThreshold.delete(chatId);
   }
 
   function getOrderStatusText(
@@ -7113,6 +7163,9 @@ Choose a period.`,
                 { text: "🎉 Storewide promo", callback_data: "admin_storewide_promo" }
               ],
               [
+                { text: "💰 Spend Threshold", callback_data: "admin_spend_threshold" }
+              ],
+              [
                 { text: "⬅️ Admin Dashboard", callback_data: "admin_dashboard" }
               ]
             ]
@@ -7603,6 +7656,57 @@ Stock Centre → All Stock`
           chatId,
           getAffiliateEarningsText()
         );
+      }
+
+      /* SPEND THRESHOLD PROMO */
+
+      if (data === "admin_spend_threshold") {
+        if (!isAdmin(q.from?.id)) return;
+        const promo = getSpendThresholdPromo();
+        const live = promo.active;
+        return safeSendMessage(chatId, `💰 SPEND THRESHOLD PROMO
+
+Status: ${live ? "🟢 ACTIVE" : "🔴 OFF"}
+Minimum spend: ${money(promo.minPence)}
+Extra discount: ${promo.percent}%
+
+When a basket reaches the minimum, the extra % is taken off the full subtotal automatically.
+
+Customers see “Spend £X more for Y% off” or “Y% off applied!” in the shop.`, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: live ? "⏸ Turn Off" : "▶️ Turn On", callback_data: "admin_spend_toggle" }],
+              [
+                { text: "💷 Set minimum spend", callback_data: "admin_spend_set_min" },
+                { text: "📊 Set percentage", callback_data: "admin_spend_set_pct" }
+              ],
+              [{ text: "⬅️ Promotions", callback_data: "admin_promotions" }]
+            ]
+          }
+        });
+      }
+
+      if (data === "admin_spend_toggle") {
+        if (!isAdmin(q.from?.id)) return;
+        const promo = getSpendThresholdPromo();
+        setMetaValue("spendThreshold:active", promo.active ? "false" : "true");
+        return safeSendMessage(chatId, `✅ Spend threshold promo is now ${promo.active ? "OFF" : "ON"}.`, {
+          reply_markup: { inline_keyboard: [[{ text: "💰 Spend Threshold", callback_data: "admin_spend_threshold" }]] }
+        });
+      }
+
+      if (data === "admin_spend_set_min") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingSpendThreshold.set(chatId, { stage: "min" });
+        return safeSendMessage(chatId, "💷 SET MINIMUM SPEND\n\nSend the amount in pounds.\n\nExample:\n150\n\n/admin to cancel.");
+      }
+
+      if (data === "admin_spend_set_pct") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingSpendThreshold.set(chatId, { stage: "pct" });
+        return safeSendMessage(chatId, "📊 SET DISCOUNT PERCENT\n\nSend the percentage.\n\nExample:\n15\n\n/admin to cancel.");
       }
 
       /* STORE-WIDE PROMO */
@@ -8397,6 +8501,57 @@ Send your message below.`,
           chatId,
           getAffiliateEarningsText()
         );
+      }
+
+      /* SPEND THRESHOLD PROMO */
+
+      if (data === "admin_spend_threshold") {
+        if (!isAdmin(q.from?.id)) return;
+        const promo = getSpendThresholdPromo();
+        const live = promo.active;
+        return safeSendMessage(chatId, `💰 SPEND THRESHOLD PROMO
+
+Status: ${live ? "🟢 ACTIVE" : "🔴 OFF"}
+Minimum spend: ${money(promo.minPence)}
+Extra discount: ${promo.percent}%
+
+When a basket reaches the minimum, the extra % is taken off the full subtotal automatically.
+
+Customers see “Spend £X more for Y% off” or “Y% off applied!” in the shop.`, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: live ? "⏸ Turn Off" : "▶️ Turn On", callback_data: "admin_spend_toggle" }],
+              [
+                { text: "💷 Set minimum spend", callback_data: "admin_spend_set_min" },
+                { text: "📊 Set percentage", callback_data: "admin_spend_set_pct" }
+              ],
+              [{ text: "⬅️ Promotions", callback_data: "admin_promotions" }]
+            ]
+          }
+        });
+      }
+
+      if (data === "admin_spend_toggle") {
+        if (!isAdmin(q.from?.id)) return;
+        const promo = getSpendThresholdPromo();
+        setMetaValue("spendThreshold:active", promo.active ? "false" : "true");
+        return safeSendMessage(chatId, `✅ Spend threshold promo is now ${promo.active ? "OFF" : "ON"}.`, {
+          reply_markup: { inline_keyboard: [[{ text: "💰 Spend Threshold", callback_data: "admin_spend_threshold" }]] }
+        });
+      }
+
+      if (data === "admin_spend_set_min") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingSpendThreshold.set(chatId, { stage: "min" });
+        return safeSendMessage(chatId, "💷 SET MINIMUM SPEND\n\nSend the amount in pounds.\n\nExample:\n150\n\n/admin to cancel.");
+      }
+
+      if (data === "admin_spend_set_pct") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingSpendThreshold.set(chatId, { stage: "pct" });
+        return safeSendMessage(chatId, "📊 SET DISCOUNT PERCENT\n\nSend the percentage.\n\nExample:\n15\n\n/admin to cancel.");
       }
 
       /* STORE-WIDE PROMO */
@@ -9221,6 +9376,34 @@ Tap Open Shop to launch the Mini App.`,
     async msg => {
       const chatId =
         msg.chat?.id;
+
+      // Handle spend threshold setting input
+      if (chatId && pendingSpendThreshold.has(chatId) && isAdmin(msg.from?.id) && msg.text && !msg.text.startsWith("/")) {
+        const state = pendingSpendThreshold.get(chatId);
+        const text = String(msg.text).trim();
+        if (state.stage === "min") {
+          const pounds = Number(text.replace(/[^0-9.]/g, ""));
+          if (!Number.isFinite(pounds) || pounds < 0) {
+            return safeSendMessage(chatId, "❌ Send a number like 150");
+          }
+          setMetaValue("spendThreshold:minPence", String(Math.round(pounds * 100)));
+          pendingSpendThreshold.delete(chatId);
+          return safeSendMessage(chatId, `✅ Minimum spend set to ${money(Math.round(pounds * 100))}.`, {
+            reply_markup: { inline_keyboard: [[{ text: "💰 Spend Threshold", callback_data: "admin_spend_threshold" }]] }
+          });
+        }
+        if (state.stage === "pct") {
+          const pct = Number(text.replace(/[^0-9.]/g, ""));
+          if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+            return safeSendMessage(chatId, "❌ Send a percent from 0 to 100");
+          }
+          setMetaValue("spendThreshold:percent", String(pct));
+          pendingSpendThreshold.delete(chatId);
+          return safeSendMessage(chatId, `✅ Discount set to ${pct}%.`, {
+            reply_markup: { inline_keyboard: [[{ text: "💰 Spend Threshold", callback_data: "admin_spend_threshold" }]] }
+          });
+        }
+      }
 
       // Handle partial refund message input (including /skip)
       if (chatId && pendingPartialRefund.has(chatId) && isAdmin(msg.from?.id) && msg.text) {
