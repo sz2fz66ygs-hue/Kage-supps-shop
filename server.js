@@ -1107,6 +1107,16 @@ async function sendLabelParts(chatId, order) {
   if (order.phone) await safeSendMessage(chatId, order.phone);
 }
 
+function extractStrength(name, subtitle) {
+  const text = `${name || ""} ${subtitle || ""}`;
+  // Prefer a clear mg or mg/ml value
+  const mgml = text.match(/(\d+(?:\.\d+)?)\s*mg\s*\/\s*ml/i);
+  if (mgml) return `${mgml[1]}mg/ml`;
+  const mg = text.match(/(\d+(?:\.\d+)?)\s*mg/i);
+  if (mg) return `${mg[1]}mg`;
+  return "";
+}
+
 function formatOrderItem(item) {
   const qty = Number(item.quantity || 0);
   const product = productsById.get(Number(item.id));
@@ -1114,10 +1124,11 @@ function formatOrderItem(item) {
   const subtitle = item.subtitle || product?.subtitle || "";
   const pricePence = item.pricePence || product?.pricePence || 0;
   const lineTotal = item.lineTotalPence || (pricePence * qty);
-  const strength = subtitle ? ` (${subtitle})` : "";
+  const strength = extractStrength(name, subtitle);
+  const strengthPart = strength && !name.toLowerCase().includes(strength.toLowerCase()) ? ` (${strength})` : "";
   const price = pricePence ? ` — ${money(pricePence)} each` : "";
   const total = lineTotal ? ` (${money(lineTotal)})` : "";
-  return `${qty} × ${name}${strength}${price}${total}`;
+  return `${qty} × ${name}${strengthPart}${price}${total}`;
 }
 
 async function sendPackingSlip(order) {
