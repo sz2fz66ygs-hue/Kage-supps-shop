@@ -1109,11 +1109,15 @@ async function sendLabelParts(chatId, order) {
 
 function formatOrderItem(item) {
   const qty = Number(item.quantity || 0);
-  const name = item.name || "Item";
-  const subtitle = item.subtitle ? ` (${item.subtitle})` : "";
-  const price = item.pricePence ? ` — ${money(item.pricePence)} each` : "";
-  const line = item.lineTotalPence ? ` (${money(item.lineTotalPence)})` : "";
-  return `${qty} × ${name}${subtitle}${price}${line}`;
+  const product = productsById.get(Number(item.id));
+  const name = item.name || product?.name || "Item";
+  const subtitle = item.subtitle || product?.subtitle || "";
+  const pricePence = item.pricePence || product?.pricePence || 0;
+  const lineTotal = item.lineTotalPence || (pricePence * qty);
+  const strength = subtitle ? ` (${subtitle})` : "";
+  const price = pricePence ? ` — ${money(pricePence)} each` : "";
+  const total = lineTotal ? ` (${money(lineTotal)})` : "";
+  return `${qty} × ${name}${strength}${price}${total}`;
 }
 
 async function sendPackingSlip(order) {
