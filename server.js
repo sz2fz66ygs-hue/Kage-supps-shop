@@ -5118,7 +5118,11 @@ Choose an option.`,
             held ? `${held} held, no payment yet` : "",
             toConfirm ? `${toConfirm} waiting on your confirm` : ""
           ].filter(Boolean).join(", ");
-          return `#${product.id} • ${product.name}: ${product.stock}${notes ? ` (${notes})` : ""}`;
+          const strength = extractStrength(product.name, product.subtitle);
+          const strengthPart = strength && !product.name.toLowerCase().includes(strength.replace(/\s/g, "").toLowerCase())
+            ? ` (${strength})`
+            : "";
+          return `#${product.id} • ${product.name}${strengthPart}: ${product.stock}${notes ? ` (${notes})` : ""}`;
         })
         .join("\n");
 
