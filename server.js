@@ -792,7 +792,7 @@ app.post("/api/orders/:id/add-items", async (req, res) => {
     const live = getLiveStock(product.id);
     if (live !== null && quantity > live) return res.status(400).json({ error: `Not enough stock for ${product.name}.` });
     const price = getEffectivePricePence(product, promotionsApi.getPriceOverride);
-    order.items.push({ id: product.id, name: product.name, quantity, pricePence: price, lineTotalPence: price * quantity });
+    order.items.push({ id: product.id, name: product.name, subtitle: product.subtitle || "", quantity, pricePence: price, lineTotalPence: price * quantity });
     addedPence += price * quantity;
   }
   if (!addedPence) return res.status(400).json({ error: "Nothing to add." });
@@ -1107,8 +1107,17 @@ async function sendLabelParts(chatId, order) {
   if (order.phone) await safeSendMessage(chatId, order.phone);
 }
 
+function formatOrderItem(item) {
+  const qty = Number(item.quantity || 0);
+  const name = item.name || "Item";
+  const subtitle = item.subtitle ? ` (${item.subtitle})` : "";
+  const price = item.pricePence ? ` — ${money(item.pricePence)} each` : "";
+  const line = item.lineTotalPence ? ` (${money(item.lineTotalPence)})` : "";
+  return `${qty} × ${name}${subtitle}${price}${line}`;
+}
+
 async function sendPackingSlip(order) {
-  const itemLines = (order.items || []).map(item => `${item.quantity} × ${item.name}`).join("\n") || "No items";
+  const itemLines = (order.items || []).map(formatOrderItem).join("\n") || "No items";
   const ids = [...configuredAdminIds];
   if (!ids.length && adminTelegramId) ids.push(adminTelegramId);
   for (const id of ids) {
@@ -3032,6 +3041,7 @@ app.post(
             Number(product.id),
           name:
             product.name,
+          subtitle: product.subtitle || "",
           quantity,
           pricePence,
           lineTotalPence
@@ -4594,7 +4604,7 @@ Choose an option below.`,
   }
 
   async function showAdminOrder(chatId, order) {
-    const items = (order.items || []).map(item => `${item.quantity} × ${item.name}`).join("\n") || "No items";
+    const items = (order.items || []).map(formatOrderItem).join("\n") || "No items";
     const notes = Array.isArray(order.adminNotes) && order.adminNotes.length
       ? order.adminNotes.map(note => `• ${note.text}`).join("\n")
       : "";
@@ -6930,7 +6940,7 @@ The review has been removed.`,
           reply_markup: { inline_keyboard: [[{ text: "✅ Mark all dispatched", callback_data: "admin_dispatch_all" }]] }
         });
         for (const order of list.slice(0, 12)) {
-          const items = (order.items || []).map(item => `${item.quantity} × ${item.name}`).join("\n") || "No items";
+          const items = (order.items || []).map(formatOrderItem).join("\n") || "No items";
           const when = new Date(order.paidAt || order.createdAt || 0);
           const stamp = Number.isFinite(when.getTime())
             ? when.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
@@ -6960,7 +6970,7 @@ The review has been removed.`,
         });
         await safeSendMessage(chatId, `✅ NEEDS APPROVAL (${list.length})\n\nOldest first.`);
         for (const order of list.slice(0, 12)) {
-          const items = (order.items || []).map(item => `${item.quantity} × ${item.name}`).join("\n") || "No items";
+          const items = (order.items || []).map(formatOrderItem).join("\n") || "No items";
           const hash = order.transactionId ? `\nHash: ${order.transactionId}` : "";
           await safeSendMessage(chatId, `#${order.orderId} · ${money(order.totalPence)}${hash}\n\n${items}`, {
             reply_markup: { inline_keyboard: [[
