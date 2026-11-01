@@ -1127,16 +1127,11 @@ function formatOrderItem(item) {
   const product = productsById.get(Number(item.id));
   const name = item.name || product?.name || "Item";
   const subtitle = item.subtitle || product?.subtitle || "";
-  const pricePence = item.pricePence || product?.pricePence || 0;
-  const lineTotal = item.lineTotalPence || (pricePence * qty);
   const strength = extractStrength(name, subtitle);
-  // Only add the strength in brackets if it is not already in the name
   const strengthPart = strength && !name.toLowerCase().includes(strength.replace(/\s/g, "").toLowerCase())
     ? ` (${strength})`
     : "";
-  const price = pricePence ? ` — ${money(pricePence)} each` : "";
-  const total = lineTotal ? ` (${money(lineTotal)})` : "";
-  return `${qty} × ${name}${strengthPart}${price}${total}`;
+  return `${qty} × ${name}${strengthPart}`;
 }
 
 async function sendPackingSlip(order) {
