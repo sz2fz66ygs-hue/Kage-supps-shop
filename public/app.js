@@ -2512,6 +2512,8 @@ function renderPaymentPanel(
     order.payment.quote?.USDT ??
     "QUOTE_PENDING";
 
+  const cleanQuote = String(quote).replace(/[^0-9.]/g, "") || quote;
+
   const reservationMinutes =
     Number(
       order.reservationMinutes ||
@@ -2560,10 +2562,10 @@ function renderPaymentPanel(
         You can also press and hold the address above to copy it.
       </div>
 
-      <div class="payment-quote">
-        ${escapeHtml(quote)} USDT
+      <div class="payment-quote" id="usdtAmountDisplay">
+        ${escapeHtml(cleanQuote)} USDT
       </div>
-      <button id="copyAmountBtn" class="gold-btn copy-wallet-btn" type="button">Copy amount</button>
+      <button id="copyAmountBtn" class="gold-btn copy-wallet-btn" type="button">📋 Copy amount</button>
 
       <div class="payment-sub">
         ${escapeHtml(
@@ -2647,9 +2649,10 @@ function renderPaymentPanel(
   });
 
   document.getElementById("copyAmountBtn")?.addEventListener("click", async () => {
-    const copied = await copyWalletAddress(String(quote));
+    const amountToCopy = cleanQuote && cleanQuote !== "QUOTE_PENDING" ? cleanQuote : String(quote);
+    const copied = await copyWalletAddress(amountToCopy);
     const status = document.getElementById("walletCopyStatus");
-    if (status) status.textContent = copied ? "Amount copied." : "Could not copy the amount.";
+    if (status) status.textContent = copied ? "Amount copied." : "Could not copy the amount. Press and hold the amount above.";
   });
 
   const copyButton =

@@ -1857,51 +1857,30 @@ function deductStockForOrder(order) {
 async function getUsdtQuote(
   totalPence
 ) {
+  const pounds = Number(totalPence) / 100;
+  if (!Number.isFinite(pounds) || pounds <= 0) return null;
+
+  // Try CoinGecko first
   try {
-    const response =
-      await fetch(
-        "https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=gbp"
-      );
-
-    if (!response.ok) {
-      throw new Error(
-        `CoinGecko HTTP ${response.status}`
-      );
-    }
-
-    const data =
-      await response.json();
-
-    const gbpPerUsdt =
-      Number(
-        data?.tether?.gbp
-      );
-
-    if (
-      !Number.isFinite(gbpPerUsdt) ||
-      gbpPerUsdt <= 0
-    ) {
-      throw new Error(
-        "Invalid GBP/USDT rate"
-      );
-    }
-
-    const pounds =
-      Number(totalPence) /
-      100;
-
-    return (
-      pounds /
-      gbpPerUsdt
-    ).toFixed(2);
-  } catch (err) {
-    console.error(
-      "USDT QUOTE ERROR:",
-      err?.message || err
+    const response = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=gbp",
+      { headers: { "Accept": "application/json" } }
     );
 
-    return null;
+    if (response.ok) {
+      const data = await response.json();
+      const gbpPerUsdt = Number(data?.tether?.gbp);
+      if (Number.isFinite(gbpPerUsdt) && gbpPerUsdt > 0) {
+        return (pounds / gbpPerUsdt).toFixed(2);
+      }
+    }
+  } catch (err) {
+    console.error("USDT QUOTE CoinGecko error:", err?.message || err);
   }
+
+  // Fallback approximate rate (roughly 1 USDT ≈ £0.78) so customers always get an amount
+  const fallbackGbpPerUsdt = 0.78;
+  return (pounds / fallbackGbpPerUsdt).toFixed(2);
 }
 
 /* =========================================================
