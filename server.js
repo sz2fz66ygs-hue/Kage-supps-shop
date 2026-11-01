@@ -2133,6 +2133,46 @@ const reservationCleanupTimer = setInterval(() => {
 
 reservationCleanupTimer.unref?.();
 
+async function autoApprovePendingPayments() {
+  if (!etherscanApiKey || !receivingAddress) return;
+  const pending = [...orders.values()].filter(order =>
+    order.paymentStatus === "payment_submitted" &&
+    order.transactionId &&
+    !order.autoApproveTriedRecently
+  );
+  for (const order of pending.slice(0, 8)) {
+    try {
+      order.autoApproveTriedRecently = true;
+      saveOrder(order);
+      const check = await verifyUsdtPayment(order.transactionId, order.usdtQuote);
+      order.autoCheck = { ok: Boolean(check.ok), reason: check.reason || "", received: check.received, expected: check.expected };
+      saveOrder(order);
+      if (check.ok) {
+        const paid = await markOrderPaid(order);
+        if (paid.ok) {
+          await notifyAdmins(`✅ PAYMENT AUTO APPROVED\n\nOrder #${order.orderId}\n${order.customerName}\n${check.received.toFixed(2)} USDT matched ${check.expected}\n${order.transactionId}`);
+        }
+      }
+    } catch (err) {
+      console.error("AUTO APPROVE ERROR:", err?.message || err);
+    }
+  }
+  // Clear the recent flag after a while so we retry later
+  setTimeout(() => {
+    for (const order of orders.values()) {
+      if (order.autoApproveTriedRecently && order.paymentStatus === "payment_submitted") {
+        delete order.autoApproveTriedRecently;
+        saveOrder(order);
+      }
+    }
+  }, 3 * 60 * 1000);
+}
+
+const autoApproveTimer = setInterval(() => {
+  autoApprovePendingPayments().catch(err => console.error("AUTO APPROVE TIMER ERROR:", err));
+}, 90 * 1000);
+autoApproveTimer.unref?.();
+
 async function sendDeliveryReminders() {
   const day = 24 * 60 * 60 * 1000;
   for (const order of orders.values()) {
