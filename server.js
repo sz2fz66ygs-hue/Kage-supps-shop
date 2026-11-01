@@ -1085,6 +1085,16 @@ async function sendLabelParts(chatId, order) {
   if (order.phone) await safeSendMessage(chatId, order.phone);
 }
 
+async function sendPackingSlip(order) {
+  const itemLines = (order.items || []).map(item => `${item.quantity} × ${item.name}`).join("\n") || "No items";
+  const ids = [...configuredAdminIds];
+  if (!ids.length && adminTelegramId) ids.push(adminTelegramId);
+  for (const id of ids) {
+    await sendLabelParts(id, order);
+    await safeSendMessage(id, itemLines);
+  }
+}
+
 function lowStockLimit() {
   const saved = Number(getMetaValue("low_stock_limit") || 5);
   return Number.isFinite(saved) && saved >= 0 ? saved : 5;
@@ -2590,58 +2600,8 @@ async function markOrderPaid(
       )
       .join("\n");
 
-  await notifyAdmins(
-
-`✅ PAYMENT CONFIRMED
-
-Order:
-#${order.orderId}
-
-Customer:
-${order.customerName}
-
-Telegram:
-${
-  order.telegramUsername
-    ? `@${normaliseUsername(
-        order.telegramUsername
-      )}`
-    : "Not supplied"
-}
-
-📍 DELIVERY ADDRESS:
-${order.address}
-
-Items:
-${itemLines}
-
-Basket:
-${money(order.subtotalPence)}
-
-Discount:
--${money(order.discountPence)}
-
-Promotions:
--${money(order.promotionDiscountPence)}
-
-Store credit:
--${money(order.storeCreditPence)}
-
-Shipping:
-${money(order.shippingPence)}
-
-TOTAL:
-${money(order.totalPence)}
-
-Transaction:
-${
-  order.transactionId ||
-  "Marked paid manually"
-}
-
-Stock updated:
-✅`
-  );
+  await notifyAdmins(`✅ Paid #${order.orderId}`);
+  await sendPackingSlip(order);
 
   if (order.telegramId) {
     const reviewUrl =
@@ -6770,15 +6730,23 @@ The review has been removed.`,
             inline_keyboard: [
               [{ text: `📤 To send (${toSend})`, callback_data: "admin_dispatch" }],
               [{ text: `✅ Needs approval (${needsApproval})`, callback_data: "admin_needs_approval" }],
-              [{ text: "🚚 Send tracking by name", callback_data: "admin_tracking_by_name" }],
-              [{ text: "✅ Approve by name", callback_data: "admin_approve_by_name" }],
-              [{ text: "✅ Approve all matched", callback_data: "admin_approve_matched" }],
-              [{ text: "👤 Customer", callback_data: "admin_customer_card" }],
-              [{ text: `⏳ Waiting payment (${waiting})`, callback_data: "admin_payments" }],
-              [{ text: "🔎 Find order", callback_data: "admin_find_order" }],
-              [{ text: "🚚 Sent", callback_data: "admin_shipped_orders" }],
-              [{ text: "❌ Cancelled", callback_data: "admin_cancelled_orders" }],
-              [{ text: "⬅️ Admin Dashboard", callback_data: "admin_dashboard" }]
+              [{ text: `⏳ Waiting (${waiting})`, callback_data: "admin_payments" }],
+              [
+                { text: "🚚 Tracking by name", callback_data: "admin_tracking_by_name" },
+                { text: "✅ Approve by name", callback_data: "admin_approve_by_name" }
+              ],
+              [
+                { text: "✅ Approve all", callback_data: "admin_approve_matched" },
+                { text: "🔎 Find order", callback_data: "admin_find_order" }
+              ],
+              [
+                { text: "🚚 Sent", callback_data: "admin_shipped_orders" },
+                { text: "❌ Cancelled", callback_data: "admin_cancelled_orders" }
+              ],
+              [
+                { text: "👤 Customer", callback_data: "admin_customer_card" },
+                { text: "⬅️ Dashboard", callback_data: "admin_dashboard" }
+              ]
             ]
           }
         });
@@ -7805,10 +7773,7 @@ Customers can no longer use the store-wide promo code.`,
             : `✅ Order #${orderId} marked paid. Reserved stock committed.`
         );
 
-        return showAdminOrder(
-          chatId,
-          order
-        );
+        return;
       }
 
       if (data === "admin_dispatch_all") {
@@ -8561,10 +8526,7 @@ Customers can no longer use the store-wide promo code.`,
             : `✅ Order #${orderId} marked paid. Reserved stock committed.`
         );
 
-        return showAdminOrder(
-          chatId,
-          order
-        );
+        return;
       }
 
       /* ADMIN TRACKING */
