@@ -427,8 +427,7 @@ const affiliateCodes = [
   { code: "STEVIEWONDER", owner: "@Steviewonder987" },
   { code: "KITTYSJ10", owner: "@Sjobje" },
   { code: "DABBLE", owner: "@Peachy001" },
-  { code: "JAM97", owner: "@Jam97" },
-  { code: "BENS33", owner: "@SuperSeiyanGoku33", discountPercent: 33 }
+  { code: "JAM97", owner: "@Jam97" }
 ];
 
 /* =========================================================
