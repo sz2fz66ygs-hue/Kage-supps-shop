@@ -1981,6 +1981,7 @@ if (token) {
       { command: "lowstock", description: "Low stock" },
       { command: "reviews", description: "Pending reviews" },
       { command: "earnings", description: "Affiliate earnings" },
+      { command: "adjust", description: "Adjust affiliate balance" },
       { command: "paid", description: "Mark order paid" },
       { command: "tracking", description: "Add tracking" },
       { command: "myid", description: "Show Telegram ID" }
@@ -5320,6 +5321,49 @@ Open the shop, check what is on promotion, and see when stock has been added. If
         msg.chat.id,
         getAffiliateEarningsText()
       );
+    }
+  );
+
+  /* =======================================================
+     /ADJUST — silent commission adjustment (admin only)
+     Usage:
+       /adjust CODE balance 1500     (set owed to £15.00)
+       /adjust CODE paid 3500        (set paid out to £35.00)
+       /adjust CODE earned 5000      (set lifetime earned to £50.00)
+       /adjust CODE balance -500     (reduce owed by £5.00)
+       /adjust CODE paid -35%        (reduce paid out by 35%)
+     No message is sent to the affiliate.
+     ======================================================= */
+
+  bot.onText(
+    /^\/adjust(?:@\w+)?\s+(\S+)\s+(balance|paid|earned)\s+(-?\d+(?:\.\d+)?%?)$/i,
+    async (msg, match) => {
+      if (!isAdmin(msg.from?.id)) return;
+      const code = normaliseCode(match[1]);
+      const field = match[2].toLowerCase();
+      const raw = match[3];
+      const record = referralEarnings.get(code);
+      if (!record) return safeSendMessage(msg.chat.id, `No earnings record for ${code}.`);
+
+      const key = field === "balance" ? "balancePence" : field === "paid" ? "paidOutPence" : "totalEarnedPence";
+      const current = Number(record[key] || 0);
+      let next = current;
+
+      if (raw.endsWith("%")) {
+        const pct = Number(raw.slice(0, -1));
+        if (!Number.isFinite(pct)) return safeSendMessage(msg.chat.id, "Invalid percentage.");
+        next = Math.round(current * (1 + pct / 100));
+      } else {
+        const pounds = Number(raw);
+        if (!Number.isFinite(pounds)) return safeSendMessage(msg.chat.id, "Invalid amount.");
+        next = Math.round(pounds * 100);
+        if (raw.startsWith("-") || raw.startsWith("+")) next = current + Math.round(pounds * 100);
+      }
+
+      if (next < 0) next = 0;
+      record[key] = next;
+      saveReferralEarnings(code, record);
+      return safeSendMessage(msg.chat.id, `✅ ${code} ${field} set to ${money(next)} (was ${money(current)}).\nNo one was notified.`);
     }
   );
 
