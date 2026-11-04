@@ -1570,6 +1570,15 @@ for (const affiliate of affiliateCodes) {
   }
 }
 
+// Remove retired affiliate codes that may still be in the database
+for (const retired of ["BENS33"]) {
+  const record = discountCodes.get(retired);
+  if (record) {
+    record.active = false;
+    saveDiscountCode(retired, record);
+  }
+}
+
 // Seed the store-wide promo only when no saved value exists.
 // Old startsAt/endsAt values can remain in SQLite; they are ignored.
 if (getMetaValue("storewidePromo:code") === null) {
