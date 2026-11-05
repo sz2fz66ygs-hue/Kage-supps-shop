@@ -1099,15 +1099,29 @@ function splitAddressForLabel(address) {
 }
 
 async function sendLabelParts(chatId, order) {
-  await safeSendMessage(chatId, order.customerName || "No name");
   const split = splitAddressForLabel(order.address);
-  await safeSendMessage(chatId, split.lines.join("\n") || order.address || "No address");
-  if (split.postcode) await safeSendMessage(chatId, split.postcode);
-  if (order.phone) await safeSendMessage(chatId, order.phone);
+  const address = split.lines.join("\n") || order.address || "No address";
+  const postcode = split.postcode || "";
+  const phone = order.phone || "";
   const tg = order.telegramUsername
     ? `@${String(order.telegramUsername).replace(/^@/, "")}`
     : (order.telegramName || "");
-  if (tg) await safeSendMessage(chatId, tg);
+
+  const note = [
+    `📦 Order #${order.orderId}`,
+    "",
+    order.customerName || "No name",
+    address,
+    postcode,
+    phone,
+    tg
+  ].filter(Boolean).join("\n");
+
+  await safeSendMessage(chatId, note);
+}
+
+function getPackingChatId() {
+  return getMetaValue("packing_chat_id") || "";
 }
 
 function extractStrength(name, subtitle) {
@@ -1139,7 +1153,8 @@ function formatOrderItem(item) {
 
 async function sendPackingSlip(order) {
   const itemLines = (order.items || []).map(formatOrderItem).join("\n") || "No items";
-  const ids = [...configuredAdminIds];
+  const packingChat = getPackingChatId();
+  const ids = packingChat ? [packingChat] : [...configuredAdminIds];
   if (!ids.length && adminTelegramId) ids.push(adminTelegramId);
   for (const id of ids) {
     await sendLabelParts(id, order);
@@ -1997,7 +2012,8 @@ if (token) {
       { command: "adjust", description: "Adjust affiliate balance" },
       { command: "paid", description: "Mark order paid" },
       { command: "tracking", description: "Add tracking" },
-      { command: "myid", description: "Show Telegram ID" }
+      { command: "myid", description: "Show Telegram ID" },
+      { command: "setpacking", description: "Set packing chat" }
     ]).catch(err => {
       console.error("SET COMMANDS ERROR:", err?.message || err);
     });
@@ -5338,6 +5354,21 @@ Open the shop, check what is on promotion, and see when stock has been added. If
         msg.chat.id,
         getAffiliateEarningsText()
       );
+    }
+  );
+
+  bot.onText(
+    /^\/setpacking(?:@\w+)?(?:\s+(\S+))?$/i,
+    async (msg, match) => {
+      if (!isAdmin(msg.from?.id)) return;
+      const arg = (match[1] || "").trim().toLowerCase();
+      if (arg === "off") {
+        setMetaValue("packing_chat_id", "");
+        return safeSendMessage(msg.chat.id, "✅ Packing notes will go back to the admin chat.");
+      }
+      const id = arg || String(msg.chat.id);
+      setMetaValue("packing_chat_id", id);
+      return safeSendMessage(msg.chat.id, `✅ Packing notes will go to chat ${id}.\n\nSend /setpacking in the chat you want, or /setpacking off to clear.`);
     }
   );
 
