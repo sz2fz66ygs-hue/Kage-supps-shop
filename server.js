@@ -1120,7 +1120,19 @@ async function sendLabelParts(chatId, order) {
     itemLines
   ].filter(line => line !== undefined && line !== null).join("\n");
 
-  await safeSendMessage(chatId, note);
+  await safeSendMessage(chatId, note, {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "🚫 Out of stock", callback_data: `oos_${order.orderId}` },
+          { text: "🏷 Label done", callback_data: `labeldone_${order.orderId}` }
+        ],
+        [
+          { text: "🚚 Add tracking", callback_data: `admin_tracking_${order.orderId}` }
+        ]
+      ]
+    }
+  });
 }
 
 function getPackingChatId() {
@@ -8241,6 +8253,53 @@ Customers can no longer use the store-wide promo code.`,
         return safeSendMessage(chatId, `✅ Order #${orderId} marked dispatched.`);
       }
 
+      /* OUT OF STOCK OFFER */
+
+      if (data.startsWith("oos_") && !data.startsWith("oos_credit_") && !data.startsWith("oos_swap_")) {
+        if (!isAdmin(q.from?.id)) return;
+        const orderId = Number(data.replace("oos_", ""));
+        const order = orders.get(orderId);
+        if (!order) return safeSendMessage(chatId, "Order not found.");
+        const itemList = (order.items || []).map(formatOrderItem).join("\n");
+        if (order.telegramId) {
+          await safeSendMessage(
+            order.telegramId,
+            `⚠️ Order #${order.orderId}\n\nSorry — something on your order is out of stock:\n\n${itemList}\n\nWould you like store credit for the missing item, or a swap for something similar?`,
+            {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: "💳 Store credit", callback_data: `oos_credit_${orderId}` }],
+                  [{ text: "🔄 Swap for similar", callback_data: `oos_swap_${orderId}` }]
+                ]
+              }
+            }
+          );
+        }
+        return safeSendMessage(chatId, `✅ Out-of-stock options sent to the customer on #${orderId}.`);
+      }
+
+      if (data.startsWith("oos_credit_") || data.startsWith("oos_swap_")) {
+        const orderId = Number(data.replace(/oos_(credit|swap)_/, ""));
+        const order = orders.get(orderId);
+        if (!order) return;
+        const choice = data.includes("credit") ? "store credit" : "a swap for something similar";
+        await notifyAdmins(`📦 OUT OF STOCK CHOICE\n\nOrder #${orderId}\n${order.customerName}\nCustomer chose: ${choice}`);
+        return safeSendMessage(chatId, `Thanks — we've noted you want ${choice}. We'll sort it shortly.`);
+      }
+
+      /* LABEL DONE */
+
+      if (data.startsWith("labeldone_")) {
+        if (!isAdmin(q.from?.id)) return;
+        const orderId = Number(data.replace("labeldone_", ""));
+        const order = orders.get(orderId);
+        if (!order) return safeSendMessage(chatId, "Order not found.");
+        order.labelDone = true;
+        order.labelDoneAt = new Date().toISOString();
+        saveOrder(order);
+        return safeSendMessage(chatId, `🏷 Label marked done for #${orderId}.\n\nSend the tracking number next, or tap Add tracking.`);
+      }
+
       /* ADMIN TRACKING */
 
       if (
@@ -9626,6 +9685,37 @@ Tap Open Shop to launch the Mini App.`,
     async msg => {
       const chatId =
         msg.chat?.id;
+
+      // Auto-tracking: "NAME TRACKINGNUMBER" on a paid order
+      if (chatId && isAdmin(msg.from?.id) && msg.text && !msg.text.startsWith("/")) {
+        const text = String(msg.text).trim();
+        const trackingMatch = text.match(/([A-Z]{2}\d{9}[A-Z]{2}|\d{10,}|[A-Z0-9]{10,})/i);
+        if (trackingMatch) {
+          const tracking = trackingMatch[1].toUpperCase();
+          const namePart = text.replace(trackingMatch[0], "").trim().toLowerCase();
+          if (namePart.length >= 2) {
+            const matches = [...orders.values()]
+              .filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "delivered")
+              .filter(order => String(order.customerName || "").toLowerCase().includes(namePart))
+              .sort((a, b) => new Date(b.paidAt || b.createdAt || 0) - new Date(a.paidAt || a.createdAt || 0));
+            const order = matches[0];
+            if (order) {
+              order.trackingNumber = tracking;
+              order.fulfilmentStatus = "shipped";
+              order.shippedAt = new Date().toISOString();
+              saveOrder(order);
+              if (order.telegramId) {
+                await safeSendMessage(
+                  order.telegramId,
+                  `📦 Your order has been dispatched\n\nOrder:\n#${order.orderId}\n\nTracking:\n${tracking}\n\nTap below when it arrives.`,
+                  { reply_markup: { inline_keyboard: [[{ text: "✅ I've received it", callback_data: `received_${order.orderId}` }]] } }
+                );
+              }
+              return safeSendMessage(chatId, `✅ Tracking sent\n\n#${order.orderId} · ${order.customerName}\n${tracking}`);
+            }
+          }
+        }
+      }
 
       // Handle spend threshold setting input
       if (chatId && pendingSpendThreshold.has(chatId) && isAdmin(msg.from?.id) && msg.text && !msg.text.startsWith("/")) {
