@@ -1142,6 +1142,78 @@ function extractStrength(name, subtitle) {
   return "";
 }
 
+function getLondonDate(date = new Date()) {
+  return new Date(date.toLocaleString("en-US", { timeZone: "Europe/London" }));
+}
+
+function getShippingDay(order) {
+  const created = new Date(order.paidAt || order.createdAt || Date.now());
+  const london = getLondonDate(created);
+  const day = london.getDay(); // 0 Sun, 1 Mon, 2 Tue, 3 Wed, 4 Thu, 5 Fri, 6 Sat
+  const minutes = london.getHours() * 60 + london.getMinutes();
+
+  const cutoffs = { 1: 12 * 60, 3: 12 * 60, 5: 10 * 60 }; // Mon 12pm, Wed 12pm, Fri 10am
+  const shippingDays = [1, 3, 5];
+
+  // If it's a shipping day and before the cut-off, ship that day
+  if (shippingDays.includes(day) && minutes < cutoffs[day]) {
+    return startOfDay(london);
+  }
+
+  // Otherwise next shipping day
+  const next = new Date(london);
+  next.setDate(next.getDate() + 1);
+  next.setHours(0, 0, 0, 0);
+  while (!shippingDays.includes(next.getDay())) {
+    next.setDate(next.getDate() + 1);
+  }
+  return next;
+}
+
+function startOfDay(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function formatShippingDay(date) {
+  return date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
+}
+
+async function sendShippingStages(chatId) {
+  const toSend = [...orders.values()].filter(order =>
+    order.paymentStatus === "paid" &&
+    order.fulfilmentStatus !== "shipped" &&
+    order.fulfilmentStatus !== "delivered" &&
+    !(order.cleared || []).includes("dispatch")
+  );
+
+  const groups = new Map();
+  for (const order of toSend) {
+    const day = getShippingDay(order);
+    const key = day.toISOString().slice(0, 10);
+    if (!groups.has(key)) groups.set(key, { date: day, orders: [] });
+    groups.get(key).orders.push(order);
+  }
+
+  const sorted = [...groups.values()].sort((a, b) => a.date - b.date);
+  if (!sorted.length) {
+    return safeSendMessage(chatId, "📦 Nothing to ship right now.");
+  }
+
+  const lines = sorted.map(group => {
+    const header = `📅 ${formatShippingDay(group.date)} (${group.orders.length})`;
+    const items = group.orders.map(order => {
+      const name = order.customerName || "No name";
+      const goods = (order.items || []).map(formatOrderItem).join(", ");
+      return `#${order.orderId} · ${name}\n${goods}`;
+    }).join("\n\n");
+    return `${header}\n\n${items}`;
+  });
+
+  return sendLongMessage(chatId, `📦 TO SHIP\n\n${lines.join("\n\n────────\n\n")}`);
+}
+
 function formatOrderItem(item) {
   const qty = Number(item.quantity || 0);
   const product = productsById.get(Number(item.id));
@@ -1155,13 +1227,11 @@ function formatOrderItem(item) {
 }
 
 async function sendPackingSlip(order) {
-  const itemLines = (order.items || []).map(formatOrderItem).join("\n") || "No items";
   const packingChat = getPackingChatId();
   const ids = packingChat ? [packingChat] : [...configuredAdminIds];
   if (!ids.length && adminTelegramId) ids.push(adminTelegramId);
   for (const id of ids) {
     await sendLabelParts(id, order);
-    await safeSendMessage(id, itemLines);
   }
 }
 
@@ -2016,7 +2086,8 @@ if (token) {
       { command: "paid", description: "Mark order paid" },
       { command: "tracking", description: "Add tracking" },
       { command: "myid", description: "Show Telegram ID" },
-      { command: "setpacking", description: "Set packing chat" }
+      { command: "setpacking", description: "Set packing chat" },
+      { command: "toship", description: "Orders by shipping day" }
     ]).catch(err => {
       console.error("SET COMMANDS ERROR:", err?.message || err);
     });
@@ -5361,6 +5432,19 @@ Open the shop, check what is on promotion, and see when stock has been added. If
   );
 
   bot.onText(
+    /^\/toship(?:@\w+)?$/i,
+    async msg => {
+      if (!isAdmin(msg.from?.id)) return;
+      const packingChat = getPackingChatId();
+      const target = packingChat || msg.chat.id;
+      await sendShippingStages(target);
+      if (String(target) !== String(msg.chat.id)) {
+        await safeSendMessage(msg.chat.id, "✅ Shipping stages sent to the packing chat.");
+      }
+    }
+  );
+
+  bot.onText(
     /^\/setpacking(?:@\w+)?(?:\s+(\S+))?$/i,
     async (msg, match) => {
       if (!isAdmin(msg.from?.id)) return;
@@ -6967,6 +7051,7 @@ The review has been removed.`,
           reply_markup: {
             inline_keyboard: [
               [{ text: `📤 To send (${toSend})`, callback_data: "admin_dispatch" }],
+              [{ text: "📅 By shipping day", callback_data: "admin_shipping_stages" }],
               [{ text: `✅ Needs approval (${needsApproval})`, callback_data: "admin_needs_approval" }],
               [{ text: `⏳ Waiting (${waiting})`, callback_data: "admin_payments" }],
               [
@@ -7040,6 +7125,17 @@ The review has been removed.`,
           .filter(order => order.fulfilmentStatus === "shipped" || order.trackingNumber)
           .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
         return showOrderList(chatId, `🚚 SHIPPED (${list.length})`, list);
+      }
+
+      if (data === "admin_shipping_stages") {
+        if (!isAdmin(q.from?.id)) return;
+        const packingChat = getPackingChatId();
+        const target = packingChat || chatId;
+        await sendShippingStages(target);
+        if (String(target) !== String(chatId)) {
+          await safeSendMessage(chatId, "✅ Shipping stages sent to the packing chat.");
+        }
+        return;
       }
 
       if (
