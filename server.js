@@ -1104,6 +1104,10 @@ async function sendLabelParts(chatId, order) {
   await safeSendMessage(chatId, split.lines.join("\n") || order.address || "No address");
   if (split.postcode) await safeSendMessage(chatId, split.postcode);
   if (order.phone) await safeSendMessage(chatId, order.phone);
+  const tg = order.telegramUsername
+    ? `@${String(order.telegramUsername).replace(/^@/, "")}`
+    : (order.telegramName || "");
+  if (tg) await safeSendMessage(chatId, tg);
 }
 
 function extractStrength(name, subtitle) {
@@ -3335,6 +3339,9 @@ app.post(
         telegramId:
           telegramId ||
           null,
+        telegramName:
+          String(req.body?.telegramName || "").trim() ||
+          null,
         address:
           String(
             address
@@ -4654,7 +4661,8 @@ Choose an option below.`,
 
     const extras = [
       items,
-      order.telegramUsername ? `Telegram: @${normaliseUsername(order.telegramUsername)}` : "",
+      order.telegramUsername ? `Telegram: @${normaliseUsername(order.telegramUsername)}` : (order.telegramName ? `Telegram: ${order.telegramName}` : ""),
+      order.telegramName && order.telegramUsername ? `Name: ${order.telegramName}` : "",
       order.transactionId ? `Hash: ${order.transactionId}` : "",
       order.trackingNumber ? `Tracking: ${order.trackingNumber}` : "",
       notes ? `Notes:\n${notes}` : ""

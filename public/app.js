@@ -2203,6 +2203,7 @@ async function submitOrder() {
               customerName,
 
               telegramUsername,
+              telegramName: [telegramUser?.first_name, telegramUser?.last_name].filter(Boolean).join(" ") || undefined,
               phone,
 
               telegramId:
