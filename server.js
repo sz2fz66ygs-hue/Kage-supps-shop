@@ -1106,6 +1106,7 @@ async function sendLabelParts(chatId, order) {
   const tg = order.telegramUsername
     ? `@${String(order.telegramUsername).replace(/^@/, "")}`
     : (order.telegramName || "");
+  const itemLines = (order.items || []).map(formatOrderItem).join("\n") || "No items";
 
   const note = [
     `📦 Order #${order.orderId}`,
@@ -1114,8 +1115,10 @@ async function sendLabelParts(chatId, order) {
     address,
     postcode,
     phone,
-    tg
-  ].filter(Boolean).join("\n");
+    tg,
+    "",
+    itemLines
+  ].filter(line => line !== undefined && line !== null).join("\n");
 
   await safeSendMessage(chatId, note);
 }
