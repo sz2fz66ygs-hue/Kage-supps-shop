@@ -2286,7 +2286,12 @@ async function autoApprovePendingPayments() {
     try {
       order.autoApproveTriedRecently = true;
       saveOrder(order);
-      const check = await verifyUsdtPayment(order.transactionId, order.quotedUsdt || order.usdtQuote);
+      const expected = order.quotedUsdt || order.usdtQuote || await getUsdtQuote(order.totalPence);
+      if (expected && !order.quotedUsdt) {
+        order.quotedUsdt = expected;
+        saveOrder(order);
+      }
+      const check = await verifyUsdtPayment(order.transactionId, expected);
       order.autoCheck = { ok: Boolean(check.ok), reason: check.reason || "", received: check.received, expected: check.expected };
       saveOrder(order);
       if (check.ok) {
@@ -2462,15 +2467,32 @@ const USDT_CONTRACT = "0xdac17f958d2ee523a2206206994597c13d831ec7";
 
 async function verifyUsdtPayment(hash, expectedUsdt) {
   if (!etherscanApiKey || !receivingAddress) {
-    return { ok: false, reason: "Payment checker is not configured." };
+    return { ok: false, reason: "Payment checker is not configured. Set ETHERSCAN_API_KEY and ETH_RECEIVING_ADDRESS." };
   }
 
-  const url = `https://api.etherscan.io/v2/api?chainid=1&module=proxy&action=eth_getTransactionReceipt&txhash=${hash}&apikey=${etherscanApiKey}`;
-  const response = await fetch(url);
-  const data = await response.json();
-  const receipt = data?.result;
-  if (!receipt || receipt === "null") {
-    return { ok: false, reason: "Transaction not found yet. It may still be confirming." };
+  const urls = [
+    `https://api.etherscan.io/api?module=proxy&action=eth_getTransactionReceipt&txhash=${hash}&apikey=${etherscanApiKey}`,
+    `https://api.etherscan.io/v2/api?chainid=1&module=proxy&action=eth_getTransactionReceipt&txhash=${hash}&apikey=${etherscanApiKey}`
+  ];
+
+  let receipt = null;
+  let lastError = "";
+  for (const url of urls) {
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data?.result && data.result !== "null") {
+        receipt = data.result;
+        break;
+      }
+      lastError = data?.message || data?.result || "No receipt";
+    } catch (err) {
+      lastError = err?.message || "Request failed";
+    }
+  }
+
+  if (!receipt) {
+    return { ok: false, reason: `Transaction not found yet. ${lastError}` };
   }
   if (receipt.status && receipt.status !== "0x1") {
     return { ok: false, reason: "Transaction failed on Ethereum." };
@@ -2492,7 +2514,7 @@ async function verifyUsdtPayment(hash, expectedUsdt) {
   if (received <= 0) {
     return { ok: false, reason: "No USDT transfer to the shop address on this transaction.", received, expected };
   }
-  const close = Math.abs(received - expected) <= Math.max(2, expected * 0.03);
+  const close = Math.abs(received - expected) <= Math.max(2, expected * 0.05);
   return {
     ok: close,
     received,
