@@ -2475,52 +2475,43 @@ const USDT_CONTRACT = "0xdac17f958d2ee523a2206206994597c13d831ec7";
 
 async function verifyUsdtPayment(hash, expectedUsdt) {
   if (!etherscanApiKey || !receivingAddress) {
-    return { ok: false, reason: "Payment checker is not configured. Set ETHERSCAN_API_KEY and ETH_RECEIVING_ADDRESS." };
+    return { ok: false, reason: "Payment checker is not configured." };
   }
 
+  const want = receivingAddress.toLowerCase();
   const urls = [
-    `https://api.etherscan.io/api?module=proxy&action=eth_getTransactionReceipt&txhash=${hash}&apikey=${etherscanApiKey}`,
-    `https://api.etherscan.io/v2/api?chainid=1&module=proxy&action=eth_getTransactionReceipt&txhash=${hash}&apikey=${etherscanApiKey}`
+    `https://api.etherscan.io/api?module=account&action=tokentx&contractaddress=${USDT_CONTRACT}&address=${receivingAddress}&page=1&offset=20&sort=desc&apikey=${etherscanApiKey}`,
+    `https://api.etherscan.io/v2/api?chainid=1&module=account&action=tokentx&contractaddress=${USDT_CONTRACT}&address=${receivingAddress}&page=1&offset=20&sort=desc&apikey=${etherscanApiKey}`
   ];
 
-  let receipt = null;
+  let transfers = [];
   let lastError = "";
   for (const url of urls) {
     try {
       const response = await fetch(url);
       const data = await response.json();
-      if (data?.result && data.result !== "null") {
-        receipt = data.result;
+      if (Array.isArray(data?.result)) {
+        transfers = data.result;
         break;
       }
-      lastError = data?.message || data?.result || "No receipt";
+      lastError = data?.message || data?.result || "No transfers";
     } catch (err) {
       lastError = err?.message || "Request failed";
     }
   }
 
-  if (!receipt) {
-    return { ok: false, reason: `Transaction not found yet. ${lastError}` };
-  }
-  if (receipt.status && receipt.status !== "0x1") {
-    return { ok: false, reason: "Transaction failed on Ethereum." };
+  const match = transfers.find(tx => String(tx.hash || "").toLowerCase() === String(hash || "").toLowerCase());
+  if (!match) {
+    return { ok: false, reason: `Transaction not found in recent USDT transfers. ${lastError}` };
   }
 
-  const want = receivingAddress.toLowerCase().replace(/^0x/, "").padStart(64, "0");
-  let received = 0;
-  for (const log of receipt.logs || []) {
-    if (String(log.address || "").toLowerCase() !== USDT_CONTRACT) continue;
-    if (!log.topics || log.topics[0] !== "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef") continue;
-    if (String(log.topics[2] || "").toLowerCase() !== `0x${want}`) continue;
-    received += Number(BigInt(log.data)) / 1e6;
-  }
-
+  const received = Number(match.value) / 1e6;
   const expected = Number(expectedUsdt);
   if (!Number.isFinite(expected) || expected <= 0) {
     return { ok: false, reason: "No expected USDT amount on this order.", received };
   }
   if (received <= 0) {
-    return { ok: false, reason: "No USDT transfer to the shop address on this transaction.", received, expected };
+    return { ok: false, reason: "No USDT amount on this transfer.", received, expected };
   }
   const close = Math.abs(received - expected) <= Math.max(2, expected * 0.05);
   return {
