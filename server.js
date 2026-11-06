@@ -1240,8 +1240,10 @@ function formatOrderItem(item) {
 
 async function sendPackingSlip(order) {
   const packingChat = getPackingChatId();
-  const ids = packingChat ? [packingChat] : [...configuredAdminIds];
-  if (!ids.length && adminTelegramId) ids.push(adminTelegramId);
+  const ids = new Set();
+  if (packingChat) ids.add(String(packingChat));
+  for (const id of configuredAdminIds) ids.add(String(id));
+  if (adminTelegramId) ids.add(String(adminTelegramId));
   for (const id of ids) {
     await sendLabelParts(id, order);
   }
@@ -2042,6 +2044,12 @@ if (token) {
       if (msg.from) rememberUser(msg.from);
     });
 
+    if (!etherscanApiKey || !receivingAddress) {
+      console.error("PAYMENT CHECKER NOT CONFIGURED — set ETHERSCAN_API_KEY and ETH_RECEIVING_ADDRESS");
+    } else {
+      console.log("Payment checker configured.");
+    }
+
     bot.on("new_chat_members", msg => {
       for (const member of msg.new_chat_members || []) {
         rememberUser(member);
@@ -2703,7 +2711,12 @@ async function submitTransactionHash(order, transactionId) {
   let autoPaid = false;
   let check = null;
   try {
-    check = await verifyUsdtPayment(hash, order.quotedUsdt || order.usdtQuote);
+    const expected = order.quotedUsdt || order.usdtQuote || await getUsdtQuote(order.totalPence);
+    if (expected && !order.quotedUsdt) {
+      order.quotedUsdt = expected;
+      saveOrder(order);
+    }
+    check = await verifyUsdtPayment(hash, expected);
     order.autoCheck = { ok: Boolean(check.ok), reason: check.reason || "", received: check.received, expected: check.expected };
     saveOrder(order);
     if (check.ok) {
