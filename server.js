@@ -6184,7 +6184,7 @@ ${trackingNumber}`
       if (order.telegramId) {
         await safeSendMessage(
           order.telegramId,
-          `📦 Your order has been dispatched\n\nOrder:\n#${orderId}\n\nTracking:\n${trackingNumber}\n\nTap below when it arrives.`,
+          `📦 Your order has been dispatched\n\nOrder:\n#${orderId}\n\nTracking:\n${trackingNumber}\n\nThis is for next-day delivery (Royal Mail dependent).\n\nTap below when it arrives.`,
           {
             reply_markup: {
               inline_keyboard: [[
@@ -9739,7 +9739,7 @@ Tap Open Shop to launch the Mini App.`,
           if (order.telegramId) {
             await safeSendMessage(
               order.telegramId,
-              `📦 Your order has been dispatched\n\nOrder:\n#${order.orderId}\n\nTracking:\n${tracking}\n\nTap below when it arrives.`,
+              `📦 Your order has been dispatched\n\nOrder:\n#${order.orderId}\n\nTracking:\n${tracking}\n\nThis is for next-day delivery (Royal Mail dependent).\n\nTap below when it arrives.`,
               { reply_markup: { inline_keyboard: [[{ text: "✅ I've received it", callback_data: `received_${order.orderId}` }]] } }
             );
           }
