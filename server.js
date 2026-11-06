@@ -9712,34 +9712,44 @@ Tap Open Shop to launch the Mini App.`,
       const chatId =
         msg.chat?.id;
 
-      // Auto-tracking: "NAME TRACKINGNUMBER" on a paid order
+      // Auto-tracking: one or many lines of "NAME TRACKINGNUMBER"
       if (chatId && isAdmin(msg.from?.id) && msg.text && !msg.text.startsWith("/")) {
-        const text = String(msg.text).trim();
-        const trackingMatch = text.match(/([A-Z]{2}\d{9}[A-Z]{2}|\d{10,}|[A-Z0-9]{10,})/i);
-        if (trackingMatch) {
+        const lines = String(msg.text).split(/\n+/).map(line => line.trim()).filter(Boolean);
+        const done = [];
+        const missed = [];
+        for (const line of lines) {
+          const trackingMatch = line.match(/([A-Z]{2}\d{9}[A-Z]{2}|\d{10,}|[A-Z0-9]{10,})/i);
+          if (!trackingMatch) continue;
           const tracking = trackingMatch[1].toUpperCase();
-          const namePart = text.replace(trackingMatch[0], "").trim().toLowerCase();
-          if (namePart.length >= 2) {
-            const matches = [...orders.values()]
-              .filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "delivered")
-              .filter(order => String(order.customerName || "").toLowerCase().includes(namePart))
-              .sort((a, b) => new Date(b.paidAt || b.createdAt || 0) - new Date(a.paidAt || a.createdAt || 0));
-            const order = matches[0];
-            if (order) {
-              order.trackingNumber = tracking;
-              order.fulfilmentStatus = "shipped";
-              order.shippedAt = new Date().toISOString();
-              saveOrder(order);
-              if (order.telegramId) {
-                await safeSendMessage(
-                  order.telegramId,
-                  `📦 Your order has been dispatched\n\nOrder:\n#${order.orderId}\n\nTracking:\n${tracking}\n\nTap below when it arrives.`,
-                  { reply_markup: { inline_keyboard: [[{ text: "✅ I've received it", callback_data: `received_${order.orderId}` }]] } }
-                );
-              }
-              return safeSendMessage(chatId, `✅ Tracking sent\n\n#${order.orderId} · ${order.customerName}\n${tracking}`);
-            }
+          const namePart = line.replace(trackingMatch[0], "").trim().toLowerCase();
+          if (namePart.length < 2) continue;
+          const matches = [...orders.values()]
+            .filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "delivered")
+            .filter(order => String(order.customerName || "").toLowerCase().includes(namePart))
+            .sort((a, b) => new Date(b.paidAt || b.createdAt || 0) - new Date(a.paidAt || a.createdAt || 0));
+          const order = matches[0];
+          if (!order) {
+            missed.push(line);
+            continue;
           }
+          order.trackingNumber = tracking;
+          order.fulfilmentStatus = "shipped";
+          order.shippedAt = new Date().toISOString();
+          saveOrder(order);
+          if (order.telegramId) {
+            await safeSendMessage(
+              order.telegramId,
+              `📦 Your order has been dispatched\n\nOrder:\n#${order.orderId}\n\nTracking:\n${tracking}\n\nTap below when it arrives.`,
+              { reply_markup: { inline_keyboard: [[{ text: "✅ I've received it", callback_data: `received_${order.orderId}` }]] } }
+            );
+          }
+          done.push(`#${order.orderId} · ${order.customerName} · ${tracking}`);
+        }
+        if (done.length || missed.length) {
+          return safeSendMessage(
+            chatId,
+            `✅ Tracking sent (${done.length})\n\n${done.join("\n") || "None"}${missed.length ? `\n\nNot matched:\n${missed.join("\n")}` : ""}`
+          );
         }
       }
 
