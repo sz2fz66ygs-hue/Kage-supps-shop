@@ -10888,10 +10888,9 @@ Send another product ID, or /admin to stop.`,
           chatId
         );
 
-        const from =
-          msg.from?.username
-            ? `@${msg.from.username}`
-            : `Telegram ID ${msg.from?.id}`;
+        const name = [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ");
+        const handle = msg.from?.username ? `@${msg.from.username}` : "";
+        const from = [name, handle].filter(Boolean).join(" ") || `Telegram ID ${msg.from?.id}`;
 
         for (
           const supportId
@@ -10904,6 +10903,7 @@ Send another product ID, or /admin to stop.`,
 
 From:
 ${from}
+ID: ${msg.from?.id || ""}
 
 Message:
 ${text}`
