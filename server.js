@@ -5537,9 +5537,15 @@ Open the shop, check what is on promotion, and see when stock has been added. If
       }
 
       if (next < 0) next = 0;
+      const diff = next - current;
       record[key] = next;
+      // Keep lifetime earned in line when balance changes
+      if (field === "balance") {
+        record.totalEarnedPence = Math.max(0, Number(record.totalEarnedPence || 0) + diff);
+      }
       saveReferralEarnings(code, record);
-      return safeSendMessage(msg.chat.id, `✅ ${code} ${field} set to ${money(next)} (was ${money(current)}).\nNo one was notified.`);
+      const earnedNote = field === "balance" ? `\nLifetime earned is now ${money(record.totalEarnedPence)}.` : "";
+      return safeSendMessage(msg.chat.id, `✅ ${code} ${field} set to ${money(next)} (was ${money(current)}).${earnedNote}\nNo one was notified.`);
     }
   );
 
