@@ -2103,6 +2103,7 @@ if (token) {
       { command: "reviews", description: "Pending reviews" },
       { command: "earnings", description: "Affiliate earnings" },
       { command: "adjust", description: "Adjust affiliate balance" },
+      { command: "zero", description: "Zero an affiliate" },
       { command: "paid", description: "Mark order paid" },
       { command: "tracking", description: "Add tracking" },
       { command: "myid", description: "Show Telegram ID" },
@@ -5515,8 +5516,10 @@ Open the shop, check what is on promotion, and see when stock has been added. If
       const code = normaliseCode(match[1]);
       const field = match[2].toLowerCase();
       const raw = match[3];
-      const record = referralEarnings.get(code);
-      if (!record) return safeSendMessage(msg.chat.id, `No earnings record for ${code}.`);
+      let record = referralEarnings.get(code);
+      if (!record) {
+        record = { code, owner: "", balancePence: 0, totalEarnedPence: 0, paidOutPence: 0, cashOnly: true };
+      }
 
       const key = field === "balance" ? "balancePence" : field === "paid" ? "paidOutPence" : "totalEarnedPence";
       const current = Number(record[key] || 0);
@@ -5537,6 +5540,20 @@ Open the shop, check what is on promotion, and see when stock has been added. If
       record[key] = next;
       saveReferralEarnings(code, record);
       return safeSendMessage(msg.chat.id, `✅ ${code} ${field} set to ${money(next)} (was ${money(current)}).\nNo one was notified.`);
+    }
+  );
+
+  bot.onText(
+    /^\/zero(?:@\w+)?\s+(\S+)$/i,
+    async (msg, match) => {
+      if (!isAdmin(msg.from?.id)) return;
+      const code = normaliseCode(match[1]);
+      const record = referralEarnings.get(code) || { code, owner: "", balancePence: 0, totalEarnedPence: 0, paidOutPence: 0, cashOnly: true };
+      record.balancePence = 0;
+      record.totalEarnedPence = 0;
+      record.paidOutPence = 0;
+      saveReferralEarnings(code, record);
+      return safeSendMessage(msg.chat.id, `✅ ${code} set to £0 on balance, paid, and earned.\nNo one was notified.`);
     }
   );
 
