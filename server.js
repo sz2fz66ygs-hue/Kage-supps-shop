@@ -1197,6 +1197,7 @@ async function sendShippingStages(chatId) {
     order.paymentStatus === "paid" &&
     order.fulfilmentStatus !== "shipped" &&
     order.fulfilmentStatus !== "delivered" &&
+    !order.trackingNumber &&
     !(order.cleared || []).includes("dispatch")
   );
 
@@ -2357,7 +2358,7 @@ async function sendMorningSummary() {
   const today = now.toISOString().slice(0, 10);
   if (getMetaValue("morning_summary_date") === today) return;
   setMetaValue("morning_summary_date", today);
-  const toSend = [...orders.values()].filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered").length;
+  const toSend = [...orders.values()].filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered" && !order.trackingNumber).length;
   const needsApproval = [...orders.values()].filter(order => order.paymentStatus === "payment_submitted").length;
   const waiting = [...orders.values()].filter(order => order.paymentStatus === "awaiting_payment").length;
   const low = products.filter(product => {
@@ -7145,7 +7146,7 @@ The review has been removed.`,
 
       if (data === "admin_orders_home") {
         if (!isAdmin(q.from?.id)) return;
-        const toSend = [...orders.values()].filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered" && !(order.cleared || []).includes("dispatch") && !(order.cleared || []).includes("paid")).length;
+        const toSend = [...orders.values()].filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered" && !order.trackingNumber && !(order.cleared || []).includes("dispatch") && !(order.cleared || []).includes("paid")).length;
         const needsApproval = [...orders.values()].filter(order => order.paymentStatus === "payment_submitted").length;
         const waiting = [...orders.values()].filter(order => order.paymentStatus === "awaiting_payment").length;
         return safeSendMessage(chatId, `📦 ORDERS\n\n📤 To send: ${toSend}\n✅ Needs approval: ${needsApproval}\n⏳ Waiting payment: ${waiting}`, {
@@ -7252,7 +7253,7 @@ The review has been removed.`,
         }
 
         const list = [...orders.values()]
-          .filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered" && !(order.cleared || []).includes("dispatch") && !(order.cleared || []).includes("paid"))
+          .filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered" && !order.trackingNumber && !(order.cleared || []).includes("dispatch") && !(order.cleared || []).includes("paid"))
           .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
 
         if (!list.length) return safeSendMessage(chatId, "📤 TO SEND\n\nNothing to pack.", {
@@ -8308,7 +8309,7 @@ Customers can no longer use the store-wide promo code.`,
 
       if (data === "admin_dispatch_all") {
         if (!isAdmin(q.from?.id)) return;
-        const list = [...orders.values()].filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered" && !(order.cleared || []).includes("dispatch"));
+        const list = [...orders.values()].filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered" && !order.trackingNumber && !(order.cleared || []).includes("dispatch"));
         for (const order of list) {
           order.fulfilmentStatus = "shipped";
           order.shippedAt = new Date().toISOString();
