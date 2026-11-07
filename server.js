@@ -2483,8 +2483,8 @@ async function verifyUsdtPayment(hash, expectedUsdt) {
 
   const want = receivingAddress.toLowerCase();
   const urls = [
-    `https://api.etherscan.io/api?module=account&action=tokentx&contractaddress=${USDT_CONTRACT}&address=${receivingAddress}&page=1&offset=20&sort=desc&apikey=${etherscanApiKey}`,
-    `https://api.etherscan.io/v2/api?chainid=1&module=account&action=tokentx&contractaddress=${USDT_CONTRACT}&address=${receivingAddress}&page=1&offset=20&sort=desc&apikey=${etherscanApiKey}`
+    `https://api.etherscan.io/api?module=account&action=tokentx&contractaddress=${USDT_CONTRACT}&address=${receivingAddress}&page=1&offset=100&sort=desc&apikey=${etherscanApiKey}`,
+    `https://api.etherscan.io/v2/api?chainid=1&module=account&action=tokentx&contractaddress=${USDT_CONTRACT}&address=${receivingAddress}&page=1&offset=100&sort=desc&apikey=${etherscanApiKey}`
   ];
 
   let transfers = [];
@@ -2516,7 +2516,7 @@ async function verifyUsdtPayment(hash, expectedUsdt) {
   if (received <= 0) {
     return { ok: false, reason: "No USDT amount on this transfer.", received, expected };
   }
-  const close = Math.abs(received - expected) <= Math.max(2, expected * 0.05);
+  const close = Math.abs(received - expected) <= 1;
   return {
     ok: close,
     received,
