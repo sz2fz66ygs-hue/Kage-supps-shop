@@ -2102,6 +2102,7 @@ if (token) {
       { command: "lowstock", description: "Low stock" },
       { command: "reviews", description: "Pending reviews" },
       { command: "earnings", description: "Affiliate earnings" },
+      { command: "myearnings", description: "Your affiliate earnings" },
       { command: "adjust", description: "Adjust affiliate balance" },
       { command: "zero", description: "Zero an affiliate" },
       { command: "paid", description: "Mark order paid" },
@@ -5550,6 +5551,24 @@ Open the shop, check what is on promotion, and see when stock has been added. If
   );
 
   bot.onText(
+    /^\/myearnings(?:@\w+)?$/i,
+    async msg => {
+      const handle = normaliseUsername(msg.from?.username || "");
+      const affiliate = affiliateCodes.find(item => normaliseUsername(item.owner) === handle);
+      if (!affiliate) return safeSendMessage(msg.chat.id, "No affiliate code is linked to this Telegram account.");
+      const record = referralEarnings.get(affiliate.code) || { balancePence: 0, totalEarnedPence: 0, paidOutPence: 0 };
+      const isY8 = affiliate.code === "Y8";
+      const buttons = [[{ text: "💳 Convert to store credit", callback_data: `earn_credit_${affiliate.code}` }]];
+      if (isY8) buttons.push([{ text: "🏦 Request withdrawal", callback_data: `earn_withdraw_${affiliate.code}` }]);
+      return safeSendMessage(
+        msg.chat.id,
+        `💰 ${affiliate.code}\n\nCurrently owed: ${money(record.balancePence)}\nLifetime earned: ${money(record.totalEarnedPence)}\nPaid out: ${money(record.paidOutPence)}`,
+        { reply_markup: { inline_keyboard: buttons } }
+      );
+    }
+  );
+
+  bot.onText(
     /^\/zero(?:@\w+)?\s+(\S+)$/i,
     async (msg, match) => {
       if (!isAdmin(msg.from?.id)) return;
@@ -6630,6 +6649,27 @@ ${productLines || "No activity in the last 7 days."}`
           q.data ||
           ""
         );
+
+      if (data.startsWith("earn_credit_") || data.startsWith("earn_withdraw_")) {
+        const code = normaliseCode(data.replace(/earn_(credit|withdraw)_/, ""));
+        const affiliate = affiliateCodes.find(item => item.code === code);
+        const handle = normaliseUsername(q.from?.username || "");
+        if (!affiliate || normaliseUsername(affiliate.owner) !== handle) {
+          return safeSendMessage(chatId, "This is not your affiliate code.");
+        }
+        const record = referralEarnings.get(code);
+        const balance = Number(record?.balancePence || 0);
+        if (!record || balance <= 0) return safeSendMessage(chatId, "Nothing to convert right now.");
+        if (data.startsWith("earn_credit_")) {
+          addCustomerCredit(q.from?.id, balance);
+          record.balancePence = 0;
+          record.paidOutPence = Number(record.paidOutPence || 0) + balance;
+          saveReferralEarnings(code, record);
+          return safeSendMessage(chatId, `✅ ${money(balance)} moved to your store credit.`);
+        }
+        await notifyAdmins(`🏦 WITHDRAWAL REQUEST\n\n${code} (${affiliate.owner})\nAmount: ${money(balance)}`);
+        return safeSendMessage(chatId, `✅ Withdrawal request sent for ${money(balance)}. We'll be in touch.`);
+      }
 
       if (data.startsWith("disp_")) {
         if (!isAdmin(q.from?.id)) return;
