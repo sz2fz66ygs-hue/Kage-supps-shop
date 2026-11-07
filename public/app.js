@@ -2079,7 +2079,7 @@ async function submitOrder() {
   const telegramUsername =
     telegramUser?.username
       ? `@${telegramUser.username}`
-      : document.getElementById("handle")?.value.trim();
+      : [telegramUser?.first_name, telegramUser?.last_name].filter(Boolean).join(" ") || "";
 
   const phone =
     document
@@ -3201,16 +3201,13 @@ document
    TELEGRAM USERNAME
    ========================================================= */
 
-if (
-  telegramUser?.username
-) {
-  const handleInput =
-    document.getElementById(
-      "handle"
-    );
-
+if (telegramUser) {
+  const handleInput = document.getElementById("handle");
   if (handleInput) {
-    handleInput.value = `@${telegramUser.username}`;
+    const display = telegramUser.username
+      ? `@${telegramUser.username}`
+      : [telegramUser.first_name, telegramUser.last_name].filter(Boolean).join(" ") || "Telegram user";
+    handleInput.value = display;
     handleInput.readOnly = true;
     handleInput.disabled = true;
   }
