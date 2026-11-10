@@ -10584,7 +10584,7 @@ ${text}`
         const failed = [];
         let nextId = Math.max(0, ...products.map(product => Number(product.id) || 0));
         for (const line of lines) {
-          const [main, namePart, subtitlePart, sectionPart] = line.split("|").map(part => part.trim());
+          const [main, namePart, subtitlePart, sectionPart, categoryPart] = line.split("|").map(part => part.trim());
           const idMatch = main.match(/^#?(\d+)\b/);
           const isIdLine = idMatch && /^#?\d+(\s+([+-]\d+|£\s*\d+(?:\.\d+)?|remove)\b)*$/i.test(main);
           if (isIdLine) {
@@ -10611,6 +10611,7 @@ ${text}`
             if (namePart) product.name = namePart;
             if (subtitlePart) product.subtitle = subtitlePart;
             if (sectionPart) product.section = sectionPart;
+            if (categoryPart) product.category = categoryPart;
             done.push(`#${product.id} ${product.name}`);
             continue;
           }
