@@ -568,7 +568,8 @@ function shopCard(p) {
 function productMatchesSearch(product) {
   const query = String(document.getElementById("shopSearch")?.value || "").trim().toLowerCase();
   if (!query) return true;
-  return `${product.name} ${product.subtitle || ""} ${product.section || ""}`.toLowerCase().includes(query);
+  const haystack = `${product.name} ${product.subtitle || ""} ${product.section || ""} ${product.category || ""}`.toLowerCase();
+  return query.split(/\s+/).every(word => haystack.includes(word));
 }
 
 
@@ -676,6 +677,14 @@ function renderProducts() {
       </div>
     `;
 
+    return;
+  }
+
+  const query = String(document.getElementById("shopSearch")?.value || "").trim();
+  if (query) {
+    container.innerHTML = visibleProducts.length
+      ? `<div class="section-title">Results for “${query}”</div>${visibleProducts.map(shopCard).join("")}`
+      : `<div class="catalogue-error">No products match “${query}”.</div>`;
     return;
   }
 
