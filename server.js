@@ -9777,14 +9777,14 @@ Tap Open Shop to launch the Mini App.`,
         msg.chat?.id;
 
       // Auto-tracking: one or many lines of "NAME TRACKINGNUMBER"
-      // Skip if an admin input (bulk change, stock, etc.) is waiting
-      const adminInputPending = pendingBulkChange.has(chatId) || pendingBulkProducts.has(chatId) || pendingBulkStock.has(chatId) || pendingBulkPrice.has(chatId) || pendingAddProduct.has(chatId);
+      // Skip if any admin input is waiting
+      const adminInputPending = pendingBulkChange.has(chatId) || pendingBulkProducts.has(chatId) || pendingBulkStock.has(chatId) || pendingBulkPrice.has(chatId) || pendingAddProduct.has(chatId) || pendingBroadcast.has(chatId) || pendingWelcome.has(chatId) || pendingGroupWelcome.has(chatId) || pendingGroupStart.has(chatId) || pendingPromotionCreate.has(chatId) || pendingPromotionEdit.has(chatId) || pendingSpendThreshold.has(chatId);
       if (chatId && isAdmin(msg.from?.id) && msg.text && !msg.text.startsWith("/") && !adminInputPending) {
         const lines = String(msg.text).split(/\n+/).map(line => line.trim()).filter(Boolean);
         const done = [];
         const missed = [];
         for (const line of lines) {
-          const trackingMatch = line.match(/([A-Z]{2}\d{9}[A-Z]{2}|\d{10,}|[A-Z0-9]{10,})/i);
+          const trackingMatch = line.match(/\b([A-Z]{2}\d{9}[A-Z]{2})\b/i);
           if (!trackingMatch) continue;
           const tracking = trackingMatch[1].toUpperCase();
           const namePart = line.replace(trackingMatch[0], "").trim().toLowerCase();
