@@ -9777,7 +9777,9 @@ Tap Open Shop to launch the Mini App.`,
         msg.chat?.id;
 
       // Auto-tracking: one or many lines of "NAME TRACKINGNUMBER"
-      if (chatId && isAdmin(msg.from?.id) && msg.text && !msg.text.startsWith("/")) {
+      // Skip if an admin input (bulk change, stock, etc.) is waiting
+      const adminInputPending = pendingBulkChange.has(chatId) || pendingBulkProducts.has(chatId) || pendingBulkStock.has(chatId) || pendingBulkPrice.has(chatId) || pendingAddProduct.has(chatId);
+      if (chatId && isAdmin(msg.from?.id) && msg.text && !msg.text.startsWith("/") && !adminInputPending) {
         const lines = String(msg.text).split(/\n+/).map(line => line.trim()).filter(Boolean);
         const done = [];
         const missed = [];
