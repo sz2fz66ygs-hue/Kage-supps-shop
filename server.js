@@ -724,23 +724,13 @@ async function notifyRestockIfBack(productId, oldStock, newStock) {
 
 function getLiveProducts() {
   return products.map(product => {
-    const liveStock = getLiveStock(
-      product.id
-    );
-
+    const liveStock = getLiveStock(product.id);
     return {
       ...product,
-      stock:
-        liveStock !== null
-          ? liveStock
-          : product.stock,
+      stock: liveStock !== null ? liveStock : 0,
       cataloguePricePence: Number(product.pricePence),
-      pricePence: getEffectivePricePence(
-        product,
-        promotionsApi.getPriceOverride
-      ),
-      priceOverridden:
-        promotionsApi.getPriceOverride(product.id) !== null,
+      pricePence: getEffectivePricePence(product, promotionsApi.getPriceOverride),
+      priceOverridden: promotionsApi.getPriceOverride(product.id) !== null,
       maxPerOrder: Number(db.prepare("SELECT max_qty FROM product_limits WHERE product_id = ?").get(product.id)?.max_qty || 0)
     };
   });
@@ -783,18 +773,33 @@ app.post("/api/orders/:id/add-items", async (req, res) => {
   if (order.paymentStatus !== "awaiting_payment") return res.status(400).json({ error: "You can only add items before you pay." });
   if (telegramId && String(order.telegramId || "") !== String(telegramId)) return res.status(403).json({ error: "This is not your order." });
   const items = Array.isArray(req.body?.items) ? req.body.items : [];
+  const toReserve = [];
   let addedPence = 0;
   for (const raw of items) {
     const product = productsById.get(Number(raw.id));
     const quantity = Number(raw.quantity);
     if (!product || !Number.isInteger(quantity) || quantity < 1) continue;
     const live = getLiveStock(product.id);
-    if (live !== null && quantity > live) return res.status(400).json({ error: `Not enough stock for ${product.name}.` });
+    if (live === null || quantity > live) return res.status(400).json({ error: `Not enough stock for ${product.name}.` });
+    toReserve.push({ id: product.id, name: product.name, quantity });
     const price = getEffectivePricePence(product, promotionsApi.getPriceOverride);
     order.items.push({ id: product.id, name: product.name, subtitle: product.subtitle || "", quantity, pricePence: price, lineTotalPence: price * quantity });
     addedPence += price * quantity;
   }
   if (!addedPence) return res.status(400).json({ error: "Nothing to add." });
+
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    for (const item of toReserve) {
+      const result = reserveInventoryStmt.run(item.quantity, Number(item.id), item.quantity);
+      if (Number(result.changes || 0) !== 1) throw new Error(`Not enough stock for ${item.name}.`);
+    }
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    return res.status(400).json({ error: err.message || "Could not reserve stock for the added items." });
+  }
+
   order.subtotalPence = Number(order.subtotalPence || 0) + addedPence;
   order.totalPence = Number(order.totalPence || 0) + addedPence;
   order.quotedUsdt = await getUsdtQuote(order.totalPence);
@@ -1778,7 +1783,8 @@ function reserveStockForOrder(order) {
       const liveStock = getLiveStock(item.id);
 
       if (liveStock === null) {
-        continue;
+        setInventoryStmt.run(Number(item.id), 0);
+        throw new Error(`No stock record for ${item.name}.`);
       }
 
       const qty = Number(item.quantity || 0);
