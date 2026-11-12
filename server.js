@@ -1145,17 +1145,13 @@ function getPackingChatId() {
 }
 
 function extractStrength(name, subtitle) {
-  const source = subtitle || name || "";
-  // Prefer mg/ml first, then plain mg
+  const source = `${name || ""} ${subtitle || ""}`;
   const mgml = source.match(/(\d+(?:\.\d+)?)\s*mg\s*\/\s*ml/i);
   if (mgml) return `${mgml[1]}mg/ml`;
   const mg = source.match(/(\d+(?:\.\d+)?)\s*mg/i);
   if (mg) return `${mg[1]}mg`;
-  // Fallback: check the name if subtitle had nothing useful
-  if (subtitle && name) {
-    const fromName = name.match(/(\d+(?:\.\d+)?)\s*mg(?:\s*\/\s*ml)?/i);
-    if (fromName) return fromName[0].replace(/\s+/g, "");
-  }
+  const pct = source.match(/(\d+(?:\.\d+)?)\s*%/);
+  if (pct) return `${pct[1]}%`;
   return "";
 }
 
@@ -2291,6 +2287,47 @@ const reservationCleanupTimer = setInterval(() => {
 }, 60 * 1000);
 
 reservationCleanupTimer.unref?.();
+
+async function resendShippingDayOrders() {
+  const now = new Date(new Date().toLocaleString("en-GB", { timeZone: "Europe/London" }));
+  const day = now.getDay();
+  const hour = now.getHours();
+  const shippingDays = [1, 3, 5]; // Mon, Wed, Fri
+  const cutoffs = { 1: 12, 3: 12, 5: 10 };
+  if (!shippingDays.includes(day) || hour !== cutoffs[day]) return;
+
+  const todayKey = now.toISOString().slice(0, 10);
+  if (getMetaValue("shipping_resend_" + todayKey) === "done") return;
+  setMetaValue("shipping_resend_" + todayKey, "done");
+
+  const packingChat = getPackingChatId();
+  if (!packingChat) return;
+
+  const today = startOfDay(now);
+  const toResend = [...orders.values()].filter(order => {
+    if (order.paymentStatus !== "paid") return false;
+    if (order.fulfilmentStatus === "shipped" || order.fulfilmentStatus === "delivered") return false;
+    if (order.trackingNumber) return false;
+    const shipDay = getShippingDay(order);
+    return shipDay && startOfDay(shipDay).toISOString().slice(0, 10) === todayKey;
+  });
+
+  if (!toResend.length) {
+    await safeSendMessage(packingChat, `📦 ${formatShippingDay(today)}\n\nNothing to ship today.`);
+    return;
+  }
+
+  await safeSendMessage(packingChat, `📦 ${formatShippingDay(today)} — ${toResend.length} order${toResend.length === 1 ? "" : "s"} to pack`);
+
+  for (const order of toResend) {
+    await sendLabelParts(packingChat, order);
+  }
+}
+
+const shippingResendTimer = setInterval(() => {
+  resendShippingDayOrders().catch(err => console.error("SHIPPING RESEND ERROR:", err));
+}, 30 * 60 * 1000);
+shippingResendTimer.unref?.();
 
 async function autoApprovePendingPayments() {
   if (!etherscanApiKey || !receivingAddress) return;
