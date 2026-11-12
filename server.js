@@ -1226,27 +1226,28 @@ async function sendShippingStages(chatId) {
   const groups = new Map();
   for (const order of toSend) {
     const day = getShippingDay(order);
-    const key = day.toISOString().slice(0, 10);
+    const key = day ? day.toISOString().slice(0, 10) : "unknown";
     if (!groups.has(key)) groups.set(key, { date: day, orders: [] });
     groups.get(key).orders.push(order);
   }
 
-  const sorted = [...groups.values()].sort((a, b) => a.date - b.date);
+  const sorted = [...groups.values()].sort((a, b) => (a.date?.getTime() || 0) - (b.date?.getTime() || 0));
   if (!sorted.length) {
     return safeSendMessage(chatId, "📦 Nothing to ship right now.");
   }
 
   const lines = sorted.map(group => {
-    const header = `📅 ${formatShippingDay(group.date)} (${group.orders.length})`;
-    const items = group.orders.map(order => {
-      const name = order.customerName || "No name";
-      const goods = (order.items || []).map(formatOrderItem).join(", ");
-      return `#${order.orderId} · ${name}\n${goods}`;
-    }).join("\n\n");
-    return `${header}\n\n${items}`;
+    const header = `📅 ${group.date ? formatShippingDay(group.date) : "Unknown"} (${group.orders.length})`;
+    const items = group.orders.slice(0, 12).map(order => {
+      const units = (order.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+      const packed = order.fulfilmentStatus === "packed" ? " ✅" : "";
+      return `#${order.orderId} · ${order.customerName || "?"} · ${units}u${packed}`;
+    }).join("\n");
+    const more = group.orders.length > 12 ? `\n+ ${group.orders.length - 12} more` : "";
+    return `${header}\n${items}${more}`;
   });
 
-  return sendLongMessage(chatId, `📦 TO SHIP\n\n${lines.join("\n\n────────\n\n")}`);
+  return safeSendMessage(chatId, `📦 TO SHIP\n\n${lines.join("\n\n")}`);
 }
 
 function formatOrderItem(item) {
@@ -7357,13 +7358,8 @@ The review has been removed.`,
 
       if (data === "admin_shipping_stages") {
         if (!isAdmin(q.from?.id)) return;
-        const packingChat = getPackingChatId();
-        const target = packingChat || chatId;
-        await sendShippingStages(target);
-        if (String(target) !== String(chatId)) {
-          await safeSendMessage(chatId, "✅ Shipping stages sent to the packing chat.");
-        }
-        return;
+        await bot.answerCallbackQuery(q.id).catch(() => {});
+        return sendShippingStages(chatId);
       }
 
       if (
