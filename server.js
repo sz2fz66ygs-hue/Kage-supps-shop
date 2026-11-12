@@ -1112,6 +1112,7 @@ async function sendLabelParts(chatId, order) {
     ? `@${String(order.telegramUsername).replace(/^@/, "")}`
     : (order.telegramName || "");
   const itemLines = (order.items || []).map(formatOrderItem).join("\n") || "No items";
+  const tracking = order.trackingNumber ? `Tracking: ${order.trackingNumber}` : "";
 
   const note = [
     `📦 Order #${order.orderId}`,
@@ -1122,8 +1123,9 @@ async function sendLabelParts(chatId, order) {
     phone,
     tg,
     "",
-    itemLines
-  ].filter(line => line !== undefined && line !== null).join("\n");
+    itemLines,
+    tracking
+  ].filter(line => line !== undefined && line !== null && line !== "").join("\n");
 
   await safeSendMessage(chatId, note, {
     reply_markup: {
@@ -2306,8 +2308,7 @@ async function resendShippingDayOrders() {
   const today = startOfDay(now);
   const toResend = [...orders.values()].filter(order => {
     if (order.paymentStatus !== "paid") return false;
-    if (order.fulfilmentStatus === "shipped" || order.fulfilmentStatus === "delivered") return false;
-    if (order.trackingNumber) return false;
+    if (order.fulfilmentStatus === "delivered") return false;
     const shipDay = getShippingDay(order);
     return shipDay && startOfDay(shipDay).toISOString().slice(0, 10) === todayKey;
   });
@@ -2321,6 +2322,9 @@ async function resendShippingDayOrders() {
 
   for (const order of toResend) {
     await sendLabelParts(packingChat, order);
+    if (order.trackingNumber) {
+      await safeSendMessage(packingChat, `🚚 Tracking for #${order.orderId}:\n${order.trackingNumber}`);
+    }
   }
 }
 
