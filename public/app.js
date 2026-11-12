@@ -2611,7 +2611,7 @@ function renderPaymentPanel(
       <input
         id="paymentTxId"
         type="text"
-        placeholder="0x..."
+        placeholder="0x... or paste the Etherscan link"
         autocomplete="off"
         autocapitalize="off"
         spellcheck="false"
@@ -2891,13 +2891,19 @@ function startPaymentCountdown(
 async function confirmPayment(
   orderId
 ) {
-  const transactionId =
+  let transactionId =
     document
       .getElementById(
         "paymentTxId"
       )
       ?.value
-      .trim();
+      .trim() || "";
+
+  // Pull a hash out of a full Etherscan link or messy paste
+  const found = transactionId.match(/0x[a-fA-F0-9]{64}/);
+  if (found) transactionId = found[0];
+  else if (/^[a-fA-F0-9]{64}$/.test(transactionId)) transactionId = "0x" + transactionId;
+  transactionId = transactionId.replace(/\s+/g, "");
 
   const paymentStatus =
     document.getElementById(

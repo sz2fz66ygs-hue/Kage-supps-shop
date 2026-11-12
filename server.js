@@ -2709,10 +2709,14 @@ function takeCustomerCredit(telegramId, pence) {
 }
 
 async function submitTransactionHash(order, transactionId) {
-  const hash = String(transactionId || "").trim();
+  let hash = String(transactionId || "").trim();
+  const found = hash.match(/0x[a-fA-F0-9]{64}/i);
+  if (found) hash = found[0];
+  else if (/^[a-fA-F0-9]{64}$/.test(hash)) hash = "0x" + hash;
+  hash = hash.replace(/\s+/g, "");
 
   if (!/^0x[a-fA-F0-9]{64}$/.test(hash)) {
-    return { ok: false, error: "That does not look like an Ethereum hash. It should start with 0x and be 66 characters. ERC-20 only, not TRC-20 or BEP-20." };
+    return { ok: false, error: "That does not look like an Ethereum hash. Paste the full 0x... hash or the Etherscan link. ERC-20 only, not TRC-20 or BEP-20." };
   }
 
   const alreadyUsed = [...orders.values()].some(existing =>
