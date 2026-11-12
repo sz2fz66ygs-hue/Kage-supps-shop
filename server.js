@@ -2279,7 +2279,7 @@ async function resendShippingDayOrders() {
   const day = now.getDay();
   const hour = now.getHours();
   const shippingDays = [1, 3, 5]; // Mon, Wed, Fri
-  const cutoffs = { 1: 12, 3: 12, 5: 10 };
+  const cutoffs = { 1: 10, 3: 10, 5: 10 };
   if (!shippingDays.includes(day) || hour !== cutoffs[day]) return;
 
   const todayKey = now.toISOString().slice(0, 10);
