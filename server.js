@@ -1236,9 +1236,7 @@ function formatOrderItem(item) {
   const name = item.name || product?.name || "Item";
   const subtitle = item.subtitle || product?.subtitle || "";
   const strength = extractStrength(name, subtitle);
-  const strengthPart = strength && !name.toLowerCase().includes(strength.replace(/\s/g, "").toLowerCase())
-    ? ` (${strength})`
-    : "";
+  const strengthPart = strength ? ` (${strength})` : "";
   return `${qty} × ${name}${strengthPart}`;
 }
 
@@ -4861,6 +4859,8 @@ Choose an option below.`,
     if (extras) await safeSendMessage(chatId, extras);
 
     const buttons = [];
+    buttons.push([{ text: "📋 Copy address", callback_data: `copyaddr_${order.orderId}` }]);
+    buttons.push([{ text: "📋 Copy order", callback_data: `copyorder_${order.orderId}` }]);
     if (order.paymentStatus === "paid" && order.fulfilmentStatus !== "packed" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered") {
       buttons.push([{ text: "✅ Mark as packed", callback_data: `pack_${order.orderId}` }]);
     }
@@ -6741,6 +6741,24 @@ ${productLines || "No activity in the last 7 days."}`
         return safeSendMessage(chatId, `✅ Withdrawal request sent for ${money(balance)}. We'll be in touch.`);
       }
 
+      if (data.startsWith("copyaddr_")) {
+        if (!isAdmin(q.from?.id)) return;
+        const order = orders.get(Number(data.replace("copyaddr_", "")));
+        if (!order) return;
+        const split = splitAddressForLabel(order.address);
+        const address = [order.customerName || "", ...split.lines, split.postcode, order.phone || ""].filter(Boolean).join("\n");
+        return safeSendMessage(chatId, address);
+      }
+
+      if (data.startsWith("copyorder_")) {
+        if (!isAdmin(q.from?.id)) return;
+        const order = orders.get(Number(data.replace("copyorder_", "")));
+        if (!order) return;
+        const items = (order.items || []).map(formatOrderItem).join("\n") || "No items";
+        const text = `#${order.orderId}\n${order.customerName || ""}\n\n${items}\n\n${money(order.totalPence)}`;
+        return safeSendMessage(chatId, text);
+      }
+
       if (data.startsWith("pack_")) {
         if (!isAdmin(q.from?.id)) return;
         const orderId = Number(data.replace("pack_", ""));
@@ -7256,7 +7274,7 @@ The review has been removed.`,
       if (data === "admin_ready_pack") {
         if (!isAdmin(q.from?.id)) return;
         const list = [...orders.values()]
-          .filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "packed" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered" && !order.trackingNumber && !(order.cleared || []).includes("dispatch"))
+          .filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered" && !order.trackingNumber && !(order.cleared || []).includes("dispatch"))
           .sort((a, b) => {
             const dayA = getShippingDay(a)?.getTime() || 0;
             const dayB = getShippingDay(b)?.getTime() || 0;
@@ -7270,10 +7288,11 @@ The review has been removed.`,
           const units = (order.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
           const day = getShippingDay(order);
           const dayLabel = day ? formatShippingDay(day).split(" ")[0] : "";
-          return [{ text: `#${order.orderId} · ${order.customerName || "?"} · ${units}u · ${dayLabel}`, callback_data: `admin_order_${order.orderId}` }];
+          const packed = order.fulfilmentStatus === "packed" ? " ✅" : "";
+          return [{ text: `#${order.orderId} · ${order.customerName || "?"} · ${units}u · ${dayLabel}${packed}`, callback_data: `admin_order_${order.orderId}` }];
         });
         buttons.push([{ text: "⬅️ Orders", callback_data: "admin_orders_home" }]);
-        return safeSendMessage(chatId, `📦 READY TO PACK (${list.length})\n\nSorted by next dispatch, then oldest.`, {
+        return safeSendMessage(chatId, `📦 READY TO PACK (${list.length})\n\n✅ = packed. Sorted by next dispatch, then oldest.`, {
           reply_markup: { inline_keyboard: buttons }
         });
       }
@@ -10449,7 +10468,11 @@ Tap Open Shop to launch the Mini App.`,
           (Number.isInteger(orderId) && order.orderId === orderId) ||
           String(order.customerName || "").toLowerCase().includes(query) ||
           String(order.telegramUsername || "").toLowerCase().includes(query) ||
-          String(order.telegramId || "") === query
+          String(order.telegramId || "") === query ||
+          String(order.phone || "").toLowerCase().includes(query) ||
+          String(order.address || "").toLowerCase().includes(query) ||
+          String(order.trackingNumber || "").toLowerCase().includes(query) ||
+          (order.items || []).some(item => String(item.name || "").toLowerCase().includes(query))
         ).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
         if (!matches.length) {
