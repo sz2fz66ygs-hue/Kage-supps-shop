@@ -2295,19 +2295,25 @@ async function resendShippingDayOrders() {
     if (order.fulfilmentStatus === "delivered") return false;
     const shipDay = getShippingDay(order);
     return shipDay && startOfDay(shipDay).toISOString().slice(0, 10) === todayKey;
-  });
+  }).sort((a, b) => new Date(a.paidAt || a.createdAt || 0) - new Date(b.paidAt || b.createdAt || 0));
 
   if (!toResend.length) {
     await safeSendMessage(packingChat, `📦 ${formatShippingDay(today)}\n\nNothing to ship today.`);
     return;
   }
 
-  await safeSendMessage(packingChat, `📦 ${formatShippingDay(today)} — ${toResend.length} order${toResend.length === 1 ? "" : "s"} to pack`);
+  await safeSendMessage(packingChat, `📦 ${formatShippingDay(today)} — ${toResend.length} to pack\n\nOldest first. Address and items are separate so each is easy to copy.`);
 
   for (const order of toResend) {
-    await sendLabelParts(packingChat, order);
+    const split = splitAddressForLabel(order.address);
+    const address = [order.customerName || "No name", ...(split.lines || []), split.postcode, order.phone || ""].filter(Boolean).join("\n");
+    const items = formatOrderItems(order.items);
+    const packed = order.fulfilmentStatus === "packed" ? " · packed" : "";
+
+    await safeSendMessage(packingChat, `📦 #${order.orderId}${packed}\n\n${address}`);
+    await safeSendMessage(packingChat, items || "No items");
     if (order.trackingNumber) {
-      await safeSendMessage(packingChat, `🚚 Tracking for #${order.orderId}:\n${order.trackingNumber}`);
+      await safeSendMessage(packingChat, `🚚 #${order.orderId}\n${order.trackingNumber}`);
     }
   }
 }
