@@ -1130,7 +1130,7 @@ async function sendLabelParts(chatId, order) {
   const tg = order.telegramUsername
     ? `@${String(order.telegramUsername).replace(/^@/, "")}`
     : (order.telegramName || "");
-  const itemLines = (order.items || []).map(formatOrderItem).join("\n") || "No items";
+  const itemLines = formatOrderItems(order.items);
   const tracking = order.trackingNumber ? `Tracking: ${order.trackingNumber}` : "";
 
   const note = [
@@ -1258,6 +1258,21 @@ function formatOrderItem(item) {
   const strength = extractStrength(name, subtitle);
   const strengthPart = strength ? ` (${strength})` : "";
   return `${qty} × ${name}${strengthPart}`;
+}
+
+function formatOrderItems(items) {
+  const combined = new Map();
+  for (const item of items || []) {
+    const product = productsById.get(Number(item.id));
+    const name = item.name || product?.name || "Item";
+    const subtitle = item.subtitle || product?.subtitle || "";
+    const strength = extractStrength(name, subtitle);
+    const key = `${Number(item.id)}|${name}|${strength}`;
+    const existing = combined.get(key);
+    if (existing) existing.quantity += Number(item.quantity || 0);
+    else combined.set(key, { ...item, quantity: Number(item.quantity || 0) });
+  }
+  return [...combined.values()].map(formatOrderItem).join("\n") || "No items";
 }
 
 async function sendPackingSlip(order) {
