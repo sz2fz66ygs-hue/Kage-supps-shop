@@ -722,12 +722,31 @@ async function notifyRestockIfBack(productId, oldStock, newStock) {
   }
 }
 
+function getHeldQuantity(productId) {
+  let held = 0;
+  for (const order of orders.values()) {
+    if (order.paymentStatus !== "awaiting_payment") continue;
+    if (!order.stockReserved || order.stockReservationReleased) continue;
+    if (reservationHasExpired(order)) continue;
+    for (const item of order.items || []) {
+      if (Number(item.id) === Number(productId)) held += Number(item.quantity || 0);
+    }
+  }
+  return held;
+}
+
+function getAvailableStock(productId) {
+  const live = getLiveStock(productId);
+  if (live === null) return null;
+  return Math.max(0, live - getHeldQuantity(productId));
+}
+
 function getLiveProducts() {
   return products.map(product => {
-    const liveStock = getLiveStock(product.id);
+    const available = getAvailableStock(product.id);
     return {
       ...product,
-      stock: liveStock !== null ? liveStock : 0,
+      stock: available !== null ? available : 0,
       cataloguePricePence: Number(product.pricePence),
       pricePence: getEffectivePricePence(product, promotionsApi.getPriceOverride),
       priceOverridden: promotionsApi.getPriceOverride(product.id) !== null,
@@ -1772,81 +1791,32 @@ function reserveStockForOrder(order) {
     return { ok: true, alreadyDone: true };
   }
 
-  db.exec("BEGIN IMMEDIATE");
-
-  try {
-    for (const item of order.items || []) {
-      const liveStock = getLiveStock(item.id);
-
-      if (liveStock === null) {
-        setInventoryStmt.run(Number(item.id), 0);
-        throw new Error(`No stock record for ${item.name}.`);
-      }
-
-      const qty = Number(item.quantity || 0);
-
-      const result = reserveInventoryStmt.run(
-        qty,
-        Number(item.id),
-        qty
-      );
-
-      if (Number(result.changes || 0) !== 1) {
-        throw new Error(
-          `Not enough stock remaining for ${item.name}. Available: ${getLiveStock(item.id) ?? 0}.`
-        );
-      }
+  for (const item of order.items || []) {
+    const available = getAvailableStock(item.id);
+    const qty = Number(item.quantity || 0);
+    if (available === null || available < qty) {
+      return {
+        ok: false,
+        error: `Not enough stock remaining for ${item.name}. Available: ${available ?? 0}.`
+      };
     }
-
-    db.exec("COMMIT");
-  } catch (err) {
-    db.exec("ROLLBACK");
-
-    return {
-      ok: false,
-      error: err?.message || "Could not reserve stock."
-    };
   }
 
   const now = Date.now();
-
   order.stockReserved = true;
   order.stockReservationReleased = false;
   order.stockReservedAt = new Date(now).toISOString();
-  order.reservationExpiresAt = new Date(
-    now + STOCK_RESERVATION_MS
-  ).toISOString();
+  order.reservationExpiresAt = new Date(now + STOCK_RESERVATION_MS).toISOString();
 
   return { ok: true };
 }
 
 function restoreReservedStock(order) {
-  if (!order?.stockReserved || order.stockReservationReleased) {
+  if (!order?.stockReserved || order.stockReservationReleased || order.stockDeducted) {
     return { ok: true, alreadyDone: true };
   }
 
-  db.exec("BEGIN IMMEDIATE");
-
-  try {
-    for (const item of order.items || []) {
-      const liveStock = getLiveStock(item.id);
-
-      if (liveStock === null) {
-        continue;
-      }
-
-      restoreInventoryStmt.run(
-        Number(item.quantity || 0),
-        Number(item.id)
-      );
-    }
-
-    db.exec("COMMIT");
-  } catch (err) {
-    db.exec("ROLLBACK");
-    throw err;
-  }
-
+  // Reservation is only a hold. Releasing it does not add units back to inventory.
   order.stockReserved = false;
   order.stockReservationReleased = true;
   order.stockReleasedAt = new Date().toISOString();
@@ -1907,15 +1877,14 @@ function expireOrderReservation(order) {
     return false;
   }
 
-  // Do not put stock back automatically. It only returns if an admin
-  // explicitly cancels the unpaid order. This stops the shop count drifting
-  // above what is physically left.
+  restoreReservedStock(order);
+  restoreStoreCreditForOrder(order);
+
   order.paymentStatus = "cancelled";
   order.fulfilmentStatus = "cancelled";
   order.cancelledAt = new Date().toISOString();
   order.cancellationReason =
-    `Payment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes. Stock still held until released.`;
-  order.stockHeldAfterExpiry = true;
+    `Payment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes.`;
 
   saveOrder(order);
 
@@ -2265,13 +2234,13 @@ async function runReservationCleanup() {
 
   for (const order of expired) {
     await notifyAdmins(
-      `⌛ ORDER EXPIRED\n\nOrder: #${order.orderId}\nCustomer: ${order.customerName}\n\nPayment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes.\nStock is still held. Cancel the order in admin if you want it released.`
+      `⌛ ORDER EXPIRED\n\nOrder: #${order.orderId}\nCustomer: ${order.customerName}\n\nPayment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes.\nThe temporary hold has ended.`
     );
 
     if (order.telegramId) {
       await safeSendMessage(
         order.telegramId,
-        `⌛ Order #${order.orderId} expired because payment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes. If you have already paid, send your transaction hash and we will confirm it.`
+        `⌛ Order #${order.orderId} expired because payment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes. If you have already paid, send your transaction hash.`
       );
     }
   }
@@ -2795,13 +2764,7 @@ async function markOrderPaid(
   }
 
   if (order.paymentStatus === "cancelled") {
-    if (order.stockReserved && !order.stockReservationReleased) {
-      order.stockReserved = false;
-      order.stockReservationReleased = false;
-      order.stockCommitted = true;
-      order.stockDeducted = true;
-      order.stockDeductedAt = order.stockReservedAt || new Date().toISOString();
-    } else if (!order.stockDeducted) {
+    if (!order.stockDeducted) {
       const stockResult = deductStockForOrder(order);
       if (!stockResult.ok) {
         return {
@@ -2843,16 +2806,11 @@ async function markOrderPaid(
     order.stockCommitted = true;
     order.stockCommittedAt = new Date().toISOString();
     order.reservationExpiresAt = null;
-    order.stockDeducted = true;
-    order.stockDeductedAt = order.stockReservedAt || new Date().toISOString();
-    for (const item of order.items || []) pingLowStock(item.id);
-  } else if (!order.stockDeducted) {
-    // Legacy order created before stock reservations were introduced.
-    const stockResult = deductStockForOrder(order);
+  }
 
-    if (!stockResult.ok) {
-      return stockResult;
-    }
+  if (!order.stockDeducted) {
+    const stockResult = deductStockForOrder(order);
+    if (!stockResult.ok) return stockResult;
   }
 
   order.paymentStatus = "paid";
