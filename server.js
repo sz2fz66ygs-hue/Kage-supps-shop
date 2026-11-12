@@ -1907,14 +1907,15 @@ function expireOrderReservation(order) {
     return false;
   }
 
-  restoreReservedStock(order);
-  restoreStoreCreditForOrder(order);
-
+  // Do not put stock back automatically. It only returns if an admin
+  // explicitly cancels the unpaid order. This stops the shop count drifting
+  // above what is physically left.
   order.paymentStatus = "cancelled";
   order.fulfilmentStatus = "cancelled";
   order.cancelledAt = new Date().toISOString();
   order.cancellationReason =
-    `Payment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes.`;
+    `Payment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes. Stock still held until released.`;
+  order.stockHeldAfterExpiry = true;
 
   saveOrder(order);
 
@@ -2264,13 +2265,13 @@ async function runReservationCleanup() {
 
   for (const order of expired) {
     await notifyAdmins(
-      `⌛ ORDER EXPIRED\n\nOrder: #${order.orderId}\nCustomer: ${order.customerName}\n\nPayment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes.\nReserved stock has been returned to circulation.`
+      `⌛ ORDER EXPIRED\n\nOrder: #${order.orderId}\nCustomer: ${order.customerName}\n\nPayment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes.\nStock is still held. Cancel the order in admin if you want it released.`
     );
 
     if (order.telegramId) {
       await safeSendMessage(
         order.telegramId,
-        `⌛ Order #${order.orderId} expired because payment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes. The reserved stock has been released.`
+        `⌛ Order #${order.orderId} expired because payment was not submitted within ${STOCK_RESERVATION_MINUTES} minutes. If you have already paid, send your transaction hash and we will confirm it.`
       );
     }
   }
@@ -2794,7 +2795,13 @@ async function markOrderPaid(
   }
 
   if (order.paymentStatus === "cancelled") {
-    if (!order.stockDeducted) {
+    if (order.stockReserved && !order.stockReservationReleased) {
+      order.stockReserved = false;
+      order.stockReservationReleased = false;
+      order.stockCommitted = true;
+      order.stockDeducted = true;
+      order.stockDeductedAt = order.stockReservedAt || new Date().toISOString();
+    } else if (!order.stockDeducted) {
       const stockResult = deductStockForOrder(order);
       if (!stockResult.ok) {
         return {
