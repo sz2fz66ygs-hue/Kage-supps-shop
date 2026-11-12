@@ -4521,6 +4521,10 @@ if (bot) {
       return "Cancelled ❌";
     }
 
+    if (order.fulfilmentStatus === "packed") {
+      return "Packed ✅";
+    }
+
     if (
       order.fulfilmentStatus ===
       "shipped"
@@ -4655,7 +4659,7 @@ if (bot) {
           ],
           [
             { text: "🏷 Promotions", callback_data: "admin_promotions" },
-            { text: "👥 Customers", callback_data: "admin_customers" }
+            { text: "👥 Affiliates", callback_data: "admin_affiliates" }
           ],
           [
             { text: "📊 Reports", callback_data: "admin_reports" }
@@ -4830,27 +4834,41 @@ Choose an option below.`,
 
   async function showAdminOrder(chatId, order) {
     const items = (order.items || []).map(formatOrderItem).join("\n") || "No items";
+    const units = (order.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
     const notes = Array.isArray(order.adminNotes) && order.adminNotes.length
       ? order.adminNotes.map(note => `• ${note.text}`).join("\n")
       : "";
-    const when = new Date(order.paidAt || order.createdAt || 0);
-    const stamp = Number.isFinite(when.getTime())
-      ? when.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
-      : "";
+    const day = getShippingDay(order);
+    const dayLabel = day ? formatShippingDay(day) : "";
 
-    await safeSendMessage(chatId, `#${order.orderId}${stamp ? ` · ${stamp}` : ""}\n${getOrderStatusText(order)}\nTotal ${money(order.totalPence)}`);
+    const packing = [
+      `📦 #${order.orderId} · ${units} units`,
+      dayLabel ? `Dispatch: ${dayLabel}` : "",
+      getOrderStatusText(order),
+      "",
+      items
+    ].filter(Boolean).join("\n");
+
+    await safeSendMessage(chatId, packing);
     await sendLabelParts(chatId, order);
 
     const extras = [
-      items,
-      order.telegramUsername ? `Telegram: @${normaliseUsername(order.telegramUsername)}` : (order.telegramName ? `Telegram: ${order.telegramName}` : ""),
-      order.telegramName && order.telegramUsername ? `Name: ${order.telegramName}` : "",
-      order.transactionId ? `Hash: ${order.transactionId}` : "",
+      order.telegramUsername ? `Telegram: @${normaliseUsername(order.telegramUsername)}` : "",
       order.trackingNumber ? `Tracking: ${order.trackingNumber}` : "",
       notes ? `Notes:\n${notes}` : ""
     ].filter(Boolean).join("\n\n");
 
-    return safeSendMessage(chatId, extras, getAdminOrderButtons(order));
+    if (extras) await safeSendMessage(chatId, extras);
+
+    const buttons = [];
+    if (order.paymentStatus === "paid" && order.fulfilmentStatus !== "packed" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered") {
+      buttons.push([{ text: "✅ Mark as packed", callback_data: `pack_${order.orderId}` }]);
+    }
+    if (order.fulfilmentStatus === "packed" || (order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped")) {
+      buttons.push([{ text: "🚚 Mark dispatched", callback_data: `disp_${order.orderId}` }]);
+    }
+    buttons.push([{ text: "⬅️ Ready to pack", callback_data: "admin_ready_pack" }]);
+    return safeSendMessage(chatId, "Actions", { reply_markup: { inline_keyboard: buttons } });
   }
 
   async function showOrderList(
@@ -6723,6 +6741,21 @@ ${productLines || "No activity in the last 7 days."}`
         return safeSendMessage(chatId, `✅ Withdrawal request sent for ${money(balance)}. We'll be in touch.`);
       }
 
+      if (data.startsWith("pack_")) {
+        if (!isAdmin(q.from?.id)) return;
+        const orderId = Number(data.replace("pack_", ""));
+        const order = orders.get(orderId);
+        if (!order || order.paymentStatus !== "paid") return safeSendMessage(chatId, "Paid order not found.");
+        if (order.fulfilmentStatus === "packed" || order.fulfilmentStatus === "shipped") {
+          return safeSendMessage(chatId, `#${orderId} is already ${order.fulfilmentStatus}.`);
+        }
+        order.fulfilmentStatus = "packed";
+        order.packedAt = new Date().toISOString();
+        saveOrder(order);
+        await safeSendMessage(chatId, `✅ #${orderId} marked as packed.`);
+        return safeSendMessage(chatId, "Back to queue:", { reply_markup: { inline_keyboard: [[{ text: "⬅️ Ready to pack", callback_data: "admin_ready_pack" }]] } });
+      }
+
       if (data.startsWith("disp_")) {
         if (!isAdmin(q.from?.id)) return;
         const orderId = Number(data.replace("disp_", ""));
@@ -7197,34 +7230,92 @@ The review has been removed.`,
 
       if (data === "admin_orders_home") {
         if (!isAdmin(q.from?.id)) return;
-        const toSend = [...orders.values()].filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered" && !order.trackingNumber && !(order.cleared || []).includes("dispatch") && !(order.cleared || []).includes("paid")).length;
+        const ready = [...orders.values()].filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "packed" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered" && !order.trackingNumber && !(order.cleared || []).includes("dispatch")).length;
         const needsApproval = [...orders.values()].filter(order => order.paymentStatus === "payment_submitted").length;
         const waiting = [...orders.values()].filter(order => order.paymentStatus === "awaiting_payment").length;
-        return safeSendMessage(chatId, `📦 ORDERS\n\n📤 To send: ${toSend}\n✅ Needs approval: ${needsApproval}\n⏳ Waiting payment: ${waiting}`, {
+        return safeSendMessage(chatId, `📦 ORDERS\n\nReady to pack: ${ready}\nNeeds approval: ${needsApproval}\nWaiting payment: ${waiting}`, {
           reply_markup: {
             inline_keyboard: [
-              [{ text: `📤 To send (${toSend})`, callback_data: "admin_dispatch" }],
+              [{ text: `📦 Ready to pack (${ready})`, callback_data: "admin_ready_pack" }],
               [{ text: "📅 By shipping day", callback_data: "admin_shipping_stages" }],
               [{ text: `✅ Needs approval (${needsApproval})`, callback_data: "admin_needs_approval" }],
               [{ text: `⏳ Waiting (${waiting})`, callback_data: "admin_payments" }],
               [
-                { text: "🚚 Tracking by name", callback_data: "admin_tracking_by_name" },
-                { text: "✅ Approve by name", callback_data: "admin_approve_by_name" }
-              ],
-              [
-                { text: "✅ Approve all", callback_data: "admin_approve_matched" },
-                { text: "🔎 Find order", callback_data: "admin_find_order" }
-              ],
-              [
                 { text: "🚚 Sent", callback_data: "admin_shipped_orders" },
-                { text: "❌ Cancelled", callback_data: "admin_cancelled_orders" }
+                { text: "🔎 Find", callback_data: "admin_find_order" }
               ],
               [
-                { text: "👤 Customer", callback_data: "admin_customer_card" },
+                { text: "👥 Affiliates", callback_data: "admin_affiliates" },
                 { text: "⬅️ Dashboard", callback_data: "admin_dashboard" }
               ]
             ]
           }
+        });
+      }
+
+      if (data === "admin_ready_pack") {
+        if (!isAdmin(q.from?.id)) return;
+        const list = [...orders.values()]
+          .filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "packed" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered" && !order.trackingNumber && !(order.cleared || []).includes("dispatch"))
+          .sort((a, b) => {
+            const dayA = getShippingDay(a)?.getTime() || 0;
+            const dayB = getShippingDay(b)?.getTime() || 0;
+            if (dayA !== dayB) return dayA - dayB;
+            return new Date(a.paidAt || a.createdAt || 0) - new Date(b.paidAt || b.createdAt || 0);
+          });
+        if (!list.length) return safeSendMessage(chatId, "📦 READY TO PACK\n\nNo paid orders waiting to be packed.", {
+          reply_markup: { inline_keyboard: [[{ text: "⬅️ Orders", callback_data: "admin_orders_home" }]] }
+        });
+        const buttons = list.slice(0, 15).map(order => {
+          const units = (order.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+          const day = getShippingDay(order);
+          const dayLabel = day ? formatShippingDay(day).split(" ")[0] : "";
+          return [{ text: `#${order.orderId} · ${order.customerName || "?"} · ${units}u · ${dayLabel}`, callback_data: `admin_order_${order.orderId}` }];
+        });
+        buttons.push([{ text: "⬅️ Orders", callback_data: "admin_orders_home" }]);
+        return safeSendMessage(chatId, `📦 READY TO PACK (${list.length})\n\nSorted by next dispatch, then oldest.`, {
+          reply_markup: { inline_keyboard: buttons }
+        });
+      }
+
+      if (data === "admin_affiliates" || data.startsWith("aff_")) {
+        if (!isAdmin(q.from?.id)) return;
+        const range = data.startsWith("aff_") ? data.replace("aff_", "") : "all";
+        const now = new Date();
+        let start = 0;
+        if (range === "month") start = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+        if (range === "last") start = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+        const end = range === "last" ? new Date(now.getFullYear(), now.getMonth(), 1).getTime() : Infinity;
+
+        const firstPaid = new Map();
+        for (const order of orders.values()) {
+          if (order.paymentStatus !== "paid") continue;
+          const key = String(order.telegramId || order.customerName || order.orderId);
+          const paid = new Date(order.paidAt || order.createdAt || 0).getTime();
+          if (!firstPaid.has(key) || paid < firstPaid.get(key).paid) {
+            firstPaid.set(key, { order, paid });
+          }
+        }
+
+        const counts = new Map();
+        for (const { order, paid } of firstPaid.values()) {
+          const code = String(order.discountCode || "").toUpperCase();
+          if (!code || !affiliateCodes.find(a => a.code === code)) continue;
+          if (paid < start || paid >= end) continue;
+          counts.set(code, (counts.get(code) || 0) + 1);
+        }
+
+        const lines = affiliateCodes.map(a => `${a.code}${a.owner ? ` (${a.owner})` : ""}: ${counts.get(a.code) || 0}`).join("\n");
+        const rangeLabel = range === "month" ? "this month" : range === "last" ? "last month" : "all time";
+        return safeSendMessage(chatId, `👥 AFFILIATES\n\nNew customers (${rangeLabel}):\n\n${lines}`, {
+          reply_markup: { inline_keyboard: [
+            [
+              { text: "This month", callback_data: "aff_month" },
+              { text: "Last month", callback_data: "aff_last" },
+              { text: "All time", callback_data: "aff_all" }
+            ],
+            [{ text: "⬅️ Dashboard", callback_data: "admin_dashboard" }]
+          ]}
         });
       }
 
