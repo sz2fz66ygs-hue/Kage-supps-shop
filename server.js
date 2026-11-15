@@ -212,6 +212,53 @@ const SLU_IDS = new Set([210, 211, 213, 456]);
 const BAM_IDS = new Set([211, 212, 214, 454, 460]);
 const ATX_IDS = new Set([212, 435, 461, 462]);
 
+const INJ_ORAL_IDS = new Set([101, 102, 103]);
+const TEST_IDS = new Set([105, 106, 107, 108]);
+const INJ_PRE_IDS = new Set([104]);
+
+function calculateInjectableDeals(lineItems) {
+  const unitsById = new Map();
+  for (const item of lineItems || []) {
+    const id = Number(item.id);
+    if (!INJ_ORAL_IDS.has(id) && !TEST_IDS.has(id) && !INJ_PRE_IDS.has(id)) continue;
+    const qty = Number(item.quantity || 0);
+    const price = Number(item.pricePence || 0);
+    if (qty < 1 || price <= 0) continue;
+    const existing = unitsById.get(id) || { id, name: item.name, price, qty: 0 };
+    existing.qty += qty;
+    unitsById.set(id, existing);
+  }
+
+  const discountById = new Map();
+  let multiBuyDiscount = 0;
+
+  for (const [id, item] of unitsById) {
+    if (!INJ_ORAL_IDS.has(id)) continue;
+    let discount = 0;
+    if (item.qty >= 3) discount = Math.round(item.price * item.qty * 0.2);
+    else if (item.qty === 2) discount = Math.round(item.price * 0.15);
+    if (discount > 0) {
+      discountById.set(id, discount);
+      multiBuyDiscount += discount;
+    }
+  }
+
+  const hasTest = [...unitsById.keys()].some(id => TEST_IDS.has(id));
+  const hasPre = [...unitsById.keys()].some(id => INJ_PRE_IDS.has(id));
+  let stackDiscount = 0;
+
+  if (hasTest && hasPre) {
+    for (const item of unitsById.values()) {
+      if (!TEST_IDS.has(item.id) && !INJ_PRE_IDS.has(item.id)) continue;
+      const twenty = Math.round(item.price * item.qty * 0.2);
+      const already = discountById.get(item.id) || 0;
+      stackDiscount += Math.max(0, twenty - already);
+    }
+  }
+
+  return { multiBuyDiscount, stackDiscount, total: multiBuyDiscount + stackDiscount };
+}
+
 function calculatePouchDeals(lineItems) {
   const unitsById = new Map();
   for (const item of lineItems || []) {
@@ -968,10 +1015,13 @@ app.post("/api/basket-quote", (req, res) => {
     promotionsApi.loadPromotions().filter(promo => promo.active)
   );
   const pouchDeals = calculatePouchDeals(lineItems);
-  const pouchDiscountPence = pouchDeals.total;
+  const injDeals = calculateInjectableDeals(lineItems);
+  const pouchDiscountPence = pouchDeals.total + injDeals.total;
   const applied = [...promotionResult.applied];
   if (pouchDeals.multiBuyDiscount > 0) applied.push({ name: "Pouch multi-buy", discountPence: pouchDeals.multiBuyDiscount });
   if (pouchDeals.stackDiscount > 0) applied.push({ name: "Cutting stack", discountPence: pouchDeals.stackDiscount });
+  if (injDeals.multiBuyDiscount > 0) applied.push({ name: "Injectable oral multi-buy", discountPence: injDeals.multiBuyDiscount });
+  if (injDeals.stackDiscount > 0) applied.push({ name: "Test + pre-workout", discountPence: injDeals.stackDiscount });
 
   const spendPromo = getSpendThresholdPromo();
   const spendThresholdDiscountPence = spendThresholdDiscountForSubtotal(subtotalPence, spendPromo);
@@ -3330,13 +3380,16 @@ app.post(
         );
 
       const pouchDeals = calculatePouchDeals(lineItems);
+      const injDeals = calculateInjectableDeals(lineItems);
       const promotionDiscountPence =
-        promotionResult.promotionDiscountPence + pouchDeals.total;
+        promotionResult.promotionDiscountPence + pouchDeals.total + injDeals.total;
 
       const appliedPromotions = [
         ...promotionResult.applied,
         ...(pouchDeals.multiBuyDiscount > 0 ? [{ name: "Pouch multi-buy", discountPence: pouchDeals.multiBuyDiscount }] : []),
-        ...(pouchDeals.stackDiscount > 0 ? [{ name: "Cutting stack 20%", discountPence: pouchDeals.stackDiscount }] : [])
+        ...(pouchDeals.stackDiscount > 0 ? [{ name: "Cutting stack 20%", discountPence: pouchDeals.stackDiscount }] : []),
+        ...(injDeals.multiBuyDiscount > 0 ? [{ name: "Injectable oral multi-buy", discountPence: injDeals.multiBuyDiscount }] : []),
+        ...(injDeals.stackDiscount > 0 ? [{ name: "Test + pre-workout 20%", discountPence: injDeals.stackDiscount }] : [])
       ];
 
       if (discountCode) {
