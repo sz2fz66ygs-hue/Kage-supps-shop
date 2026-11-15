@@ -7783,10 +7783,10 @@ Choose a period.`,
       if (data === "admin_promo_create") {
         if (!isAdmin(q.from?.id)) return;
         clearAdminInputs(chatId);
-        pendingPromotionCreate.set(chatId, { stage: "name" });
+        pendingPromotionCreate.set(chatId, { stage: "describe" });
         return safeSendMessage(
           chatId,
-          `➕ CREATE PROMOTION\n\nSend the promotion name.\n\nExample:\nRT40`
+          `➕ CREATE PROMOTION\n\nType the deal in your own words, or send a name to build it step by step.\n\nExamples:\n10% off pouches\n2 for £60 on Dihexa\n15% off the second pouch, 20% off 3 or more\nspend £150 get 15% off\nbuy Test and Doomsday get 20% off`
         );
       }
 
@@ -10149,8 +10149,81 @@ Tap Open Shop to launch the Mini App.`,
         String(msg.text).trim();
 
 
+function parseFreeTextDeal(text) {
+  const raw = String(text || "").trim();
+  const lower = raw.toLowerCase();
+  const name = raw.slice(0, 80);
+  const idsFor = word => {
+    if (word === "all") return [...productsById.keys()];
+    if (["pouches", "orals", "oils", "pharma", "peps"].includes(word)) {
+      return [...productsById.values()]
+        .filter(product => String(product.category || "").toLowerCase() === word || (word === "pouches" && /pouch/i.test(`${product.name} ${product.subtitle || ""}`)))
+        .map(product => Number(product.id));
+    }
+    return [...productsById.values()]
+      .filter(product => String(product.name || "").toLowerCase().includes(word))
+      .map(product => Number(product.id));
+  };
+
+  if (/spend\s*£?\s*(\d+)/i.test(lower) && /(\d+)\s*%/.test(lower)) {
+    const min = Number(lower.match(/spend\s*£?\s*(\d+)/i)[1]);
+    const percent = Number(lower.match(/(\d+)\s*%/)[1]);
+    return { kind: "spend", name, minPence: min * 100, percent };
+  }
+
+  if (/second|multi.?buy|3 or more|3\+/.test(lower)) {
+    const target = lower.match(/on\s+([a-z0-9 \-]+)/i)?.[1]?.trim() || "all";
+    return { kind: "multibuy", name, productIds: idsFor(target) };
+  }
+
+  if (/2 for|bundle/.test(lower) && /£?\s*(\d+)/.test(lower)) {
+    const price = Number(lower.match(/£?\s*(\d+(?:\.\d+)?)/)[1]);
+    const target = lower.match(/on\s+([a-z0-9 \-]+)/i)?.[1]?.trim() || "all";
+    return { kind: "bundle", name, productIds: idsFor(target), bundlePricePence: Math.round(price * 100), requiredQuantity: 2 };
+  }
+
+  if (/(\d+)\s*%\s*off/.test(lower)) {
+    const percent = Number(lower.match(/(\d+)\s*%\s*off/)[1]);
+    const target = lower.replace(/(\d+)\s*%\s*off/, "").replace(/on|get|the|buy/g, "").trim() || "all";
+    return { kind: "percent", name, productIds: idsFor(target.split(/\s+/)[0] || "all"), discountPercent: percent };
+  }
+
+  return null;
+}
+
       if (pendingPromotionCreate.has(chatId) && isAdmin(msg.from?.id)) {
         const state = pendingPromotionCreate.get(chatId);
+
+        if (state.stage === "describe") {
+          const deal = parseFreeTextDeal(text);
+          if (!deal) {
+            state.stage = "name";
+            state.name = text.slice(0, 80);
+            pendingPromotionCreate.set(chatId, state);
+            return safeSendMessage(chatId, `Product IDs for ${state.name}.\n\nSend IDs, a category, or all.\n\nExamples:\n301, 302\npouches\noils\nall`);
+          }
+          if (deal.kind === "spend") {
+            setMetaValue("spend_threshold", JSON.stringify({ active: true, minPence: deal.minPence, percent: deal.percent }));
+            pendingPromotionCreate.delete(chatId);
+            return safeSendMessage(chatId, `✅ Spend deal set.\n\nSpend ${money(deal.minPence)} get ${deal.percent}% off.`);
+          }
+          const id = promotionsApi.savePromotion({
+            name: deal.name,
+            type: deal.kind === "bundle" ? "fixed_bundle" : deal.kind,
+            productIds: deal.productIds || [],
+            requiredQuantity: deal.requiredQuantity || (deal.kind === "multibuy" ? 2 : 1),
+            discountPercent: deal.discountPercent || (deal.kind === "multibuy" ? 15 : 0),
+            discountPence: 0,
+            bundlePricePence: deal.bundlePricePence || 0,
+            stackWithDeals: true,
+            stackWithAffiliate: true,
+            maxUnits: 0,
+            oneBuyer: false,
+            active: true
+          });
+          pendingPromotionCreate.delete(chatId);
+          return safeSendMessage(chatId, `✅ Deal #${id} saved and active.\n\n${formatPromotion(promotionsApi.getPromotion(id), money)}`);
+        }
 
         if (state.stage === "name") {
           state.name = text.slice(0, 80);
