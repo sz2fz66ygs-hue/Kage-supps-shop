@@ -235,8 +235,8 @@ function calculateInjectableDeals(lineItems) {
   for (const [id, item] of unitsById) {
     if (!INJ_ORAL_IDS.has(id)) continue;
     let discount = 0;
-    if (item.qty >= 3) discount = Math.round(item.price * item.qty * 0.2);
-    else if (item.qty === 2) discount = Math.round(item.price * 0.15);
+    if (item.qty >= 2) discount += Math.round(item.price * 0.15);
+    if (item.qty >= 3) discount += Math.round(item.price * (item.qty - 2) * 0.2);
     if (discount > 0) {
       discountById.set(id, discount);
       multiBuyDiscount += discount;
@@ -277,11 +277,8 @@ function calculatePouchDeals(lineItems) {
 
   for (const [id, item] of unitsById) {
     let discount = 0;
-    if (item.qty >= 3) {
-      discount = Math.round(item.price * item.qty * 0.2);
-    } else if (item.qty === 2) {
-      discount = Math.round(item.price * 0.15);
-    }
+    if (item.qty >= 2) discount += Math.round(item.price * 0.15);
+    if (item.qty >= 3) discount += Math.round(item.price * (item.qty - 2) * 0.2);
     if (discount > 0) {
       discountById.set(id, discount);
       multiBuyDiscount += discount;
@@ -344,8 +341,9 @@ function calculatePromotionDiscount(lineItems, promotions, telegramId) {
         byId.set(unit.id, existing);
       }
       for (const item of byId.values()) {
-        if (item.qty >= 3) discount += Math.round(item.price * item.qty * 0.2);
-        else if (item.qty === 2) discount += Math.round(item.price * 0.15);
+        const second = item.qty >= 2 ? Math.round(item.price * 0.15) : 0;
+        const after = item.qty >= 3 ? Math.round(item.price * (item.qty - 2) * 0.2) : 0;
+        discount += second + after;
       }
       bundles = byId.size;
     } else if (promo.type === "fixed_bundle") {
