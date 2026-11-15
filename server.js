@@ -392,6 +392,7 @@ function calculatePromotionDiscount(lineItems, promotions, telegramId) {
       discountPence: discount,
       bundles,
       productIds: [...eligibleIds],
+      stackWithDeals: promo.stackWithDeals !== false,
       stackWithAffiliate: promo.stackWithAffiliate !== false
     });
   }
@@ -400,8 +401,9 @@ function calculatePromotionDiscount(lineItems, promotions, telegramId) {
   const kept = [];
   for (const promo of applied.sort((a, b) => b.discountPence - a.discountPence)) {
     const ids = promo.productIds || [];
-    if (ids.some(id => usedProducts.has(id))) continue;
-    ids.forEach(id => usedProducts.add(id));
+    const overlaps = ids.some(id => usedProducts.has(id));
+    if (overlaps && !promo.stackWithDeals) continue;
+    if (!promo.stackWithDeals) ids.forEach(id => usedProducts.add(id));
     kept.push(promo);
     promotionDiscountPence += promo.discountPence;
   }
@@ -437,6 +439,7 @@ function formatPromotion(promo, money) {
     `Type: ${promo.type}`,
     `Rule: ${rule}`,
     `Product IDs: ${ids}`,
+    `Stacks with other deals: ${promo.stackWithDeals === false ? "NO" : "YES"}`,
     `Stacks with affiliate code: ${promo.stackWithAffiliate === false ? "NO" : "YES"}`,
     `Per order: ${Number(promo.maxUnits) > 0 ? promo.maxUnits + " at this price" : "no limit"}`,
     `One buyer only: ${promo.oneBuyer ? "YES" : "NO"}`
@@ -7814,13 +7817,13 @@ Choose a period.`,
         if (state.type === "multibuy") {
           state.requiredQuantity = 2;
           state.discountPercent = 15;
-          state.stage = "stack";
+          state.stage = "stack_deals";
           pendingPromotionCreate.set(chatId, state);
-          return safeSendMessage(chatId, "Multi-buy set: 15% off the second, 20% off when buying 3 or more of the same item.\n\nCan this stack with an affiliate code?", {
+          return safeSendMessage(chatId, "Multi-buy set: 15% off the second, 20% off when buying 3 or more of the same item.\n\nStack this with other deals on the same products?", {
             reply_markup: {
               inline_keyboard: [[
-                { text: "Yes, stack", callback_data: "admin_promo_stack_yes" },
-                { text: "No", callback_data: "admin_promo_stack_no" }
+                { text: "Yes, stack deals", callback_data: "admin_promo_stack_deals_yes" },
+                { text: "No, best deal only", callback_data: "admin_promo_stack_deals_no" }
               ]]
             }
           });
@@ -7833,6 +7836,23 @@ Choose a period.`,
             ? `How many eligible items are in one bundle?\n\nExample:\n2`
             : `Required quantity.\n\nSend 1 to discount every eligible item.\nSend 2 or more to discount only complete sets.`
         );
+      }
+
+      if (data === "admin_promo_stack_deals_yes" || data === "admin_promo_stack_deals_no") {
+        if (!isAdmin(q.from?.id)) return;
+        const state = pendingPromotionCreate.get(chatId);
+        if (!state || state.stage !== "stack_deals") return;
+        state.stackWithDeals = data === "admin_promo_stack_deals_yes";
+        state.stage = "stack";
+        pendingPromotionCreate.set(chatId, state);
+        return safeSendMessage(chatId, "Can this stack with an affiliate code?", {
+          reply_markup: {
+            inline_keyboard: [[
+              { text: "Yes, stack", callback_data: "admin_promo_stack_yes" },
+              { text: "No", callback_data: "admin_promo_stack_no" }
+            ]]
+          }
+        });
       }
 
       if (data === "admin_promo_stack_yes" || data === "admin_promo_stack_no") {
@@ -7898,6 +7918,7 @@ Choose a period.`,
           discountPercent: state.discountPercent || 0,
           discountPence: state.discountPence || 0,
           bundlePricePence: state.bundlePricePence || 0,
+          stackWithDeals: state.stackWithDeals !== false,
           stackWithAffiliate: state.stackWithAffiliate !== false,
           maxUnits: Number(state.maxUnits || 0),
           oneBuyer: Boolean(state.oneBuyer),
@@ -10209,13 +10230,13 @@ Tap Open Shop to launch the Mini App.`,
             if (state.type === "fixed_bundle") state.bundlePricePence = pence;
             else state.discountPence = pence;
           }
-          state.stage = "stack";
+          state.stage = "stack_deals";
           pendingPromotionCreate.set(chatId, state);
-          return safeSendMessage(chatId, "Allow affiliate codes to stack with this promotion?", {
+          return safeSendMessage(chatId, "Stack this with other deals on the same products?", {
             reply_markup: {
               inline_keyboard: [[
-                { text: "Yes, stack", callback_data: "admin_promo_stack_yes" },
-                { text: "No", callback_data: "admin_promo_stack_no" }
+                { text: "Yes, stack deals", callback_data: "admin_promo_stack_deals_yes" },
+                { text: "No, best deal only", callback_data: "admin_promo_stack_deals_no" }
               ]]
             }
           });
