@@ -202,6 +202,66 @@ function unitsAlreadyUsed(promo, telegramId) {
   return used;
 }
 
+const POUCH_IDS = new Set([
+  210, 211, 212, 213, 214,
+  431, 432, 434, 435, 436,
+  454, 455, 456, 457, 458, 459, 460, 461, 462,
+  471
+]);
+const SLU_IDS = new Set([210, 211, 213, 456]);
+const BAM_IDS = new Set([211, 212, 214, 454, 460]);
+const ATX_IDS = new Set([212, 435, 461, 462]);
+
+function calculatePouchDeals(lineItems) {
+  const unitsById = new Map();
+  for (const item of lineItems || []) {
+    const id = Number(item.id);
+    if (!POUCH_IDS.has(id)) continue;
+    const qty = Number(item.quantity || 0);
+    const price = Number(item.pricePence || 0);
+    if (qty < 1 || price <= 0) continue;
+    const existing = unitsById.get(id) || { id, name: item.name, price, qty: 0 };
+    existing.qty += qty;
+    unitsById.set(id, existing);
+  }
+
+  const discountById = new Map();
+  let multiBuyDiscount = 0;
+
+  for (const [id, item] of unitsById) {
+    let discount = 0;
+    if (item.qty >= 3) {
+      discount = Math.round(item.price * item.qty * 0.2);
+    } else if (item.qty === 2) {
+      discount = Math.round(item.price * 0.15);
+    }
+    if (discount > 0) {
+      discountById.set(id, discount);
+      multiBuyDiscount += discount;
+    }
+  }
+
+  const hasSlu = [...unitsById.keys()].some(id => SLU_IDS.has(id));
+  const hasBam = [...unitsById.keys()].some(id => BAM_IDS.has(id));
+  const hasAtx = [...unitsById.keys()].some(id => ATX_IDS.has(id));
+  let stackDiscount = 0;
+  const stackIds = [];
+
+  if (hasSlu && hasBam && hasAtx) {
+    const pick = set => [...unitsById.values()].find(item => set.has(item.id));
+    for (const item of [pick(SLU_IDS), pick(BAM_IDS), pick(ATX_IDS)]) {
+      if (!item) continue;
+      const twenty = Math.round(item.price * item.qty * 0.2);
+      const already = discountById.get(item.id) || 0;
+      const extra = Math.max(0, twenty - already);
+      stackDiscount += extra;
+      stackIds.push(item.id);
+    }
+  }
+
+  return { multiBuyDiscount, stackDiscount, stackIds, total: multiBuyDiscount + stackDiscount };
+}
+
 function calculatePromotionDiscount(lineItems, promotions, telegramId) {
   const active = (promotions || []).filter(promo => promo.active);
   const applied = [];
@@ -907,17 +967,22 @@ app.post("/api/basket-quote", (req, res) => {
     lineItems,
     promotionsApi.loadPromotions().filter(promo => promo.active)
   );
+  const pouchDeals = calculatePouchDeals(lineItems);
+  const pouchDiscountPence = pouchDeals.total;
+  const applied = [...promotionResult.applied];
+  if (pouchDeals.multiBuyDiscount > 0) applied.push({ name: "Pouch multi-buy", discountPence: pouchDeals.multiBuyDiscount });
+  if (pouchDeals.stackDiscount > 0) applied.push({ name: "Cutting stack", discountPence: pouchDeals.stackDiscount });
 
   const spendPromo = getSpendThresholdPromo();
   const spendThresholdDiscountPence = spendThresholdDiscountForSubtotal(subtotalPence, spendPromo);
 
   return res.json({
     subtotalPence,
-    promotionDiscountPence: promotionResult.promotionDiscountPence,
-    appliedPromotions: promotionResult.applied,
+    promotionDiscountPence: promotionResult.promotionDiscountPence + pouchDiscountPence,
+    appliedPromotions: applied,
     spendThresholdDiscountPence,
     spendThreshold: spendPromo.active ? { minPence: spendPromo.minPence, percent: spendPromo.percent, applied: spendThresholdDiscountPence > 0 } : null,
-    totalBeforeCodesPence: Math.max(0, subtotalPence - promotionResult.promotionDiscountPence - spendThresholdDiscountPence),
+    totalBeforeCodesPence: Math.max(0, subtotalPence - promotionResult.promotionDiscountPence - pouchDiscountPence - spendThresholdDiscountPence),
     note: "Promotion is applied before referral codes, store credit, and shipping."
   });
 });
@@ -3264,11 +3329,15 @@ app.post(
           telegramId
         );
 
+      const pouchDeals = calculatePouchDeals(lineItems);
       const promotionDiscountPence =
-        promotionResult.promotionDiscountPence;
+        promotionResult.promotionDiscountPence + pouchDeals.total;
 
-      const appliedPromotions =
-        promotionResult.applied;
+      const appliedPromotions = [
+        ...promotionResult.applied,
+        ...(pouchDeals.multiBuyDiscount > 0 ? [{ name: "Pouch multi-buy", discountPence: pouchDeals.multiBuyDiscount }] : []),
+        ...(pouchDeals.stackDiscount > 0 ? [{ name: "Cutting stack 20%", discountPence: pouchDeals.stackDiscount }] : [])
+      ];
 
       if (discountCode) {
         const code =
