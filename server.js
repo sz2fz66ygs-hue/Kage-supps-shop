@@ -1920,64 +1920,35 @@ function expireOldReservations() {
 }
 
 function deductStockForOrder(order) {
-  if (order.stockDeducted) {
-    return { ok: true, alreadyDone: true };
-  }
+  if (order.stockDeducted) return { ok: true, alreadyDone: true };
 
   db.exec("BEGIN IMMEDIATE");
-
   try {
     for (const item of order.items || []) {
-      const liveStock = getLiveStock(item.id);
-
-      if (liveStock === null) {
-        setInventoryStmt.run(Number(item.id), 0);
-      }
-
       const qty = Number(item.quantity || 0);
-      const result = reserveInventoryStmt.run(
-        qty,
-        Number(item.id),
-        qty
-      );
-
-      if (Number(result.changes || 0) !== 1) {
-        throw new Error(
-          `Not enough stock remaining for ${item.name}. Available: ${getLiveStock(item.id) ?? 0}.`
-        );
-      }
+      if (qty <= 0) continue;
+      if (getLiveStock(item.id) === null) setInventoryStmt.run(Number(item.id), 0);
+      db.prepare("UPDATE inventory SET stock = MAX(0, stock - ?) WHERE product_id = ?").run(qty, Number(item.id));
     }
-
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");
-
-    return {
-      ok: false,
-      error: err?.message || "Could not deduct stock."
-    };
+    return { ok: false, error: err?.message || "Could not deduct stock." };
   }
 
   order.stockDeducted = true;
   order.stockDeductedAt = new Date().toISOString();
-
   saveOrder(order);
-  for (const item of order.items || []) {
-    pingLowStock(item.id);
-    const stock = getLiveStock(item.id);
-    if (stock === 0) {
-      const promos = promotionsApi.loadPromotions().filter(promo => promo.active && (promo.productIds || []).includes(Number(item.id)));
-      for (const promo of promos) {
-        const allOut = (promo.productIds || []).every(id => Number(getLiveStock(id) || 0) <= 0);
-        if (!allOut) continue;
-        promo.active = false;
-        promotionsApi.savePromotion(promo);
-        notifyAdmins(`🏷 PROMO ENDED\n\n${promo.name} turned off. The items in it are out of stock.`).catch(() => {});
-      }
+  for (const item of order.items || []) pingLowStock(item.id);
+  return { ok: true };
+}
+
+function reconcilePaidStock() {
+  for (const order of orders.values()) {
+    if (order.paymentStatus === "paid" && !order.stockDeducted) {
+      deductStockForOrder(order);
     }
   }
-
-  return { ok: true };
 }
 
 /* =========================================================
@@ -2245,6 +2216,7 @@ async function sendPaymentReminders() {
 }
 
 async function runReservationCleanup() {
+  reconcilePaidStock();
   await sendPaymentReminders();
   const expired = expireOldReservations();
 
@@ -4557,59 +4529,22 @@ if (bot) {
       .slice(0, limit);
   }
 
-  async function sendLongMessage(
-    chatId,
-    message
-  ) {
+  async function sendLongMessage(chatId, message) {
     const maxLength = 3500;
+    if (message.length <= maxLength) return safeSendMessage(chatId, message);
 
-    if (
-      message.length <=
-      maxLength
-    ) {
-      return safeSendMessage(
-        chatId,
-        message
-      );
-    }
-
-    const paragraphs =
-      message.split("\n\n");
-
+    const lines = message.split("\n");
     let chunk = "";
-
-    for (
-      const paragraph
-      of paragraphs
-    ) {
-      const next =
-        chunk
-          ? `${chunk}\n\n${paragraph}`
-          : paragraph;
-
-      if (
-        next.length >
-        maxLength
-      ) {
-        if (chunk) {
-          await safeSendMessage(
-            chatId,
-            chunk
-          );
-        }
-
-        chunk = paragraph;
+    for (const line of lines) {
+      const next = chunk ? `${chunk}\n${line}` : line;
+      if (next.length > maxLength) {
+        if (chunk) await safeSendMessage(chatId, chunk);
+        chunk = line;
       } else {
         chunk = next;
       }
     }
-
-    if (chunk) {
-      await safeSendMessage(
-        chatId,
-        chunk
-      );
-    }
+    if (chunk) await safeSendMessage(chatId, chunk);
   }
 
 
@@ -5311,38 +5246,35 @@ Choose an option.`,
     );
   }
 
-  async function sendStockList(
-    chatId,
-    title,
-    list
-  ) {
-    const lines =
-      list
-        .map(product => {
-          const waiting = [...orders.values()].filter(order => order.paymentStatus === "awaiting_payment");
-          const confirming = [...orders.values()].filter(order => order.paymentStatus === "payment_submitted");
-          const qty = list => list.reduce((sum, order) => {
-            const item = (order.items || []).find(entry => Number(entry.id) === Number(product.id));
-            return sum + Number(item?.quantity || 0);
-          }, 0);
-          const held = qty(waiting);
-          const toConfirm = qty(confirming);
-          const notes = [
-            held ? `${held} held, no payment yet` : "",
-            toConfirm ? `${toConfirm} waiting on your confirm` : ""
-          ].filter(Boolean).join(", ");
-          const strength = extractStrength(product.name, product.subtitle);
-          const strengthPart = strength && !product.name.toLowerCase().includes(strength.replace(/\s/g, "").toLowerCase())
-            ? ` (${strength})`
-            : "";
-          return `#${product.id} • ${product.name}${strengthPart}: ${product.stock}${notes ? ` (${notes})` : ""}`;
-        })
-        .join("\n");
+  async function sendStockList(chatId, title, list) {
+    const waiting = [...orders.values()].filter(order => order.paymentStatus === "awaiting_payment");
+    const confirming = [...orders.values()].filter(order => order.paymentStatus === "payment_submitted");
+    const heldByProduct = new Map();
+    const confirmByProduct = new Map();
+    const addQty = (map, order) => {
+      for (const item of order.items || []) {
+        const id = Number(item.id);
+        map.set(id, (map.get(id) || 0) + Number(item.quantity || 0));
+      }
+    };
+    waiting.forEach(order => addQty(heldByProduct, order));
+    confirming.forEach(order => addQty(confirmByProduct, order));
 
-    await sendLongMessage(
-      chatId,
-      `${title}\n\n${lines || "Nothing here."}`
-    );
+    const lines = list.map(product => {
+      const held = heldByProduct.get(Number(product.id)) || 0;
+      const toConfirm = confirmByProduct.get(Number(product.id)) || 0;
+      const notes = [
+        held ? `${held} held, no payment yet` : "",
+        toConfirm ? `${toConfirm} waiting on your confirm` : ""
+      ].filter(Boolean).join(", ");
+      const strength = extractStrength(product.name, product.subtitle);
+      const strengthPart = strength && !String(product.name || "").toLowerCase().includes(strength.replace(/\s/g, "").toLowerCase())
+        ? ` (${strength})`
+        : "";
+      return `#${product.id} • ${product.name}${strengthPart}: ${product.stock}${notes ? ` (${notes})` : ""}`;
+    }).join("\n");
+
+    await sendLongMessage(chatId, `${title}\n\n${lines || "Nothing here."}`);
   }
 
   /* =======================================================
@@ -7892,23 +7824,11 @@ Choose a period.`,
         );
       }
 
-      if (
-        data ===
-        "admin_stock_all"
-      ) {
-        if (
-          !isAdmin(
-            q.from?.id
-          )
-        ) {
-          return;
-        }
-
-        return sendStockList(
-          chatId,
-          "📋 ALL STOCK",
-          getLiveProducts()
-        );
+      if (data === "admin_stock_all") {
+        if (!isAdmin(q.from?.id)) return;
+        await bot.answerCallbackQuery(q.id).catch(() => {});
+        reconcilePaidStock();
+        return sendStockList(chatId, "📋 ALL STOCK", getLiveProducts());
       }
 
       if (
