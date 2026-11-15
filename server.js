@@ -10155,7 +10155,8 @@ function parseFreeTextDeal(text) {
   const name = raw.slice(0, 80);
   const idsFor = word => {
     if (word === "all") return [...productsById.keys()];
-    if (["pouches", "orals", "oils", "pharma", "peps"].includes(word)) {
+    if (word === "pouches") return [210, 211, 212, 213, 214, 431, 432, 434, 435, 436, 454, 455, 456, 457, 458, 459, 460, 461, 462, 471];
+    if (["orals", "oils", "pharma", "peps"].includes(word)) {
       return [...productsById.values()]
         .filter(product => String(product.category || "").toLowerCase() === word || (word === "pouches" && /pouch/i.test(`${product.name} ${product.subtitle || ""}`)))
         .map(product => Number(product.id));
@@ -10171,8 +10172,8 @@ function parseFreeTextDeal(text) {
     return { kind: "spend", name, minPence: min * 100, percent };
   }
 
-  if (/second|multi.?buy|3 or more|3\+/.test(lower)) {
-    const target = lower.match(/on\s+([a-z0-9 \-]+)/i)?.[1]?.trim() || "all";
+  if (/second|multi.?buy|3 or more|3\+|3rd/.test(lower)) {
+    const target = /pouch/.test(lower) ? "pouches" : (lower.match(/on\s+([a-z0-9 \-]+)/i)?.[1]?.trim() || "all");
     return { kind: "multibuy", name, productIds: idsFor(target) };
   }
 
@@ -10438,19 +10439,6 @@ function parseFreeTextDeal(text) {
                   ? `❌ Unknown product IDs: ${missing.join(", ")}`
                   : "❌ Send at least one product ID."
               );
-            }
-            if (promo.active) {
-              const conflicts = findPromotionConflicts(
-                promotionsApi.loadPromotions(),
-                productIds,
-                promo.id
-              );
-              if (conflicts.length) {
-                return safeSendMessage(
-                  chatId,
-                  `❌ Overlaps #${conflicts[0].promotionId} on IDs ${conflicts[0].productIds.join(", ")}. Pause one of them first.`
-                );
-              }
             }
             promo.productIds = productIds;
           }
