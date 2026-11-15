@@ -8488,36 +8488,62 @@ Customers can no longer use the store-wide promo code.`,
 
       /* OUT OF STOCK OFFER */
 
-      if (data.startsWith("oos_") && !data.startsWith("oos_credit_") && !data.startsWith("oos_swap_")) {
+      if (data.startsWith("oos_") && !data.startsWith("oos_item_") && !data.startsWith("oos_credit_") && !data.startsWith("oos_swap_")) {
         if (!isAdmin(q.from?.id)) return;
         const orderId = Number(data.replace("oos_", ""));
         const order = orders.get(orderId);
         if (!order) return safeSendMessage(chatId, "Order not found.");
-        const itemList = (order.items || []).map(formatOrderItem).join("\n");
+        const buttons = (order.items || []).map((item, index) => {
+          const amount = money(Number(item.lineTotalPence || (Number(item.pricePence || 0) * Number(item.quantity || 0))));
+          return [{ text: `${formatOrderItem(item)} · ${amount}`, callback_data: `oos_item_${orderId}_${index}` }];
+        });
+        buttons.push([{ text: "⬅️ Cancel", callback_data: "admin_orders_home" }]);
+        return safeSendMessage(chatId, `🚫 Which item is out of stock on #${orderId}?`, {
+          reply_markup: { inline_keyboard: buttons }
+        });
+      }
+
+      if (data.startsWith("oos_item_")) {
+        if (!isAdmin(q.from?.id)) return;
+        const parts = data.split("_");
+        const orderId = Number(parts[2]);
+        const index = Number(parts[3]);
+        const order = orders.get(orderId);
+        const item = order?.items?.[index];
+        if (!order || !item) return safeSendMessage(chatId, "Item not found.");
+        const amountPence = Number(item.lineTotalPence || (Number(item.pricePence || 0) * Number(item.quantity || 0)));
+        const amount = money(amountPence);
+        const line = formatOrderItem(item);
         if (order.telegramId) {
           await safeSendMessage(
             order.telegramId,
-            `⚠️ Order #${order.orderId}\n\nSorry — something on your order is out of stock:\n\n${itemList}\n\nWould you like store credit for the missing item, or a swap for something similar?`,
+            `⚠️ Order #${order.orderId}\n\nSorry — this is out of stock:\n\n${line}\n\nStore credit for this would be ${amount}.\n\nWould you like the store credit, or a swap for something similar?`,
             {
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: "💳 Store credit", callback_data: `oos_credit_${orderId}` }],
-                  [{ text: "🔄 Swap for similar", callback_data: `oos_swap_${orderId}` }]
+                  [{ text: `💳 Store credit ${amount}`, callback_data: `oos_credit_${orderId}_${index}` }],
+                  [{ text: "🔄 Swap for similar", callback_data: `oos_swap_${orderId}_${index}` }]
                 ]
               }
             }
           );
         }
-        return safeSendMessage(chatId, `✅ Out-of-stock options sent to the customer on #${orderId}.`);
+        return safeSendMessage(chatId, `✅ Sent to customer on #${orderId}.\n\n${line}\nCredit: ${amount}`);
       }
 
       if (data.startsWith("oos_credit_") || data.startsWith("oos_swap_")) {
-        const orderId = Number(data.replace(/oos_(credit|swap)_/, ""));
+        const parts = data.split("_");
+        const kind = parts[1];
+        const orderId = Number(parts[2]);
+        const index = Number(parts[3]);
         const order = orders.get(orderId);
         if (!order) return;
-        const choice = data.includes("credit") ? "store credit" : "a swap for something similar";
-        await notifyAdmins(`📦 OUT OF STOCK CHOICE\n\nOrder #${orderId}\n${order.customerName}\nCustomer chose: ${choice}`);
-        return safeSendMessage(chatId, `Thanks — we've noted you want ${choice}. We'll sort it shortly.`);
+        const item = order.items?.[index];
+        const amountPence = Number(item?.lineTotalPence || (Number(item?.pricePence || 0) * Number(item?.quantity || 0)));
+        const line = item ? formatOrderItem(item) : "the item";
+        const choice = kind === "credit" ? "store credit" : "a swap for something similar";
+        await notifyAdmins(`📦 OUT OF STOCK CHOICE\n\nOrder #${orderId}\n${order.customerName}\nItem: ${line}\nAmount: ${money(amountPence)}\nCustomer chose: ${choice}`);
+        return safeSendMessage(chatId, `Thanks — we've noted you want ${choice} for ${line}. We'll sort it shortly.`);
       }
 
       /* LABEL DONE */
