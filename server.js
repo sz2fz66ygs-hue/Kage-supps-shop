@@ -336,7 +336,19 @@ function calculatePromotionDiscount(lineItems, promotions, telegramId) {
     let discount = 0;
     let bundles = 0;
 
-    if (promo.type === "fixed_bundle") {
+    if (promo.type === "multibuy") {
+      const byId = new Map();
+      for (const unit of units) {
+        const existing = byId.get(unit.id) || { price: unit.pricePence, qty: 0 };
+        existing.qty += 1;
+        byId.set(unit.id, existing);
+      }
+      for (const item of byId.values()) {
+        if (item.qty >= 3) discount += Math.round(item.price * item.qty * 0.2);
+        else if (item.qty === 2) discount += Math.round(item.price * 0.15);
+      }
+      bundles = byId.size;
+    } else if (promo.type === "fixed_bundle") {
       bundles = Math.floor(units.length / required);
       if (!bundles) continue;
 
@@ -373,20 +385,30 @@ function calculatePromotionDiscount(lineItems, promotions, telegramId) {
     discount = Math.max(0, discount);
     if (!discount) continue;
 
-    promotionDiscountPence += discount;
     applied.push({
       id: promo.id,
       name: promo.name,
       type: promo.type,
       discountPence: discount,
       bundles,
+      productIds: [...eligibleIds],
       stackWithAffiliate: promo.stackWithAffiliate !== false
     });
   }
 
+  const usedProducts = new Set();
+  const kept = [];
+  for (const promo of applied.sort((a, b) => b.discountPence - a.discountPence)) {
+    const ids = promo.productIds || [];
+    if (ids.some(id => usedProducts.has(id))) continue;
+    ids.forEach(id => usedProducts.add(id));
+    kept.push(promo);
+    promotionDiscountPence += promo.discountPence;
+  }
+
   return {
     promotionDiscountPence,
-    applied
+    applied: kept
   };
 }
 
@@ -7789,6 +7811,20 @@ Choose a period.`,
         const state = pendingPromotionCreate.get(chatId);
         if (!state || state.stage !== "type") return;
         state.type = data.replace("admin_promo_type_", "");
+        if (state.type === "multibuy") {
+          state.requiredQuantity = 2;
+          state.discountPercent = 15;
+          state.stage = "stack";
+          pendingPromotionCreate.set(chatId, state);
+          return safeSendMessage(chatId, "Multi-buy set: 15% off the second, 20% off when buying 3 or more of the same item.\n\nCan this stack with an affiliate code?", {
+            reply_markup: {
+              inline_keyboard: [[
+                { text: "Yes, stack", callback_data: "admin_promo_stack_yes" },
+                { text: "No", callback_data: "admin_promo_stack_no" }
+              ]]
+            }
+          });
+        }
         state.stage = "qty";
         pendingPromotionCreate.set(chatId, state);
         return safeSendMessage(
@@ -7853,19 +7889,6 @@ Choose a period.`,
         const state = pendingPromotionCreate.get(chatId);
         if (!state) {
           return safeSendMessage(chatId, "Nothing to save. Start again from Promotions Manager.");
-        }
-        const conflicts = findPromotionConflicts(
-          promotionsApi.loadPromotions(),
-          state.productIds
-        );
-        if (conflicts.length) {
-          pendingPromotionCreate.delete(chatId);
-          return safeSendMessage(
-            chatId,
-            `❌ Not saved. These products are already in an active promotion:\n\n${
-              conflicts.map(conflict => `#${conflict.promotionId} ${conflict.name}: ${conflict.productIds.join(", ")}`).join("\n")
-            }\n\nPause or edit that promotion first.`
-          );
         }
         const id = promotionsApi.savePromotion({
           name: state.name,
@@ -10114,19 +10137,29 @@ Tap Open Shop to launch the Mini App.`,
           pendingPromotionCreate.set(chatId, state);
           return safeSendMessage(
             chatId,
-            `Product IDs for ${state.name}.\n\nComma separated.\n\nExample:\n301, 302`
+            `Product IDs for ${state.name}.\n\nSend IDs, a category, or all.\n\nExamples:\n301, 302\npouches\noils\npharma\nall`
           );
         }
 
         if (state.stage === "products") {
-          const productIds = parseProductIds(text);
-          const missing = productIds.filter(id => !productsById.has(id));
+          const raw = text.trim().toLowerCase();
+          let productIds = [];
+          if (raw === "all") {
+            productIds = [...productsById.keys()];
+          } else if (["pouches", "orals", "oils", "pharma", "peps"].includes(raw)) {
+            productIds = [...productsById.values()]
+              .filter(product => String(product.category || "").toLowerCase() === raw || (raw === "pouches" && /pouch/i.test(`${product.name} ${product.subtitle || ""}`)))
+              .map(product => Number(product.id));
+          } else {
+            productIds = parseProductIds(text);
+          }
+          const missing = productIds.filter(id => !productsById.has(id) && getLiveStock(id) === null);
           if (!productIds.length || missing.length) {
             return safeSendMessage(
               chatId,
               missing.length
                 ? `❌ Unknown product IDs: ${missing.join(", ")}`
-                : "❌ Send at least one product ID."
+                : "❌ Send product IDs, a category (pouches, orals, oils, pharma, peps), or all."
             );
           }
           state.productIds = productIds;
@@ -10136,6 +10169,7 @@ Tap Open Shop to launch the Mini App.`,
             reply_markup: {
               inline_keyboard: [
                 [{ text: "Percentage off", callback_data: "admin_promo_type_percent" }],
+                [{ text: "Multi-buy (2nd 15% / 3+ 20%)", callback_data: "admin_promo_type_multibuy" }],
                 [{ text: "Fixed amount off", callback_data: "admin_promo_type_fixed_amount" }],
                 [{ text: "Fixed bundle price", callback_data: "admin_promo_type_fixed_bundle" }]
               ]
@@ -10257,19 +10291,6 @@ Tap Open Shop to launch the Mini App.`,
 
           if (state.mode === "toggle") {
             promo.active = !promo.active;
-            if (promo.active) {
-              const conflicts = findPromotionConflicts(
-                promotionsApi.loadPromotions(),
-                promo.productIds,
-                promo.id
-              );
-              if (conflicts.length) {
-                return safeSendMessage(
-                  chatId,
-                  `❌ Cannot enable. Overlaps #${conflicts[0].promotionId} ${conflicts[0].name} on IDs ${conflicts[0].productIds.join(", ")}.`
-                );
-              }
-            }
             promotionsApi.savePromotion(promo);
             pendingPromotionEdit.delete(chatId);
             return safeSendMessage(
