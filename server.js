@@ -879,6 +879,7 @@ function getLiveProducts() {
       stock: available !== null ? available : 0,
       cataloguePricePence: Number(product.pricePence),
       pricePence: getEffectivePricePence(product, promotionsApi.getPriceOverride),
+      siteName: siteName(product),
       priceOverridden: promotionsApi.getPriceOverride(product.id) !== null,
       maxPerOrder: Number(db.prepare("SELECT max_qty FROM product_limits WHERE product_id = ?").get(product.id)?.max_qty || 0)
     };
@@ -1063,6 +1064,61 @@ app.post("/api/basket-quote", (req, res) => {
 
 app.get("/api/theme", (_req, res) => {
   res.json({ theme: getSeasonalTheme() });
+});
+
+const siteCodes = new Map();
+const siteSessions = new Map();
+
+function siteName(product) {
+  const override = getMetaValue(`site_name_${product.id}`);
+  if (override) return override;
+  return String(product.name || "").replace(/retatrutide/ig, "RT");
+}
+
+app.post("/api/site/request-code", async (req, res) => {
+  const handle = String(req.body?.handle || "").replace(/^@/, "").trim().toLowerCase();
+  if (!handle) return res.status(400).json({ error: "Enter your Telegram username." });
+  const user = findUserByHandle(handle);
+  if (!user?.telegram_id) return res.status(404).json({ error: "No account found for that username. Order on the bot first." });
+  if (!hasPreviousPaidOrder(user.telegram_id)) return res.status(403).json({ error: "The site unlocks after your first paid bot order." });
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  siteCodes.set(handle, { code, telegramId: String(user.telegram_id), expires: Date.now() + 10 * 60 * 1000 });
+  await safeSendMessage(user.telegram_id, `🔐 Kage Supps website code\n\n${code}\n\nThis expires in 10 minutes. If you didn't ask for it, ignore this message.`);
+  res.json({ ok: true });
+});
+
+app.post("/api/site/verify-code", (req, res) => {
+  const handle = String(req.body?.handle || "").replace(/^@/, "").trim().toLowerCase();
+  const code = String(req.body?.code || "").trim();
+  const entry = siteCodes.get(handle);
+  if (!entry || entry.expires < Date.now() || entry.code !== code) return res.status(400).json({ error: "Code is wrong or expired." });
+  siteCodes.delete(handle);
+  const token = randomUUID();
+  siteSessions.set(token, { telegramId: entry.telegramId, handle, createdAt: Date.now() });
+  res.json({ ok: true, token, handle });
+});
+
+app.get("/api/site/me", (req, res) => {
+  const session = siteSessions.get(String(req.headers["x-site-token"] || ""));
+  if (!session) return res.status(401).json({ error: "Log in again." });
+  const mine = [...orders.values()].filter(order => String(order.telegramId || "") === session.telegramId);
+  res.json({
+    handle: session.handle,
+    telegramId: session.telegramId,
+    storeCreditPence: getCustomerCredit(session.telegramId),
+    orders: mine.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 20).map(order => ({
+      orderId: order.orderId,
+      totalPence: order.totalPence,
+      paymentStatus: order.paymentStatus,
+      fulfilmentStatus: order.fulfilmentStatus,
+      trackingNumber: order.trackingNumber || "",
+      createdAt: order.createdAt
+    }))
+  });
+});
+
+app.get("/shop", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "shop.html"));
 });
 
 app.get("/kage-basket.js", (_req, res) => {

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Kage Supps</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/shop.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img class="brand-logo" src="/logo.png" alt="">
+      <span>KAGE SUPPS</span>
+    </div>
+    <div class="top-actions">
+      <button id="accountBtn" class="cart-pill" type="button">Account</button>
+      <button id="cartJump" class="cart-pill" type="button">🛒 <span id="cartCount">0</span></button>
+    </div>
+  </header>
+
+  <section id="gate" class="gate">
+    <img class="gate-logo" src="/logo.png" alt="Kage Supps">
+    <h1>Kage Supps</h1>
+    <p>This shop is for customers who have ordered on the Telegram bot.</p>
+    <label for="handle">Telegram username</label>
+    <input id="handle" type="text" placeholder="@username" autocomplete="username">
+    <button id="requestCode" type="button">Send code to Telegram</button>
+    <div id="codeWrap" hidden>
+      <label for="code">Code from the bot</label>
+      <input id="code" type="text" inputmode="numeric" placeholder="6 digit code" autocomplete="one-time-code">
+      <button id="verifyCode" type="button">Unlock shop</button>
+    </div>
+    <p id="gateError" class="gate-error"></p>
+  </section>
+
+  <div id="shop" hidden>
+    <div class="search-wrap">
+      <input id="shopSearch" type="search" placeholder="Search the shop" autocomplete="off">
+    </div>
+    <nav id="tabs" class="tabs"></nav>
+    <main>
+      <section id="products" class="products"></section>
+      <section id="account" class="checkout-card" hidden>
+        <div class="section-head"><div><div class="eyebrow">ACCOUNT</div><h2 id="accountHandle"></h2></div></div>
+        <div id="accountCredit"></div>
+        <div id="accountOrders"></div>
+      </section>
+      <section id="checkout" class="checkout-card">
+        <div class="section-head"><div><div class="eyebrow">CHECKOUT</div><h2>Your basket</h2></div><div id="basketTotal" class="basket-total">£0.00</div></div>
+        <div id="basketLines" class="basket-lines">Your basket is empty.</div>
+        <div class="divider"></div>
+        <label for="name">Full name</label>
+        <input id="name" type="text" placeholder="Your name" autocomplete="name">
+        <label for="phone">Phone</label>
+        <input id="phone" type="tel" placeholder="Phone number" autocomplete="tel">
+        <label for="address">Delivery address</label>
+        <textarea id="address" placeholder="Delivery address" autocomplete="street-address"></textarea>
+        <div class="shop-notice"><strong>No shipping to Northern Ireland.</strong><br>Dispatch days are Monday, Wednesday and Friday. Parcels are sent next day.</div>
+        <button id="placeOrder" type="button">Place order</button>
+        <p id="checkoutError" class="gate-error"></p>
+      </section>
+    </main>
+  </div>
+  <script src="/shop.js"></script>
+</body>
+</html>

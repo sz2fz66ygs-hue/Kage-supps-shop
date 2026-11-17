@@ -1,0 +1,15 @@
+.top-actions{display:flex;gap:8px}
+.gate{max-width:420px;margin:48px auto;padding:24px 18px;text-align:center}
+.gate-logo{width:72px;height:72px;animation:brand-logo-spin 4s linear infinite}
+.gate h1{letter-spacing:2px;margin:12px 0 8px}
+.gate p{color:var(--muted)}
+.gate label,.checkout-card label{display:block;text-align:left;font-weight:800;margin:16px 0 6px}
+.gate input,.checkout-card input,.checkout-card textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:12px;font:inherit}
+.gate button,.checkout-card button{width:100%;margin-top:14px;border:0;border-radius:999px;background:var(--gold);color:#111;font-weight:900;padding:13px}
+.gate-error{color:#9b1c1c;min-height:1.2em}
+.product-card{display:grid;grid-template-columns:72px 1fr;gap:12px;padding:14px 0;border-bottom:1px solid var(--border)}
+.product-card img{width:72px;height:72px;object-fit:contain}
+.strengths{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.strengths button{border:1px solid #111;background:#fff;border-radius:999px;padding:6px 10px;font-weight:800}
+.strengths button.active{background:var(--gold)}
+.account-order{border:1px solid var(--border);border-radius:14px;padding:12px;margin:10px 0}
