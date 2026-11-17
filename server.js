@@ -4752,6 +4752,7 @@ if (bot) {
   function getMainMenuKeyboard(fromId) {
     const buttons = [];
     if (webAppUrl) buttons.push([{ text: "🛍 OPEN SHOP — TAP HERE", web_app: { url: webAppUrl } }]);
+    if (webAppUrl) buttons.push([{ text: "🌐 Website", url: `${webAppUrl.replace(/\/$/, "")}/shop` }]);
     buttons.push([
       { text: "📦 My Orders", callback_data: "orders" },
       { text: "❓ Help & Support", callback_data: "help" }
@@ -5594,6 +5595,11 @@ Open the shop, check what is on promotion, and see when stock has been added. If
       );
     }
   );
+
+  bot.onText(/^\/website(?:@\w+)?$/i, async msg => {
+    if (!webAppUrl) return safeSendMessage(msg.chat.id, "Website URL is not set.");
+    return safeSendMessage(msg.chat.id, `🌐 Website\n\n${webAppUrl.replace(/\/$/, "")}/shop`);
+  });
 
   /* =======================================================
      /ADMIN
