@@ -1079,8 +1079,7 @@ app.post("/api/site/request-code", async (req, res) => {
   const handle = String(req.body?.handle || "").replace(/^@/, "").trim().toLowerCase();
   if (!handle) return res.status(400).json({ error: "Enter your Telegram username." });
   const user = findUserByHandle(handle);
-  if (!user?.telegram_id) return res.status(404).json({ error: "No account found for that username. Order on the bot first." });
-  if (!hasPreviousPaidOrder(user.telegram_id)) return res.status(403).json({ error: "The site unlocks after your first paid bot order." });
+  if (!user?.telegram_id) return res.status(404).json({ error: "No account found for that username. Open the bot and tap Start first." });
   const code = String(Math.floor(100000 + Math.random() * 900000));
   siteCodes.set(handle, { code, telegramId: String(user.telegram_id), expires: Date.now() + 10 * 60 * 1000 });
   await safeSendMessage(user.telegram_id, `🔐 Kage Supps website code\n\n${code}\n\nThis expires in 10 minutes. If you didn't ask for it, ignore this message.`);
