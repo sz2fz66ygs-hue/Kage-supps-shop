@@ -1124,6 +1124,62 @@ app.get("/", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "site.html"));
 });
 
+const SITE_PRODUCTS_FILE = path.join(DATA_DIR, "site-products.json");
+
+function loadSiteProducts() {
+  try {
+    const raw = JSON.parse(readFileSync(SITE_PRODUCTS_FILE, "utf8"));
+    return Array.isArray(raw) ? raw : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSiteProducts(items) {
+  writeFileSync(SITE_PRODUCTS_FILE, JSON.stringify(items, null, 2));
+}
+
+function siteAdmin(req) {
+  const session = siteSessions.get(String(req.headers["x-site-token"] || ""));
+  if (!session || !isAdmin(session.telegramId)) return null;
+  return session;
+}
+
+app.get("/api/site/products", (_req, res) => {
+  res.json(loadSiteProducts());
+});
+
+app.post("/api/site/products", (req, res) => {
+  if (!siteAdmin(req)) return res.status(401).json({ error: "Admin login required." });
+  const { name, category, strength, price, description } = req.body || {};
+  if (!name || !category || !Number.isFinite(Number(price))) {
+    return res.status(400).json({ error: "Name, category and price are required." });
+  }
+  const items = loadSiteProducts();
+  const product = {
+    id: randomUUID(),
+    name: String(name).slice(0, 80),
+    category: String(category).slice(0, 40),
+    strength: String(strength || "Standard").slice(0, 40),
+    price: Number(price),
+    description: String(description || "").slice(0, 240),
+    image: "/logo.png"
+  };
+  items.push(product);
+  saveSiteProducts(items);
+  res.json({ ok: true, product });
+});
+
+app.delete("/api/site/products/:id", (req, res) => {
+  if (!siteAdmin(req)) return res.status(401).json({ error: "Admin login required." });
+  saveSiteProducts(loadSiteProducts().filter(item => item.id !== req.params.id));
+  res.json({ ok: true });
+});
+
+app.get("/manage", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "manage.html"));
+});
+
 app.get("/kage-basket.js", (_req, res) => {
   res.type("application/javascript");
   res.send(`(function () {

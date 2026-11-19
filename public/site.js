@@ -1,8 +1,4 @@
-const products = [
-  { id: "sample-1", name: "Sample product", category: "Category A", description: "Replace this with your product. Add a strength, price and short description.", price: 20, strength: "Standard", image: "/logo.png" },
-  { id: "sample-2", name: "Sample product", category: "Category A", description: "Second strength of the same product. Customers pick one.", price: 30, strength: "Strong", image: "/logo.png" },
-  { id: "sample-3", name: "Another product", category: "Category B", description: "Add your own products in site.js. This placeholder is not for sale.", price: 15, strength: "Standard", image: "/logo.png" }
-];
+let products = [];
 
 const grid = document.querySelector("#grid");
 const filters = document.querySelector("#filters");
@@ -75,5 +71,10 @@ document.querySelector("#searchOpen").addEventListener("click", () => { document
 document.querySelector("#searchInput").addEventListener("input", event => { query = event.target.value.trim().toLowerCase(); render(); });
 document.querySelector("#menuOpen").addEventListener("click", () => document.querySelector("#nav").classList.toggle("open"));
 document.querySelector("#checkoutBtn").addEventListener("click", () => { window.location.href = "/shop"; });
-render();
-renderCart();
+async function start() {
+  const res = await fetch("/api/site/products");
+  products = await res.json();
+  render();
+  renderCart();
+}
+start();
