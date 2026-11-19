@@ -5547,6 +5547,9 @@ Choose an option.`,
               }
             ],
             [
+              { text: "📄 Upload CSV", callback_data: "admin_stock_csv" }
+            ],
+            [
               { text: "⬅️ Stock Centre", callback_data: "admin_stock" }
             ]
           ]
@@ -8357,6 +8360,13 @@ Stock Centre → All Stock`
         );
       }
 
+      if (data === "admin_stock_csv") {
+        if (!isAdmin(q.from?.id)) return;
+        clearAdminInputs(chatId);
+        pendingBulkStock.set(chatId, "csv");
+        return safeSendMessage(chatId, "📄 UPLOAD CSV\n\nSend a .csv file.\n\nColumns:\nid,stock\n\nOr:\nid,name,stock\n\nFirst row can be a header. This sets the new stock total. /admin to cancel.");
+      }
+
       if (data === "admin_stock_bulk") {
         if (!isAdmin(q.from?.id)) return;
         clearAdminInputs(chatId);
@@ -10186,6 +10196,45 @@ Tap Open Shop to launch the Mini App.`,
       }
     }
   );
+
+  bot.on("document", async msg => {
+    const chatId = msg.chat?.id;
+    if (!chatId || !isAdmin(msg.from?.id) || pendingBulkStock.get(chatId) !== "csv") return;
+    const doc = msg.document;
+    if (!doc || !/\.csv$/i.test(doc.file_name || "")) {
+      return safeSendMessage(chatId, "Send a .csv file.");
+    }
+    try {
+      const file = await bot.getFile(doc.file_id);
+      const url = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
+      const response = await fetch(url);
+      const raw = await response.text();
+      const lines = raw.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+      const updated = [];
+      const failed = [];
+      for (const line of lines) {
+        if (/^id\b/i.test(line)) continue;
+        const parts = line.split(",").map(part => part.trim().replace(/^"|"$/g, ""));
+        const productId = Number(String(parts[0] || "").replace(/[^0-9]/g, ""));
+        const amount = Number(String(parts[parts.length - 1] || "").replace(/[^0-9]/g, ""));
+        const product = productsById.get(productId);
+        if (!product || !Number.isInteger(amount) || amount < 0) {
+          failed.push(line);
+          continue;
+        }
+        const oldStock = Number(getLiveStock(productId) ?? product.stock ?? 0);
+        setInventoryStmt.run(productId, amount);
+        product.stock = amount;
+        await recordStockChange(product, oldStock, amount);
+        updated.push(`#${productId} ${product.name}: ${amount}`);
+      }
+      saveProductsFile();
+      pendingBulkStock.delete(chatId);
+      return safeSendMessage(chatId, `✅ CSV STOCK SET\n\n${updated.join("\n") || "None"}${failed.length ? `\n\nSkipped:\n${failed.join("\n")}` : ""}`);
+    } catch (error) {
+      return safeSendMessage(chatId, `Could not read that file. ${error.message || ""}`);
+    }
+  });
 
   /* =======================================================
      MESSAGE INPUTS
