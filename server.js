@@ -1253,7 +1253,7 @@ app.delete("/api/site/products/:id", (req, res) => {
 });
 
 app.get("/manage", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "manage.html"));
+  res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
 
 app.get("/api/admin/orders", (req, res) => {
@@ -1303,7 +1303,7 @@ app.post("/api/admin/orders/:id/tracking", (req, res) => {
 });
 
 app.get("/pack", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "pack.html"));
+  res.redirect("/manage");
 });
 
 app.get("/kage-basket.js", (_req, res) => {
