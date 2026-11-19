@@ -1,24 +1,28 @@
 const tokenKey = "kage_site_token";
 const message = document.querySelector("#message");
+const money = value => `£${Number(value || 0).toFixed(2)}`;
 let orders = [];
 let index = 0;
 
 function showPanel(name) {
   document.querySelectorAll(".panel").forEach(panel => panel.classList.toggle("active", panel.id === name));
-  document.querySelectorAll("#adminTabs .tab").forEach(tab => tab.classList.toggle("active", tab.dataset.panel === name));
+  document.querySelectorAll("#nav button").forEach(button => button.classList.toggle("active", button.dataset.panel === name));
 }
 
 function signedIn() {
   document.querySelector("#login").hidden = true;
-  document.querySelector("#adminTabs").hidden = false;
-  showPanel(location.hash === "#products" ? "products" : "pack");
+  document.querySelector("#nav").hidden = false;
+  showPanel("pack");
   loadOrders();
+  loadAllOrders();
   loadProducts();
+  loadPromos();
+  loadAffiliates();
 }
 
 function showLogin(text) {
   document.querySelector("#login").hidden = false;
-  document.querySelector("#adminTabs").hidden = true;
+  document.querySelector("#nav").hidden = true;
   document.querySelectorAll(".panel").forEach(panel => panel.classList.remove("active"));
   if (text) message.textContent = text;
 }
@@ -43,7 +47,7 @@ async function verifyCode() {
   if (!res.ok) return (message.textContent = data.error || "Code not accepted.");
   if (!data.admin) return (message.textContent = "That Telegram is not an admin.");
   localStorage.setItem(tokenKey, data.token);
-  message.textContent = "Signed in.";
+  message.textContent = "";
   signedIn();
 }
 
@@ -58,14 +62,14 @@ async function loadOrders() {
 
 function renderOrder() {
   const order = orders[index];
-  document.querySelector("#title").textContent = order ? order.dispatch : "All packed";
+  document.querySelector("#packTitle").textContent = order ? order.dispatch : "All packed";
   document.querySelector("#progress").textContent = orders.length ? `${index + 1} of ${orders.length}` : "";
   const station = document.querySelector("#station");
-  if (!order) return (station.innerHTML = "<p style='padding:16px'>Nothing left to pack.</p>");
+  if (!order) return (station.innerHTML = `<div class="slip">Nothing left to pack.</div>`);
   station.innerHTML = `<article class="slip">
-    <div class="eyebrow">#${order.orderId}</div>
+    <p class="eyebrow">#${order.orderId}</p>
     <h2>${order.customerName || "No name"}</h2>
-    <p>${order.telegram || ""}</p>
+    <p class="muted">${order.telegram || ""}</p>
     <pre>${order.copyAddress}</pre>
     <div class="items">${order.items.map((item, i) => `<label><input type="checkbox" data-item="${i}"><span>${item}</span></label>`).join("")}</div>
     <button class="gold-btn" id="copyAddress" type="button">Copy address</button>
@@ -92,6 +96,7 @@ async function pack() {
   orders.splice(index, 1);
   if (index >= orders.length) index = 0;
   renderOrder();
+  loadAllOrders();
 }
 
 async function saveTracking() {
@@ -103,13 +108,21 @@ async function saveTracking() {
   orders.splice(index, 1);
   if (index >= orders.length) index = 0;
   renderOrder();
+  loadAllOrders();
+}
+
+async function loadAllOrders() {
+  const res = await fetch("/api/admin/all-orders", { headers: { "x-site-token": localStorage.getItem(tokenKey) } });
+  if (!res.ok) return;
+  const list = await res.json();
+  document.querySelector("#orderList").innerHTML = list.map(order => `<article class="row"><strong>#${order.orderId}</strong><div><strong>${order.customerName || ""}</strong><div class="muted">${order.telegram} · ${order.paymentStatus} · ${order.fulfilmentStatus}${order.dispatch ? ` · ${order.dispatch}` : ""}</div><div>${order.items.join("<br>")}</div></div><strong>${money(order.total)}</strong></article>`).join("") || "<p>No orders.</p>";
 }
 
 async function loadProducts() {
   const res = await fetch("/api/site/products");
   const products = await res.json();
-  document.querySelector("#list").innerHTML = products.map(product => `<article class="card"><h3>${product.name}</h3><p>${product.category} · ${product.strength} · £${Number(product.price).toFixed(2)}</p><button data-id="${product.id}" type="button">Remove</button></article>`).join("") || "<p>No products yet.</p>";
-  document.querySelector("#list").querySelectorAll("button").forEach(button => button.addEventListener("click", () => removeProduct(button.dataset.id)));
+  document.querySelector("#productList").innerHTML = products.map(product => `<article class="row"><strong>${product.category}</strong><div><strong>${product.name}</strong><div class="muted">${product.strength}</div></div><div><strong>${money(product.price)}</strong><button data-id="${product.id}" type="button">Remove</button></div></article>`).join("") || "<p>No products yet.</p>";
+  document.querySelector("#productList").querySelectorAll("button").forEach(button => button.addEventListener("click", () => removeProduct(button.dataset.id)));
 }
 
 async function removeProduct(id) {
@@ -118,9 +131,23 @@ async function removeProduct(id) {
   loadProducts();
 }
 
-document.querySelector("#adminTabs").addEventListener("click", event => {
-  const tab = event.target.closest("[data-panel]");
-  if (tab) showPanel(tab.dataset.panel);
+async function loadPromos() {
+  const res = await fetch("/api/admin/promotions", { headers: { "x-site-token": localStorage.getItem(tokenKey) } });
+  if (!res.ok) return;
+  const promos = await res.json();
+  document.querySelector("#promoList").innerHTML = promos.map(promo => `<article class="row"><strong>#${promo.id}</strong><div><strong>${promo.name}</strong><div class="muted">${promo.rule} · ${promo.productCount} products</div></div><span>${promo.active ? "Active" : "Paused"}</span></article>`).join("") || "<p>No promotions.</p>";
+}
+
+async function loadAffiliates() {
+  const res = await fetch("/api/admin/affiliates", { headers: { "x-site-token": localStorage.getItem(tokenKey) } });
+  if (!res.ok) return;
+  const rows = await res.json();
+  document.querySelector("#affiliateList").innerHTML = rows.map(row => `<article class="row"><strong>${row.code}</strong><div><strong>${row.owner}</strong><div class="muted">${row.newCustomers} new customers · earned ${money(row.earned)} · paid ${money(row.paid)}</div></div><strong>${money(row.owed)}</strong></article>`).join("");
+}
+
+document.querySelector("#nav").addEventListener("click", event => {
+  const button = event.target.closest("[data-panel]");
+  if (button) showPanel(button.dataset.panel);
 });
 document.querySelector("#bulkAdd").addEventListener("click", async () => {
   const text = document.querySelector("#bulk").value.trim();

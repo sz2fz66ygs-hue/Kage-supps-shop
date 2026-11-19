@@ -1256,6 +1256,10 @@ app.get("/manage", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
 
+app.get("/pack", (_req, res) => {
+  res.redirect("/manage");
+});
+
 app.get("/api/admin/orders", (req, res) => {
   if (!siteAdmin(req)) return res.status(401).json({ error: "Admin login required." });
   const ready = [...orders.values()]
@@ -1302,8 +1306,68 @@ app.post("/api/admin/orders/:id/tracking", (req, res) => {
   res.json({ ok: true });
 });
 
-app.get("/pack", (_req, res) => {
-  res.redirect("/manage");
+app.get("/api/admin/promotions", (req, res) => {
+  if (!siteAdmin(req)) return res.status(401).json({ error: "Admin login required." });
+  const promos = promotionsApi.loadPromotions().map(promo => ({
+    id: promo.id,
+    name: promo.name,
+    active: Boolean(promo.active),
+    type: promo.type,
+    rule: promo.type === "fixed_bundle"
+      ? `${promo.requiredQuantity} for £${(Number(promo.bundlePricePence || 0) / 100).toFixed(2)}`
+      : promo.type === "fixed_amount"
+        ? `£${(Number(promo.discountPence || 0) / 100).toFixed(2)} off`
+        : `${promo.discountPercent || 0}% off`,
+    productCount: (promo.productIds || []).length
+  }));
+  res.json(promos);
+});
+
+app.get("/api/admin/affiliates", (req, res) => {
+  if (!siteAdmin(req)) return res.status(401).json({ error: "Admin login required." });
+  const firstPaid = new Map();
+  for (const order of orders.values()) {
+    if (order.paymentStatus !== "paid") continue;
+    const key = String(order.telegramId || order.customerName || order.orderId);
+    const paid = new Date(order.paidAt || order.createdAt || 0).getTime();
+    if (!firstPaid.has(key) || paid < firstPaid.get(key).paid) firstPaid.set(key, { order, paid });
+  }
+  const counts = new Map();
+  for (const { order } of firstPaid.values()) {
+    const code = String(order.discountCode || "").toUpperCase();
+    if (!code) continue;
+    counts.set(code, (counts.get(code) || 0) + 1);
+  }
+  const rows = affiliateCodes.map(affiliate => {
+    const record = referralEarnings.get(affiliate.code) || {};
+    return {
+      code: affiliate.code,
+      owner: affiliate.owner,
+      newCustomers: counts.get(affiliate.code) || 0,
+      owed: Number(record.balancePence || 0) / 100,
+      earned: Number(record.totalEarnedPence || 0) / 100,
+      paid: Number(record.paidOutPence || 0) / 100
+    };
+  });
+  res.json(rows);
+});
+
+app.get("/api/admin/all-orders", (req, res) => {
+  if (!siteAdmin(req)) return res.status(401).json({ error: "Admin login required." });
+  const list = [...orders.values()]
+    .sort((a, b) => new Date(b.paidAt || b.createdAt || 0) - new Date(a.paidAt || a.createdAt || 0))
+    .slice(0, 80)
+    .map(order => ({
+      orderId: order.orderId,
+      customerName: order.customerName,
+      telegram: order.telegramUsername ? `@${String(order.telegramUsername).replace(/^@/, "")}` : "",
+      paymentStatus: order.paymentStatus,
+      fulfilmentStatus: order.fulfilmentStatus || "not_shipped",
+      total: Number(order.totalPence || 0) / 100,
+      dispatch: order.paymentStatus === "paid" ? formatShippingDay(getShippingDay(order)) : "",
+      items: formatOrderItems(order.items).split("\n")
+    }));
+  res.json(list);
 });
 
 app.get("/kage-basket.js", (_req, res) => {

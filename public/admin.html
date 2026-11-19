@@ -2,68 +2,97 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Admin · Kage Supps</title>
   <link rel="stylesheet" href="/style.css">
   <style>
-    .tabs{position:sticky;top:63px}
+    body{background:#fbfaf7}
+    .shell{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+    .side{background:#fff;border-right:1px solid #e9e4d7;padding:24px 16px;position:sticky;top:0;height:100vh}
+    .side .brand{margin-bottom:28px}
+    .side button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:12px 14px;border-radius:12px;font:inherit;font-weight:700;cursor:pointer;color:#111}
+    .side button.active{background:#ffd700}
+    .main{padding:28px}
     .panel{display:none}
     .panel.active{display:block}
-    .slip{margin:12px 16px;padding:16px;border:1px solid #e9e4d7;border-radius:18px;background:#fff}
-    .items{display:flex;flex-direction:column;gap:8px;margin:14px 0}
-    .items label{display:flex;gap:10px;align-items:center;padding:12px;border:1px solid #e9e4d7;border-radius:14px;background:#fbfaf7}
+    .head{display:flex;justify-content:space-between;align-items:end;margin-bottom:18px}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .stat,.row,.slip{background:#fff;border:1px solid #e9e4d7;border-radius:16px;padding:16px}
+    .stat strong{display:block;font-size:28px;margin-top:4px}
+    .list{display:flex;flex-direction:column;gap:10px}
+    .row{display:grid;grid-template-columns:90px 1fr auto;gap:12px;align-items:center}
+    .muted{color:#77736b}
+    .items label{display:flex;gap:10px;align-items:center;padding:12px;border:1px solid #e9e4d7;border-radius:12px;background:#fbfaf7;margin-top:8px}
     .items label:has(input:checked){background:#f7f0dc;border-color:#daa520}
     .done{opacity:.55;text-decoration:line-through}
-    pre{white-space:pre-wrap;font:inherit}
+    pre{white-space:pre-wrap;font:inherit;margin:8px 0}
+    @media(max-width:800px){.shell{grid-template-columns:1fr}.side{position:static;height:auto}.grid,.row{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand"><img class="brand-logo" src="/logo.png" alt=""><span>KAGE SUPPS</span></div>
-    <span id="progress"></span>
-  </header>
-  <nav class="tabs" id="adminTabs" hidden>
-    <button class="tab active" data-panel="pack" type="button">Packing</button>
-    <button class="tab" data-panel="products" type="button">Products</button>
-  </nav>
-  <main>
-    <section class="checkout-card" id="login">
-      <div class="eyebrow">ADMIN</div>
-      <h2>Sign in</h2>
-      <label>Telegram username</label>
-      <input id="handle" placeholder="@username">
-      <button class="gold-btn" type="button" id="requestCode">Send code</button>
-      <label>Code</label>
-      <input id="code" placeholder="6 digit code">
-      <button class="gold-btn" type="button" id="verifyCode">Log in</button>
-    </section>
-    <p id="message" class="status"></p>
+  <div class="shell">
+    <aside class="side">
+      <div class="brand"><img class="brand-logo" src="/logo.png" alt=""><span>KAGE</span></div>
+      <nav id="nav" hidden>
+        <button class="active" data-panel="pack" type="button">Packing</button>
+        <button data-panel="orders" type="button">Orders</button>
+        <button data-panel="products" type="button">Products</button>
+        <button data-panel="promos" type="button">Promotions</button>
+        <button data-panel="affiliates" type="button">Affiliates</button>
+      </nav>
+    </aside>
+    <main class="main">
+      <section id="login">
+        <p class="eyebrow">Admin</p>
+        <h1>Sign in</h1>
+        <label>Telegram username</label>
+        <input id="handle" placeholder="@username">
+        <button class="gold-btn" type="button" id="requestCode">Send code</button>
+        <label>Code</label>
+        <input id="code" placeholder="6 digit code">
+        <button class="gold-btn" type="button" id="verifyCode">Log in</button>
+      </section>
+      <p id="message" class="status"></p>
 
-    <section class="panel" id="pack">
-      <div class="run" style="padding:8px 16px 0"><div class="eyebrow">PACKING</div><h2 id="title">Ready to pack</h2></div>
-      <div id="station"></div>
-    </section>
+      <section class="panel" id="pack">
+        <div class="head"><div><p class="eyebrow">Packing</p><h1 id="packTitle">Ready to pack</h1></div><strong id="progress"></strong></div>
+        <div id="station"></div>
+      </section>
 
-    <section class="panel" id="products">
-      <section class="checkout-card">
-        <div class="eyebrow">PRODUCTS</div>
-        <h2>Paste products</h2>
-        <p>One per line: <code>Name | Category | Price | Strength</code></p>
-        <textarea id="bulk" rows="8" placeholder="Daily multivitamin | General | 12 | 30 tablets"></textarea>
-        <button class="gold-btn" id="bulkAdd" type="button">Add pasted products</button>
-        <h2>Or add one</h2>
-        <form id="add">
+      <section class="panel" id="orders">
+        <div class="head"><div><p class="eyebrow">Orders</p><h1>Recent orders</h1></div></div>
+        <div id="orderList" class="list"></div>
+      </section>
+
+      <section class="panel" id="products">
+        <div class="head"><div><p class="eyebrow">Products</p><h1>Catalogue</h1></div></div>
+        <div class="slip">
+          <p>One per line: <code>Name | Category | Price | Strength</code></p>
+          <textarea id="bulk" rows="6" placeholder="Daily multivitamin | General | 12 | 30 tablets"></textarea>
+          <button class="gold-btn" id="bulkAdd" type="button">Add pasted products</button>
+        </div>
+        <form id="add" class="slip" style="margin-top:12px">
+          <h2>Add one</h2>
           <label>Name</label><input id="name" required>
           <label>Category</label><input id="category" required>
-          <label>Strength</label><input id="strength" placeholder="10mg">
+          <label>Strength</label><input id="strength">
           <label>Price (£)</label><input id="price" type="number" min="0" step="0.01" required>
-          <label>Description</label><textarea id="description"></textarea>
           <button class="gold-btn" type="submit">Add product</button>
         </form>
-        <div id="list"></div>
+        <div id="productList" class="list" style="margin-top:12px"></div>
       </section>
-    </section>
-  </main>
+
+      <section class="panel" id="promos">
+        <div class="head"><div><p class="eyebrow">Promotions</p><h1>Live deals</h1></div></div>
+        <div id="promoList" class="list"></div>
+      </section>
+
+      <section class="panel" id="affiliates">
+        <div class="head"><div><p class="eyebrow">Affiliates</p><h1>Codes</h1></div></div>
+        <div id="affiliateList" class="list"></div>
+      </section>
+    </main>
+  </div>
   <script src="/admin.js"></script>
 </body>
 </html>
