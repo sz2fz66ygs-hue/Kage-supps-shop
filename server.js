@@ -1228,6 +1228,56 @@ app.get("/manage", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "manage.html"));
 });
 
+app.get("/api/admin/orders", (req, res) => {
+  if (!siteAdmin(req)) return res.status(401).json({ error: "Admin login required." });
+  const ready = [...orders.values()]
+    .filter(order => order.paymentStatus === "paid" && order.fulfilmentStatus !== "shipped" && order.fulfilmentStatus !== "delivered")
+    .sort((a, b) => {
+      const dayA = getShippingDay(a)?.getTime() || 0;
+      const dayB = getShippingDay(b)?.getTime() || 0;
+      if (dayA !== dayB) return dayA - dayB;
+      return new Date(a.paidAt || a.createdAt || 0) - new Date(b.paidAt || b.createdAt || 0);
+    })
+    .map(order => ({
+      orderId: order.orderId,
+      customerName: order.customerName,
+      telegram: order.telegramUsername ? `@${String(order.telegramUsername).replace(/^@/, "")}` : "",
+      address: order.address || "",
+      phone: order.phone || "",
+      fulfilmentStatus: order.fulfilmentStatus || "not_shipped",
+      dispatch: formatShippingDay(getShippingDay(order)),
+      trackingNumber: order.trackingNumber || "",
+      items: formatOrderItems(order.items).split("\n"),
+      copyAddress: [order.customerName, order.address, order.phone].filter(Boolean).join("\n"),
+      copyOrder: [`#${order.orderId}`, order.customerName, formatOrderItems(order.items)].filter(Boolean).join("\n")
+    }));
+  res.json({ count: ready.length, orders: ready });
+});
+
+app.post("/api/admin/orders/:id/packed", (req, res) => {
+  if (!siteAdmin(req)) return res.status(401).json({ error: "Admin login required." });
+  const order = orders.get(Number(req.params.id));
+  if (!order) return res.status(404).json({ error: "Order not found." });
+  order.fulfilmentStatus = "packed";
+  order.packedAt = new Date().toISOString();
+  saveOrder(order);
+  res.json({ ok: true });
+});
+
+app.post("/api/admin/orders/:id/tracking", (req, res) => {
+  if (!siteAdmin(req)) return res.status(401).json({ error: "Admin login required." });
+  const order = orders.get(Number(req.params.id));
+  if (!order) return res.status(404).json({ error: "Order not found." });
+  order.trackingNumber = String(req.body?.tracking || "").trim();
+  order.fulfilmentStatus = "shipped";
+  saveOrder(order);
+  res.json({ ok: true });
+});
+
+app.get("/pack", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "pack.html"));
+});
+
 app.get("/kage-basket.js", (_req, res) => {
   res.type("application/javascript");
   res.send(`(function () {

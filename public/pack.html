@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Packing · Kage Supps</title>
+  <link rel="stylesheet" href="/site.css">
+  <style>
+    .run{display:flex;justify-content:space-between;align-items:end;gap:12px}
+    .slip{background:#fff;border:1px solid var(--border);border-radius:18px;padding:18px}
+    .slip h2{font-size:28px}
+    .items{display:flex;flex-direction:column;gap:8px;margin:16px 0}
+    .items label{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--border);border-radius:12px}
+    .actions{display:flex;flex-wrap:wrap;gap:8px}
+    .done{opacity:.55;text-decoration:line-through}
+  </style>
+</head>
+<body>
+  <main class="account">
+    <div class="run">
+      <div><p class="eyebrow">Packing</p><h1 id="title">Ready to pack</h1></div>
+      <strong id="progress"></strong>
+    </div>
+    <form id="login">
+      <label>Telegram username<input id="handle" placeholder="@username"></label>
+      <button class="btn" type="button" id="requestCode">Send code</button>
+      <label>Code<input id="code" placeholder="6 digit code"></label>
+      <button class="btn" type="button" id="verifyCode">Sign in</button>
+      <p id="message"></p>
+    </form>
+    <section id="station" hidden></section>
+  </main>
+  <script src="/pack.js"></script>
+</body>
+</html>
