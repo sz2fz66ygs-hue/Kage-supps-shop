@@ -22,6 +22,7 @@ async function verifyCode() {
   });
   const data = await res.json();
   if (!res.ok) return (message.textContent = data.error || "Code not accepted.");
+  if (!data.admin) return (message.textContent = "That Telegram is not an admin.");
   localStorage.setItem(tokenKey, data.token);
   document.querySelector("#login").hidden = true;
   station.hidden = false;
@@ -30,7 +31,11 @@ async function verifyCode() {
 
 async function load() {
   const res = await fetch("/api/admin/orders", { headers: { "x-site-token": localStorage.getItem(tokenKey) } });
-  if (!res.ok) return (message.textContent = "Admin login required.");
+  if (!res.ok) {
+    document.querySelector("#login").hidden = false;
+    station.hidden = true;
+    return (message.textContent = "Sign in again with an admin Telegram.");
+  }
   const data = await res.json();
   orders = data.orders.filter(order => order.fulfilmentStatus !== "packed");
   index = 0;

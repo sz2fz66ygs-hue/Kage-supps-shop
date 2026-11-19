@@ -1068,6 +1068,17 @@ app.get("/api/theme", (_req, res) => {
 
 const siteCodes = new Map();
 const siteSessions = new Map();
+try {
+  const savedSessions = JSON.parse(getMetaValue("site_sessions") || "[]");
+  for (const session of savedSessions) siteSessions.set(session.token, session);
+} catch {}
+
+function saveSiteSessions() {
+  const sessions = [...siteSessions.entries()]
+    .filter(([, session]) => Date.now() - session.createdAt < 30 * 24 * 60 * 60 * 1000)
+    .map(([token, session]) => ({ token, ...session }));
+  setMetaValue("site_sessions", JSON.stringify(sessions));
+}
 
 function siteName(product) {
   const override = getMetaValue(`site_name_${product.id}`);
@@ -1094,7 +1105,8 @@ app.post("/api/site/verify-code", (req, res) => {
   siteCodes.delete(handle);
   const token = randomUUID();
   siteSessions.set(token, { telegramId: entry.telegramId, handle, createdAt: Date.now() });
-  res.json({ ok: true, token, handle });
+  saveSiteSessions();
+  res.json({ ok: true, token, handle, admin: isAdmin(entry.telegramId) });
 });
 
 app.get("/api/site/me", (req, res) => {
@@ -1180,34 +1192,50 @@ function guessCategory(name) {
 }
 
 app.post("/api/site/products/bulk", (req, res) => {
-  if (!siteAdmin(req)) return res.status(401).json({ error: "Admin login required." });
+  if (!siteAdmin(req)) return res.status(401).json({ error: "Admin login required. Sign in again with an admin Telegram." });
   const lines = String(req.body?.text || "").split(/\n+/).map(line => line.trim()).filter(Boolean);
   const items = loadSiteProducts();
   const added = [];
   const failed = [];
   for (const line of lines) {
-    const parts = line.split("|").map(part => part.trim());
-    let name = parts[0];
-    let category = parts[1];
-    let price = parts[2];
-    let strength = parts[3] || "";
-    let description = parts[4] || "";
-    if (parts.length < 3) {
-      const match = line.match(/^(.+?)\s+(\d+(?:\.\d+)?\s*(?:mg|mcg|ml|%|iu)(?:\/ml)?)\s+£?\s*(\d+(?:\.\d+)?)(.*)$/i);
-      if (!match) { failed.push(line); continue; }
-      name = match[1];
-      strength = match[2];
-      price = match[3];
+    const cleaned = line.replace(/^#\d+\s*[•·|-]?\s*/, "").replace(/:\s*\d+.*$/, "").trim();
+    const parts = cleaned.split("|").map(part => part.trim()).filter(Boolean);
+    let name = parts[0] || "";
+    let category = "";
+    let price = "";
+    let strength = "";
+    let description = "";
+    if (parts.length >= 4) {
+      [name, category, price, strength, description = ""] = parts;
+    } else if (parts.length === 3) {
+      [name, category, price] = parts;
+    } else {
+      const match = cleaned.match(/^(.+?)\s+(\d+(?:\.\d+)?\s*(?:mg|mcg|ml|%|iu)(?:\/ml)?)\s+£?\s*(\d+(?:\.\d+)?)(.*)$/i)
+        || cleaned.match(/^(.+?)\s+£?\s*(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?\s*(?:mg|mcg|ml|%|iu)(?:\/ml)?)(.*)$/i);
+      if (match && /mg|mcg|ml|%|iu/i.test(match[2])) {
+        name = match[1];
+        strength = match[2];
+        price = match[3];
+        description = match[4].trim();
+      } else if (match) {
+        name = match[1];
+        price = match[2];
+        strength = match[3];
+        description = match[4].trim();
+      }
       category = guessCategory(name);
-      description = match[4].trim();
     }
-    if (!name || !Number.isFinite(Number(String(price).replace("£", "")))) { failed.push(line); continue; }
+    const priceNumber = Number(String(price).replace(/[^0-9.]/g, ""));
+    if (!name || !Number.isFinite(priceNumber)) {
+      failed.push(`${line} — needs a name and a price`);
+      continue;
+    }
     const product = {
       id: randomUUID(),
       name: String(name).slice(0, 80),
       category: String(category || guessCategory(name)).slice(0, 40),
       strength: String(strength || "Standard").slice(0, 40),
-      price: Number(String(price).replace("£", "")),
+      price: priceNumber,
       description: String(description || "").slice(0, 240),
       image: "/logo.png"
     };
