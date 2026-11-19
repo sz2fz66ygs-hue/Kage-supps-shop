@@ -1120,7 +1120,7 @@ app.get("/shop", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "shop.html"));
 });
 
-app.get("/", (_req, res) => {
+app.get("/site", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "site.html"));
 });
 
