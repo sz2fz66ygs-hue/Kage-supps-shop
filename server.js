@@ -1120,6 +1120,10 @@ app.get("/shop", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "shop.html"));
 });
 
+app.get("/", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "site.html"));
+});
+
 app.get("/kage-basket.js", (_req, res) => {
   res.type("application/javascript");
   res.send(`(function () {

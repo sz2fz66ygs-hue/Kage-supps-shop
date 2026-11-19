@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Kage Supps</title>
+  <meta name="description" content="Kage Supps. A clean catalogue, clear pricing, and straightforward UK dispatch.">
+  <link rel="stylesheet" href="/site.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a class="brand" href="#top">
+        <img src="/logo.png" alt="">
+        <span>Kage Supps</span>
+      </a>
+      <nav class="nav" id="nav">
+        <a href="#catalogue">Catalogue</a>
+        <a href="#dispatch">Dispatch</a>
+        <a href="#account">Account</a>
+      </nav>
+      <div class="header-actions">
+        <button class="icon-btn" id="searchOpen" type="button" aria-label="Search">Search</button>
+        <button class="cart-btn" id="cartOpen" type="button">Basket <span id="cartCount">0</span></button>
+        <button class="menu-btn" id="menuOpen" type="button" aria-label="Menu">Menu</button>
+      </div>
+    </div>
+    <form class="search-bar" id="searchBar" hidden>
+      <input id="searchInput" type="search" placeholder="Search the catalogue" autocomplete="off">
+    </form>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Kage Supps</p>
+        <h1>A straightforward catalogue.<br>Clear pricing. Reliable dispatch.</h1>
+        <p class="lede">Browse by category, choose a strength, and check out in a few steps. Orders are packed on Monday, Wednesday and Friday.</p>
+        <a class="btn" href="#catalogue">View catalogue</a>
+      </div>
+    </section>
+
+    <section class="catalogue" id="catalogue">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Catalogue</p>
+          <h2>Shop by category</h2>
+        </div>
+      </div>
+      <div class="filters" id="filters"></div>
+      <div class="grid" id="grid"></div>
+    </section>
+
+    <section class="dispatch" id="dispatch">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Dispatch</p>
+          <h2>How orders leave us</h2>
+        </div>
+      </div>
+      <div class="info-grid">
+        <article>
+          <h3>Shipping days</h3>
+          <p>Monday, Wednesday and Friday. Orders placed after the cut-off go on the next run.</p>
+        </article>
+        <article>
+          <h3>Delivery</h3>
+          <p>Next-day service on eligible UK addresses. Northern Ireland is not covered.</p>
+        </article>
+        <article>
+          <h3>Payment</h3>
+          <p>USDT at checkout. Other methods can be added later.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="account" id="account">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Account</p>
+          <h2>Orders and credit</h2>
+        </div>
+      </div>
+      <p class="lede">Sign in with the code sent to your Telegram to see orders, tracking and store credit.</p>
+      <a class="btn btn-outline" href="/shop">Open account</a>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div>
+      <strong>Kage Supps</strong>
+      <p>Catalogue, checkout and dispatch in one place.</p>
+    </div>
+    <div class="footer-links">
+      <a href="#catalogue">Catalogue</a>
+      <a href="#dispatch">Dispatch</a>
+      <a href="/shop">Account</a>
+    </div>
+  </footer>
+
+  <aside class="drawer" id="drawer" hidden>
+    <div class="drawer-head">
+      <h2>Basket</h2>
+      <button id="cartClose" type="button">Close</button>
+    </div>
+    <div id="basketLines" class="basket-lines"></div>
+    <div class="drawer-foot">
+      <div><span>Total</span><strong id="basketTotal">£0.00</strong></div>
+      <button class="btn" id="checkoutBtn" type="button">Checkout</button>
+    </div>
+  </aside>
+
+  <dialog class="product-dialog" id="productDialog">
+    <form method="dialog">
+      <button class="close" value="cancel">Close</button>
+      <img id="dialogImage" src="/logo.png" alt="">
+      <p class="eyebrow" id="dialogCategory"></p>
+      <h2 id="dialogName"></h2>
+      <p id="dialogDesc"></p>
+      <div class="strengths" id="dialogStrengths"></div>
+      <p class="price" id="dialogPrice"></p>
+      <button class="btn" id="dialogAdd" type="button">Add to basket</button>
+    </form>
+  </dialog>
+
+  <script src="/site.js"></script>
+</body>
+</html>
