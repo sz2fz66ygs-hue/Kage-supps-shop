@@ -1170,6 +1170,54 @@ app.post("/api/site/products", (req, res) => {
   res.json({ ok: true, product });
 });
 
+function guessCategory(name) {
+  const text = String(name || "").toLowerCase();
+  if (/oil|vial|inject|test |sust|tren|deca|mast|eq\b/.test(text)) return "Oils";
+  if (/oral|tablet|capsule|anavar|dbol|winstrol/.test(text)) return "Orals";
+  if (/peptide|pep\b|bpc|ghk|mt2|reta/.test(text)) return "Peps";
+  if (/pharma|tablet|cream|mg\b/.test(text)) return "Pharma";
+  return "General";
+}
+
+app.post("/api/site/products/bulk", (req, res) => {
+  if (!siteAdmin(req)) return res.status(401).json({ error: "Admin login required." });
+  const lines = String(req.body?.text || "").split(/\n+/).map(line => line.trim()).filter(Boolean);
+  const items = loadSiteProducts();
+  const added = [];
+  const failed = [];
+  for (const line of lines) {
+    const parts = line.split("|").map(part => part.trim());
+    let name = parts[0];
+    let category = parts[1];
+    let price = parts[2];
+    let strength = parts[3] || "";
+    let description = parts[4] || "";
+    if (parts.length < 3) {
+      const match = line.match(/^(.+?)\s+(\d+(?:\.\d+)?\s*(?:mg|mcg|ml|%|iu)(?:\/ml)?)\s+£?\s*(\d+(?:\.\d+)?)(.*)$/i);
+      if (!match) { failed.push(line); continue; }
+      name = match[1];
+      strength = match[2];
+      price = match[3];
+      category = guessCategory(name);
+      description = match[4].trim();
+    }
+    if (!name || !Number.isFinite(Number(String(price).replace("£", "")))) { failed.push(line); continue; }
+    const product = {
+      id: randomUUID(),
+      name: String(name).slice(0, 80),
+      category: String(category || guessCategory(name)).slice(0, 40),
+      strength: String(strength || "Standard").slice(0, 40),
+      price: Number(String(price).replace("£", "")),
+      description: String(description || "").slice(0, 240),
+      image: "/logo.png"
+    };
+    items.push(product);
+    added.push(product);
+  }
+  saveSiteProducts(items);
+  res.json({ ok: true, added: added.length, failed });
+});
+
 app.delete("/api/site/products/:id", (req, res) => {
   if (!siteAdmin(req)) return res.status(401).json({ error: "Admin login required." });
   saveSiteProducts(loadSiteProducts().filter(item => item.id !== req.params.id));

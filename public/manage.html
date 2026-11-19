@@ -18,6 +18,11 @@
       <p id="message"></p>
     </form>
     <form id="add" hidden>
+      <h2>Paste products</h2>
+      <p>One product per line. Use <code>Name | Category | Price | Strength</code> or <code>Name 10mg 20</code>.</p>
+      <textarea id="bulk" rows="8" placeholder="Example product | General | 20 | 10mg"></textarea>
+      <button class="btn" id="bulkAdd" type="button">Add pasted products</button>
+      <h2>Or add one</h2>
       <label>Name<input id="name" required></label>
       <label>Category<input id="category" required></label>
       <label>Strength<input id="strength" placeholder="10mg"></label>

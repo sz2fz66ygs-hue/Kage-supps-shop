@@ -44,6 +44,21 @@ async function remove(id) {
   load();
 }
 
+document.querySelector("#bulkAdd").addEventListener("click", async () => {
+  const res = await fetch("/api/site/products/bulk", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-site-token": localStorage.getItem(tokenKey)
+    },
+    body: JSON.stringify({ text: document.querySelector("#bulk").value })
+  });
+  const data = await res.json();
+  message.textContent = data.error || `Added ${data.added}.${data.failed?.length ? ` Skipped: ${data.failed.join(", ")}` : ""}`;
+  if (res.ok) document.querySelector("#bulk").value = "";
+  load();
+});
+
 document.querySelector("#add").addEventListener("submit", async event => {
   event.preventDefault();
   const res = await fetch("/api/site/products", {
