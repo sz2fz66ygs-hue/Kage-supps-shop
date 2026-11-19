@@ -2,37 +2,36 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>Packing · Kage Supps</title>
-  <link rel="stylesheet" href="/site.css">
+  <link rel="stylesheet" href="/style.css">
   <style>
-    body{background:#fff}
-    .run{display:flex;justify-content:space-between;align-items:end;gap:12px}
-    .slip{background:#fff;border:1px solid #e9e4d7;border-radius:18px;padding:18px}
-    .slip h2{font-size:28px}
-    .eyebrow{color:#daa520}
-    .items{display:flex;flex-direction:column;gap:8px;margin:16px 0}
-    .items label{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid #e9e4d7;border-radius:12px;background:#fbfaf7}
+    .run{display:flex;justify-content:space-between;align-items:end;padding:8px 16px 0}
+    .slip{margin:12px 16px;padding:16px;border:1px solid #e9e4d7;border-radius:18px;background:#fff}
+    .items{display:flex;flex-direction:column;gap:8px;margin:14px 0}
+    .items label{display:flex;gap:10px;align-items:center;padding:12px;border:1px solid #e9e4d7;border-radius:14px;background:#fbfaf7}
     .items label:has(input:checked){background:#f7f0dc;border-color:#daa520}
-    .actions{display:flex;flex-wrap:wrap;gap:8px}
-    .btn{background:#ffd700;border-color:transparent;color:#111}
-    .btn-outline{background:#fff;border-color:#111;color:#111}
+    .actions{display:flex;flex-direction:column;gap:8px}
     .done{opacity:.55;text-decoration:line-through}
-    #progress{color:#daa520}
+    #progress{color:#daa520;font-weight:900}
+    pre{white-space:pre-wrap;font:inherit}
   </style>
 </head>
 <body>
-  <main class="account">
-    <div class="run">
-      <div><p class="eyebrow">Packing</p><h1 id="title">Ready to pack</h1></div>
-      <strong id="progress"></strong>
-    </div>
-    <form id="login">
-      <label>Telegram username<input id="handle" placeholder="@username"></label>
-      <button class="btn" type="button" id="requestCode">Send code</button>
-      <label>Code<input id="code" placeholder="6 digit code"></label>
-      <button class="btn" type="button" id="verifyCode">Sign in</button>
-      <p id="message"></p>
+  <header class="topbar">
+    <div class="brand"><img class="brand-logo" src="/logo.png" alt=""><span>KAGE SUPPS</span></div>
+    <span id="progress"></span>
+  </header>
+  <main>
+    <div class="run"><div><div class="eyebrow">PACKING</div><h2 id="title">Ready to pack</h2></div></div>
+    <form id="login" class="checkout-card">
+      <label>Telegram username</label>
+      <input id="handle" placeholder="@username">
+      <button class="gold-btn" type="button" id="requestCode">Send code</button>
+      <label>Code</label>
+      <input id="code" placeholder="6 digit code">
+      <button class="gold-btn" type="button" id="verifyCode">Sign in</button>
+      <p id="message" class="status"></p>
     </form>
     <section id="station" hidden></section>
   </main>

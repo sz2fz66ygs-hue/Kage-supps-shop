@@ -46,19 +46,20 @@ function render() {
     return;
   }
   station.innerHTML = `<article class="slip">
-    <p class="eyebrow">#${order.orderId}</p>
+    <div class="eyebrow">#${order.orderId}</div>
     <h2>${order.customerName || "No name"}</h2>
     <p>${order.telegram || ""}</p>
     <pre>${order.copyAddress}</pre>
     <div class="items">${order.items.map((item, i) => `<label><input type="checkbox" data-item="${i}"><span>${item}</span></label>`).join("")}</div>
     <div class="actions">
-      <button class="btn" id="copyAddress" type="button">Copy address</button>
-      <button class="btn btn-outline" id="copyOrder" type="button">Copy order</button>
-      <button class="btn" id="packed" type="button" disabled>Mark packed</button>
-      <button class="btn btn-outline" id="skip" type="button">Skip</button>
+      <button class="gold-btn" id="copyAddress" type="button">Copy address</button>
+      <button class="gold-btn" id="copyOrder" type="button">Copy order</button>
+      <button class="gold-btn" id="packed" type="button" disabled>Mark packed</button>
+      <button class="gold-btn" id="skip" type="button">Skip</button>
     </div>
-    <label>Tracking<input id="tracking" placeholder="Tracking number"></label>
-    <button class="btn btn-outline" id="saveTracking" type="button">Save tracking</button>
+    <label>Tracking</label>
+    <input id="tracking" placeholder="Tracking number">
+    <button class="gold-btn" id="saveTracking" type="button">Save tracking</button>
   </article>`;
   station.querySelectorAll("[data-item]").forEach(box => box.addEventListener("change", () => {
     box.parentElement.classList.toggle("done", box.checked);
