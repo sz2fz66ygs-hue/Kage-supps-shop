@@ -1371,15 +1371,7 @@ function renderBasket() {
       return "";
     }).join("");
     const storeLine = storewideDiscount > 0
-      ? `
-          <div class="discount-line">
-            Store promo
-            <strong>
-              ${escapeHtml(appliedStorewideCode.code)}
-            </strong>:
-            −${money(storewideDiscount)}
-          </div>
-        `
+      ? `<div class="discount-line">Weekend 10% off −${money(storewideDiscount)}</div>`
       : "";
     let spendLine = "";
     if (spendThresholdPromo.active) {
@@ -3248,4 +3240,9 @@ if (addressInput && !document.getElementById("phone")) {
 
 
 loadProducts();
+fetch("/api/storewide-promo").then(res => res.json()).then(data => {
+  if (!data.active) return;
+  appliedStorewideCode = { code: "WEEKEND10", discountPercent: data.discountPercent };
+  renderBasket();
+}).catch(() => {});
 loadPersonalCredit();

@@ -2174,7 +2174,9 @@ if (getMetaValue("storewidePromo:discountPercent") === null) {
   setMetaValue("storewidePromo:discountPercent", STOREWIDE_PROMO_DEFAULTS.discountPercent);
 }
 if (getMetaValue("storewidePromo:active") === null) {
-  setMetaValue("storewidePromo:active", STOREWIDE_PROMO_DEFAULTS.active);
+  setMetaValue("storewidePromo:active", "true");
+} else {
+  setMetaValue("storewidePromo:active", "true");
 }
 
 /* =========================================================
@@ -3444,6 +3446,12 @@ app.get(
    STORE-WIDE PROMO LOOKUP
    ========================================================= */
 
+app.get("/api/storewide-promo", (_req, res) => {
+  const promo = getStorewidePromo();
+  if (!isStorewidePromoLive(promo)) return res.json({ active: false });
+  res.json({ active: true, label: "Weekend 10% off", discountPercent: promo.discountPercent });
+});
+
 app.get(
   "/api/storewide-promo/:code",
   (req, res) => {
@@ -3782,26 +3790,14 @@ app.post(
 
       let storewideDiscountPence = 0;
       let appliedStorewideCode = null;
+      const promo = getStorewidePromo();
 
-      if (storewideCode) {
-        const promo = getStorewidePromo();
-        const code = normaliseCode(storewideCode);
-
-        if (
-          code === promo.code &&
-          isStorewidePromoLive(promo)
-        ) {
-          storewideDiscountPence =
-            storewideDiscountForSubtotal(
-              Math.max(
-                0,
-                subtotalPence - promotionDiscountPence
-              ),
-              promo
-            );
-
-          appliedStorewideCode = promo.code;
-        }
+      if (isStorewidePromoLive(promo)) {
+        storewideDiscountPence = storewideDiscountForSubtotal(
+          Math.max(0, subtotalPence - promotionDiscountPence),
+          promo
+        );
+        appliedStorewideCode = promo.code;
       }
 
       const spendPromo = getSpendThresholdPromo();
