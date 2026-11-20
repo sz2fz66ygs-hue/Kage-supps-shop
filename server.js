@@ -1182,6 +1182,38 @@ app.post("/api/site/products", (req, res) => {
   res.json({ ok: true, product });
 });
 
+function guessSection(name, category) {
+  const n = String(name || "").toLowerCase();
+  const c = String(category || "").toLowerCase();
+  if (c === "peps") {
+    if (/bac|bacteriostatic/.test(n)) return "Supplies";
+    if (/ghk|copper/.test(n)) return "Copper Peptide";
+    if (/bpc|tb-?500|kpv|healing/.test(n)) return "Recovery Research";
+    if (/tirz|reta|cagri|sema|glp|metabolic/.test(n)) return "Metabolic Research";
+    return "Other Peptides";
+  }
+  if (c === "oils") {
+    if (/mass on|ttm|rapid mass|blend/.test(n)) return "Blends";
+    if (/doomsday|anadrol|superdrol|pre-?workout|pwo/.test(n)) return "Pre-Workout Injectables";
+    return "Oils";
+  }
+  if (c === "orals") {
+    if (/pouch|slu|bam|atx|noopept|dihexa|mk-777|sana|9-me/.test(n)) return "Pouches";
+    return "Tubs";
+  }
+  if (c === "pharma") {
+    if (/telmisartan|nebivolol|rosuvastatin|statin|valsartan|eplerenone|pitavastatin/.test(n)) return "Cardiovascular";
+    if (/finasteride|minoxidil|accutane|isotretinoin|dutasteride|ketoconazole/.test(n)) return "Hair & Skin";
+    if (/arimidex|aromasin|clomid|tamoxifen|caber|estradiol|progesterone|proviron|raloxifene/.test(n)) return "Hormones & Related";
+    if (/metformin|empagliflozin|orlistat|pioglitazone|imeglimin/.test(n)) return "Metabolic";
+    if (/modafinil|pregabalin|memantine|phenylpiracetam|noopept/.test(n)) return "Neurology & Wakefulness";
+    if (/cialis|viagra|tadalafil|sildenafil/.test(n)) return "Sexual Health";
+    if (/melatonin|zopiclone|lemborexant|eszopiclone|sleep/.test(n)) return "Sleep";
+    return "Other Pharma";
+  }
+  return category || "Other";
+}
+
 function guessCategory(name) {
   const text = String(name || "").toLowerCase();
   if (/oil|vial|inject|test |sust|tren|deca|mast|eq\b/.test(text)) return "Oils";
@@ -11131,12 +11163,13 @@ ${text}`
             continue;
           }
           nextId += 1;
+          const section = parts[5] || guessSection(name, category);
           const product = {
             id: nextId,
             name,
             subtitle,
             category,
-            section: category,
+            section,
             pricePence: Math.round(price * 100),
             stock,
             unit: "items",
@@ -11199,7 +11232,7 @@ ${text}`
             name: state.name,
             subtitle: state.subtitle || "",
             category: state.category,
-            section: state.category,
+            section: guessSection(state.name, state.category),
             pricePence: state.pricePence,
             stock,
             unit: "items",
@@ -11297,7 +11330,8 @@ ${text}`
             continue;
           }
           nextId += 1;
-          const product = { id: nextId, name, subtitle, category, section: category, pricePence: Math.round(price * 100), stock, unit: "items", purchasable: true };
+          const section = parts[5] || guessSection(name, category);
+          const product = { id: nextId, name, subtitle, category, section, pricePence: Math.round(price * 100), stock, unit: "items", purchasable: true };
           products.push(product);
           productsById.set(nextId, product);
           setInventoryStmt.run(nextId, stock);
