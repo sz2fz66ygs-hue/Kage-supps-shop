@@ -2174,9 +2174,7 @@ if (getMetaValue("storewidePromo:discountPercent") === null) {
   setMetaValue("storewidePromo:discountPercent", STOREWIDE_PROMO_DEFAULTS.discountPercent);
 }
 if (getMetaValue("storewidePromo:active") === null) {
-  setMetaValue("storewidePromo:active", "true");
-} else {
-  setMetaValue("storewidePromo:active", "true");
+  setMetaValue("storewidePromo:active", STOREWIDE_PROMO_DEFAULTS.active);
 }
 
 /* =========================================================
@@ -3790,14 +3788,17 @@ app.post(
 
       let storewideDiscountPence = 0;
       let appliedStorewideCode = null;
-      const promo = getStorewidePromo();
 
-      if (isStorewidePromoLive(promo)) {
-        storewideDiscountPence = storewideDiscountForSubtotal(
-          Math.max(0, subtotalPence - promotionDiscountPence),
-          promo
-        );
-        appliedStorewideCode = promo.code;
+      if (storewideCode) {
+        const promo = getStorewidePromo();
+        const code = normaliseCode(storewideCode);
+        if (code === promo.code && isStorewidePromoLive(promo)) {
+          storewideDiscountPence = storewideDiscountForSubtotal(
+            Math.max(0, subtotalPence - promotionDiscountPence),
+            promo
+          );
+          appliedStorewideCode = promo.code;
+        }
       }
 
       const spendPromo = getSpendThresholdPromo();
