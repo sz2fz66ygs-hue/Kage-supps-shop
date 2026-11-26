@@ -3551,6 +3551,28 @@ async function verifyUsdtPayment(hash, expectedUsdt) {
 
 
 
+
+function verifiedTelegramUser(initData) {
+  if (!initData || !token) return null;
+  const params = new URLSearchParams(initData);
+  const hash = params.get("hash");
+  if (!hash) return null;
+  const pairs = [];
+  for (const [key, value] of params.entries()) {
+    if (key !== "hash") pairs.push(`${key}=${value}`);
+  }
+  pairs.sort();
+  const secret = createHmac("sha256", "WebAppData").update(token).digest();
+  const check = createHmac("sha256", secret).update(pairs.join("\n")).digest("hex");
+  if (check !== hash) return null;
+  try {
+    const user = JSON.parse(params.get("user") || "{}");
+    return { id: String(user.id || ""), username: String(user.username || "") };
+  } catch {
+    return null;
+  }
+}
+
 function verifiedTelegramId(initData) {
   if (!initData || !token) return null;
   const params = new URLSearchParams(initData);
@@ -4496,11 +4518,9 @@ app.post(
         phone: customer?.phone || _formPhone || "",
         personalTenPence,
         telegramUsername:
-          telegramUsername ||
-          "",
+          verifiedTelegramUser(req.body?.initData)?.username || "",
         telegramId:
-          telegramId ||
-          null,
+          verifiedTelegramUser(req.body?.initData)?.id || null,
         telegramName:
           String(req.body?.telegramName || "").trim() ||
           null,
