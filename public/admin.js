@@ -277,12 +277,11 @@ async function removeAdmin(phone) {
 document.querySelector("#addAdminBtn")?.addEventListener("click", addAdmin);
 
 async function adminPasskeyLogin() {
-  const phone = document.querySelector("#adminPhone").value.trim();
   const passkey = document.querySelector("#adminPasskey").value;
   const res = await fetch("/api/admin/passkey-login", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ phone, passkey })
+    body: JSON.stringify({ passkey })
   });
   const data = await res.json();
   if (!res.ok) return (message.textContent = data.error || "Passkey not accepted.");
