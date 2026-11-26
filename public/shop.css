@@ -1,35 +1,35 @@
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Outfit:wght@400;500;600&display=swap");
-:root { --gold:#c9a84c; --gold-dark:#a68534; }
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap");
+:root { --gold:#c9a84c; }
 * { box-sizing:border-box; }
-body { margin:0; font-family:Outfit,system-ui,sans-serif; background:#faf8f5; color:#111; }
-.header { background:#fff; border-bottom:1px solid #e9e4d7; position:sticky; top:0; z-index:10; }
-.header-inner { max-width:1100px; margin:0 auto; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; }
-.logo { font-family:"Cormorant Garamond",serif; font-size:26px; letter-spacing:2px; color:var(--gold); text-decoration:none; }
-.nav a { margin-left:20px; color:#111; text-decoration:none; font-weight:500; }
-.gate { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
-.gate-card { background:#fff; border:1px solid #e9e4d7; border-radius:16px; padding:32px; max-width:400px; width:100%; }
-.gate-card h1 { font-family:"Cormorant Garamond",serif; margin:0 0 8px; }
-.gate-card input, .basket input, .basket textarea { width:100%; padding:10px 12px; border:1px solid #e9e4d7; border-radius:8px; margin:4px 0 12px; font:inherit; }
-.btn { width:100%; padding:12px; background:var(--gold); border:0; border-radius:8px; font-weight:600; cursor:pointer; }
-.btn-outline { background:#fff; border:1px solid var(--gold); margin-top:8px; }
-.status { color:#a33; font-size:14px; min-height:20px; }
-.intro { text-align:center; padding:40px 16px 16px; }
-.intro h1 { font-family:"Cormorant Garamond",serif; font-size:clamp(32px,5vw,48px); margin:0; }
-.intro p { color:#777; }
-.toolbar { max-width:1100px; margin:0 auto; padding:0 20px 16px; }
-.toolbar input { width:100%; max-width:400px; padding:10px 14px; border:1px solid #e9e4d7; border-radius:999px; }
-.cats { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
-.cats button { border:1px solid #e9e4d7; background:#fff; border-radius:999px; padding:8px 14px; cursor:pointer; font:inherit; }
-.cats button.active { background:var(--gold); border-color:var(--gold); }
-.grid { max-width:1100px; margin:0 auto; padding:0 20px 40px; display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
-.card { background:#fff; border:1px solid #e9e4d7; border-radius:14px; padding:16px; }
-.card h3 { margin:0 0 4px; font-size:16px; }
-.card .price { color:var(--gold-dark); font-weight:700; float:right; }
-.card .meta { color:#666; font-size:13px; }
-.card .stock { display:inline-block; margin-top:8px; padding:2px 8px; border-radius:999px; font-size:12px; }
-.stock.low { background:#fde2df; }
-.stock.ok { background:#e4f7ec; }
-.qty { display:flex; align-items:center; gap:8px; margin-top:10px; }
-.qty button { width:28px; height:28px; border:1px solid var(--gold); background:#fff; border-radius:50%; cursor:pointer; }
-.basket { max-width:600px; margin:0 auto 60px; background:#fff; border:1px solid #e9e4d7; border-radius:16px; padding:24px; }
-.total { font-size:18px; }
+body { margin:0; font-family:Inter,system-ui,sans-serif; background:#fff; color:#111; }
+.wrap { max-width:1120px; margin:0 auto; padding:0 20px; }
+.narrow { max-width:560px; }
+.top-bar { background:#111; color:#fff; text-align:center; font-size:12px; padding:6px; letter-spacing:1px; }
+.header { border-bottom:1px solid #eee; }
+.header .wrap { display:flex; align-items:center; justify-content:space-between; height:64px; }
+.logo { font-weight:700; letter-spacing:3px; color:var(--gold); text-decoration:none; font-size:20px; }
+nav a { margin:0 12px; color:#111; text-decoration:none; font-size:14px; }
+.basket-btn { background:var(--gold); border:0; padding:8px 14px; border-radius:6px; font-weight:600; cursor:pointer; }
+.gate { min-height:70vh; display:flex; align-items:center; justify-content:center; }
+.gate-box { width:360px; display:flex; flex-direction:column; gap:10px; }
+.gate-box input, .checkout input, .checkout textarea { padding:12px; border:1px solid #ddd; border-radius:6px; font:inherit; }
+.btn { background:var(--gold); border:0; padding:12px; border-radius:6px; font-weight:600; cursor:pointer; }
+.banner { background:#f7f5f0; padding:48px 0; text-align:center; }
+.banner h1 { margin:0; font-size:40px; font-weight:600; }
+.banner p { color:#666; margin:8px 0 0; }
+.filters { display:flex; gap:16px; align-items:center; padding:24px 0; flex-wrap:wrap; }
+.filters input { flex:1; min-width:200px; padding:10px 14px; border:1px solid #ddd; border-radius:6px; }
+.cats { display:flex; gap:6px; flex-wrap:wrap; }
+.cats button { border:1px solid #ddd; background:#fff; padding:6px 12px; border-radius:4px; cursor:pointer; font:inherit; font-size:13px; }
+.cats button.active { background:#111; color:#fff; border-color:#111; }
+.products { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:20px; padding-bottom:40px; }
+.card { border:1px solid #eee; border-radius:8px; padding:16px; }
+.card h3 { margin:0 0 4px; font-size:15px; font-weight:600; }
+.card .price { font-weight:700; color:var(--gold); }
+.card .meta { color:#888; font-size:13px; margin:4px 0; }
+.qty { display:flex; gap:8px; align-items:center; margin-top:10px; }
+.qty button { width:26px; height:26px; border:1px solid #ddd; background:#fff; border-radius:4px; cursor:pointer; }
+.checkout { background:#fafafa; padding:40px 0 60px; border-top:1px solid #eee; }
+.checkout h2 { margin:0 0 16px; }
+.lines div { padding:6px 0; border-bottom:1px solid #eee; font-size:14px; }
+.total { font-size:18px; margin:16px 0; }
