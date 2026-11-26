@@ -1293,11 +1293,11 @@ app.post("/api/account/start", (req, res) => {
   if (method === "phone") {
     console.log(`[SMS STUB] Code for ${cleanPhone}: ${code}`);
   } else if (process.env.TELEGRAM_BOT_TOKEN && cleanTg) {
-    // Best-effort: cannot DM by username without prior chat; log for now.
     console.log(`[TG] Code for @${cleanTg}: ${code}`);
   }
 
-  res.json({ ok: true, method, message: method === "phone" ? "Code sent to phone." : "Code sent via Telegram." });
+  // Temporary: return code so website flow can be tested until Twilio is wired
+  res.json({ ok: true, method, message: method === "phone" ? "Code sent to phone." : "Code sent via Telegram.", code });
 });
 
 app.post("/api/account/verify", (req, res) => {
