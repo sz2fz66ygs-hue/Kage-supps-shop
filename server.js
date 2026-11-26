@@ -1789,6 +1789,11 @@ app.post("/api/admin/passkey-login", (req, res) => {
   res.json({ ok: true, token });
 });
 
+
+app.get("/web", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "web.html"));
+});
+
 app.get("/manage", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
