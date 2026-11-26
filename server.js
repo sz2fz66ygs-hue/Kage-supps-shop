@@ -4090,12 +4090,10 @@ app.post(
         return res.status(403).json({ error: "The shop is closed while we update stock. Please try again shortly." });
       }
 
-      // Require verified customer account
+      // Account requirement disabled for now — bot and website stay linked
       const accountToken = String(req.headers["x-account-token"] || "");
       const session = customerSessions.get(accountToken);
-      if (!session) return res.status(401).json({ error: "Please create an account to order." });
-      const customer = db.prepare("SELECT id, name, phone, verified FROM customers WHERE id = ?").get(session.customerId);
-      if (!customer || !customer.verified) return res.status(403).json({ error: "Account not verified." });
+      const customer = session ? db.prepare("SELECT id, name, phone, verified FROM customers WHERE id = ?").get(session.customerId) : null;
 
       const {
         customerName: _formName,
@@ -4459,8 +4457,8 @@ app.post(
       const order = {
         orderId,
         customerId: customer.id,
-        customerName: String(customer.name || "").trim(),
-        phone: customer.phone || "",
+        customerName: String(customer?.name || _formName || "").trim(),
+        phone: customer?.phone || _formPhone || "",
         personalTenPence,
         telegramUsername:
           telegramUsername ||
