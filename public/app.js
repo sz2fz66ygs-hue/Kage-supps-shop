@@ -3348,20 +3348,9 @@ async function gateVerify() {
 document.getElementById("gateStart")?.addEventListener("click", gateStart);
 document.getElementById("gateVerify")?.addEventListener("click", gateVerify);
 
-// On load, check if already verified
-// Skip the account gate entirely when running inside Telegram
+// Account gate disabled for now — bot and website stay linked without phone verification
 (async () => {
-  if (window.Telegram?.WebApp || document.documentElement.classList.contains("in-telegram")) return showShop();
-  const token = localStorage.getItem("kage_account_token");
-  if (!token) return showGate();
-  try {
-    const res = await fetch("/api/account/me", { headers: { "x-account-token": token } });
-    if (res.ok) {
-      const me = await res.json();
-      if (me.verified) return showShop();
-    }
-  } catch {}
-  showGate("Please verify your phone to continue.");
+  showShop();
 })();
 
 // Auto-fill checkout from verified account and keep order linked
