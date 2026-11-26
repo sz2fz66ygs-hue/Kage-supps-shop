@@ -3351,7 +3351,7 @@ document.getElementById("gateVerify")?.addEventListener("click", gateVerify);
 // On load, check if already verified
 // Skip the account gate entirely when running inside Telegram
 (async () => {
-  if (window.Telegram?.WebApp?.initData) return showShop();
+  if (window.Telegram?.WebApp || document.documentElement.classList.contains("in-telegram")) return showShop();
   const token = localStorage.getItem("kage_account_token");
   if (!token) return showGate();
   try {
