@@ -1,1 +1,96 @@
-PLACEHOLDER_HTML
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin · Kage Supps</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    body{background:#fbfaf7}
+    .shell{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+    .side{background:#fff;border-right:1px solid #e9e4d7;padding:24px 16px;position:sticky;top:0;height:100vh}
+    .side .brand{margin-bottom:28px}
+    .side button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:12px 14px;border-radius:12px;font:inherit;font-weight:700;cursor:pointer;color:#111}
+    .side button.active{background:#ffd700}
+    .main{padding:28px}
+    .panel{display:none}
+    .panel.active{display:block}
+    .head{display:flex;justify-content:space-between;align-items:end;margin-bottom:18px}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .stat,.row,.slip{background:#fff;border:1px solid #e9e4d7;border-radius:16px;padding:16px}
+    .stat strong{display:block;font-size:28px;margin-top:4px}
+    .list{display:flex;flex-direction:column;gap:10px}
+    .row{display:grid;grid-template-columns:90px 1fr auto;gap:12px;align-items:center}
+    .muted{color:#77736b}
+    .items label{display:flex;gap:10px;align-items:center;padding:12px;border:1px solid #e9e4d7;border-radius:12px;background:#fbfaf7;margin-top:8px}
+    .items label:has(input:checked){background:#f7f0dc;border-color:#daa520}
+    .done{opacity:.55;text-decoration:line-through}
+    pre{white-space:pre-wrap;font:inherit;margin:8px 0}
+    .product-editor{display:grid;gap:8px;margin-top:8px}
+    .product-editor input,.product-editor textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #e9e4d7}
+    .json-editor{width:100%;min-height:320px;font-family:monospace;font-size:13px;padding:12px;border-radius:12px;border:1px solid #111}
+    @media(max-width:800px){.shell{grid-template-columns:1fr}.side{position:static;height:auto}.grid,.row{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="side">
+      <div class="brand"><img class="brand-logo" src="/logo.png" alt=""><span>KAGE</span></div>
+      <nav id="nav" hidden>
+        <button class="active" data-panel="pack" type="button">Packing</button>
+        <button data-panel="orders" type="button">Orders</button>
+        <button data-panel="products" type="button">Products</button>
+        <button data-panel="promos" type="button">Promotions</button>
+        <button data-panel="affiliates" type="button">Affiliates</button>
+        <button data-panel="raw" type="button">Raw JSON</button>
+      </nav>
+    </aside>
+    <main class="main">
+      <section id="login">
+        <p class="eyebrow">Admin</p>
+        <h1>Sign in</h1>
+        <label>Telegram username</label>
+        <input id="handle" placeholder="@username">
+        <button class="gold-btn" type="button" id="requestCode">Send code</button>
+        <label>Code</label>
+        <input id="code" placeholder="6 digit code">
+        <button class="gold-btn" type="button" id="verifyCode">Log in</button>
+      </section>
+      <p id="message" class="status"></p>
+
+      <section class="panel" id="pack">
+        <div class="head"><div><p class="eyebrow">Packing</p><h1 id="packTitle">Ready to pack</h1></div><strong id="progress"></strong></div>
+        <div id="station"></div>
+      </section>
+
+      <section class="panel" id="orders">
+        <div class="head"><div><p class="eyebrow">Orders</p><h1>Recent orders</h1></div></div>
+        <div id="orderList" class="list"></div>
+      </section>
+
+      <section class="panel" id="products">
+        <div class="head"><div><p class="eyebrow">Products</p><h1>Full catalogue control</h1></div><button class="gold-btn" id="addProductBtn" type="button">+ New product</button></div>
+        <div id="productList" class="list"></div>
+      </section>
+
+      <section class="panel" id="promos">
+        <div class="head"><div><p class="eyebrow">Promotions</p><h1>Live deals</h1></div></div>
+        <div id="promoList" class="list"></div>
+      </section>
+
+      <section class="panel" id="affiliates">
+        <div class="head"><div><p class="eyebrow">Affiliates</p><h1>Codes</h1></div></div>
+        <div id="affiliateList" class="list"></div>
+      </section>
+
+      <section class="panel" id="raw">
+        <div class="head"><div><p class="eyebrow">Advanced</p><h1>Raw products.json editor</h1></div></div>
+        <p class="muted">Any change is possible here. Edit the full array and save. Be careful — invalid JSON will be rejected.</p>
+        <textarea id="rawJson" class="json-editor"></textarea>
+        <button class="gold-btn" id="saveRaw" type="button" style="margin-top:12px">Save full catalogue</button>
+      </section>
+    </main>
+  </div>
+  <script src="/admin.js"></script>
+</body>
+</html>
