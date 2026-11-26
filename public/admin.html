@@ -36,6 +36,7 @@
         <button data-panel="orders" type="button">Orders</button>
         <button data-panel="customers" type="button">Customers</button>
         <button data-panel="settings" type="button">Settings</button>
+        <button data-panel="admins" type="button">Admins</button>
         <button data-panel="promos" type="button">Promotions</button>
         <button data-panel="raw" type="button">Raw JSON</button>
       </nav>
@@ -99,6 +100,19 @@
       <section class="panel" id="promos">
         <div class="head"><div><p class="eyebrow">Promotions</p><h1>Deals & codes</h1></div></div>
         <div id="promoList" class="list"></div>
+      </section>
+
+      
+      <section class="panel" id="admins">
+        <div class="head"><div><p class="eyebrow">Admins</p><h1>Admin phones</h1></div></div>
+        <div class="slip">
+          <label>Add admin phone</label>
+          <div style="display:flex;gap:8px">
+            <input id="newAdminPhone" type="tel" placeholder="+44 7...">
+            <button class="gold-btn" id="addAdminBtn" type="button">Add</button>
+          </div>
+        </div>
+        <div id="adminList" class="list"></div>
       </section>
 
       <section class="panel" id="raw">
