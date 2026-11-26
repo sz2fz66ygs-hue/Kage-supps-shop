@@ -3348,10 +3348,9 @@ async function gateVerify() {
 document.getElementById("gateStart")?.addEventListener("click", gateStart);
 document.getElementById("gateVerify")?.addEventListener("click", gateVerify);
 
-// Account gate disabled for now — bot and website stay linked without phone verification
-(async () => {
-  showShop();
-})();
+// Original Telegram flow — no account gate
+// Products load as before via the existing catalogue code
+
 
 // Auto-fill checkout from verified account and keep order linked
 async function fillCheckoutFromAccount() {
