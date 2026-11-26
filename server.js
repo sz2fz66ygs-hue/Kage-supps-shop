@@ -9385,7 +9385,7 @@ Customers can no longer use the store-wide promo code.`,
             q.from?.id
           )
         ) {
-          return;
+          return safeSendMessage(chatId, "Not authorised. Your Telegram ID is not in the admin list.");
         }
 
         const orderId =
