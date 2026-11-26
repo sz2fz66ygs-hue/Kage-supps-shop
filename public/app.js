@@ -3316,12 +3316,14 @@ function showGate(msg) {
 }
 
 async function gateStart() {
+  const name = document.getElementById("gateName")?.value.trim();
   const phone = document.getElementById("gatePhone")?.value.trim();
+  if (!name) return (gateStatus.textContent = "Enter your name.");
   if (!phone) return (gateStatus.textContent = "Enter your phone number.");
   const res = await fetch("/api/account/start", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ phone })
+    body: JSON.stringify({ name, phone })
   });
   const data = await res.json();
   gateStatus.textContent = data.error || data.message || "Code sent.";
@@ -3358,3 +3360,24 @@ document.getElementById("gateVerify")?.addEventListener("click", gateVerify);
   } catch {}
   showGate("Please verify your phone to continue.");
 })();
+
+// Auto-fill checkout from verified account and keep order linked
+async function fillCheckoutFromAccount() {
+  const token = localStorage.getItem("kage_account_token");
+  if (!token) return;
+  try {
+    const res = await fetch("/api/account/me", { headers: { "x-account-token": token } });
+    if (!res.ok) return;
+    const me = await res.json();
+    const nameEl = document.getElementById("name");
+    const handleEl = document.getElementById("handle");
+    if (nameEl && me.name) nameEl.value = me.name;
+    if (handleEl && me.phone) handleEl.value = me.phone;
+  } catch {}
+}
+if (document.getElementById("shopContent")) {
+  const obs = new MutationObserver(() => {
+    if (!document.getElementById("shopContent").hidden) fillCheckoutFromAccount();
+  });
+  obs.observe(document.getElementById("shopContent"), { attributes: true, attributeFilter: ["hidden"] });
+}
