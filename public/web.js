@@ -3454,6 +3454,9 @@ document.getElementById("gateStart")?.addEventListener("click", gateStart);
 document.getElementById("gateVerify")?.addEventListener("click", gateVerify);
 
 (async () => {
+  // Shop is open without account for now
+  showShop();
+  return;
   const token = localStorage.getItem("kage_account_token");
   if (!token) return showGate();
   try {
