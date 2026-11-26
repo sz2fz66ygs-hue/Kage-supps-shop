@@ -3421,9 +3421,7 @@ document.getElementById("navShop")?.addEventListener("click", () => {
 });
 
 document.getElementById("navAdmin")?.addEventListener("click", () => {
-  document.getElementById("shopContent").hidden = true;
-  document.getElementById("shopGate").hidden = true;
-  document.getElementById("adminFrame").hidden = false;
+  window.location.href = "/manage";
 });
 
 /* Products dropdown category filter */
