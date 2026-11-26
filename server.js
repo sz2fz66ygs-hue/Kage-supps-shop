@@ -4752,6 +4752,30 @@ ${order.reservationExpiresAt}`
    ORDER STATUS
    ========================================================= */
 
+app.get("/api/my-orders", (req, res) => {
+  const telegramId = String(req.query.telegramId || "");
+  const username = String(req.query.username || "").replace(/^@/, "").toLowerCase();
+  if (!telegramId && !username) return res.json([]);
+  const mine = [...orders.values()]
+    .filter(order => {
+      if (telegramId && String(order.telegramId) === telegramId) return true;
+      const a = String(order.telegramUsername || "").replace(/^@/, "").toLowerCase();
+      return Boolean(username && a && a === username);
+    })
+    .filter(order => order.paymentStatus !== "cancelled")
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+    .slice(0, 20)
+    .map(order => ({
+      orderId: order.orderId,
+      totalPence: order.totalPence,
+      paymentStatus: order.paymentStatus,
+      fulfilmentStatus: order.fulfilmentStatus,
+      createdAt: order.createdAt,
+      items: (order.items || []).map(i => i.quantity + " × " + i.name)
+    }));
+  res.json(mine);
+});
+
 app.get(
   "/api/orders/:id",
   (
