@@ -145,8 +145,10 @@ async function loadOrders() {
       <strong>#${o.orderId}</strong>
       <div><strong>${o.customerName||""}</strong><div class="muted">${o.paymentStatus} · ${o.fulfilmentStatus}</div></div>
       <strong>${money(o.total)}</strong>
+      ${o.paymentStatus !== "paid" ? `<button data-paid="${o.orderId}" type="button">Mark paid</button>` : ""}
     </article>
   `).join("") || "<p>No orders.</p>";
+  document.querySelectorAll("[data-paid]").forEach(b => b.onclick = () => markPaid(b.dataset.paid));
 }
 
 async function loadCustomers() {
@@ -303,4 +305,11 @@ async function loadSecurity() {
       <span class="muted">${new Date(r.time).toLocaleString()}</span>
     </article>
   `).join("") || "<p>No blocked requests yet.</p>";
+}
+
+async function markPaid(id) {
+  if (!confirm("Mark order #" + id + " as paid?")) return;
+  const res = await fetch("/api/admin/orders/" + id + "/mark-paid", { method: "POST", headers: authHeaders() });
+  if (res.ok) loadOrders();
+  else alert("Failed");
 }
