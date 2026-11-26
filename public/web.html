@@ -46,7 +46,15 @@
     <div class="site-header-inner">
       <div class="brand">KAGE</div>
       <nav class="site-nav">
-        <a href="#products">Shop</a>
+        <div class="dropdown">
+          <button class="nav-btn" type="button">Products ▾</button>
+          <div class="dropdown-menu" id="productDropdown">
+            <a href="#" data-cat="Oils">Oils</a>
+            <a href="#" data-cat="Oral Anabolics">Oral Anabolics</a>
+            <a href="#" data-cat="Pharma">Pharma</a>
+            <a href="#" data-cat="Injectables">Injectables</a>
+          </div>
+        </div>
         <a href="#checkout">Basket</a>
       </nav>
       <div class="site-actions">
