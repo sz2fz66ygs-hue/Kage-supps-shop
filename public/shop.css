@@ -1,15 +1,35 @@
-.top-actions{display:flex;gap:8px}
-.gate{max-width:420px;margin:48px auto;padding:24px 18px;text-align:center}
-.gate-logo{width:72px;height:72px;animation:brand-logo-turn 8s ease-in-out infinite;transform-style:preserve-3d}
-.gate h1{letter-spacing:2px;margin:12px 0 8px}
-.gate p{color:var(--muted)}
-.gate label,.checkout-card label{display:block;text-align:left;font-weight:800;margin:16px 0 6px}
-.gate input,.checkout-card input,.checkout-card textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:12px;font:inherit}
-.gate button,.checkout-card button{width:100%;margin-top:14px;border:0;border-radius:999px;background:var(--gold);color:#111;font-weight:900;padding:13px}
-.gate-error{color:#9b1c1c;min-height:1.2em}
-.product-card{display:grid;grid-template-columns:72px 1fr;gap:12px;padding:14px 0;border-bottom:1px solid var(--border)}
-.product-card img{width:72px;height:72px;object-fit:contain}
-.strengths{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.strengths button{border:1px solid #111;background:#fff;border-radius:999px;padding:6px 10px;font-weight:800}
-.strengths button.active{background:var(--gold)}
-.account-order{border:1px solid var(--border);border-radius:14px;padding:12px;margin:10px 0}
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Outfit:wght@400;500;600&display=swap");
+:root { --gold:#c9a84c; --gold-dark:#a68534; }
+* { box-sizing:border-box; }
+body { margin:0; font-family:Outfit,system-ui,sans-serif; background:#faf8f5; color:#111; }
+.header { background:#fff; border-bottom:1px solid #e9e4d7; position:sticky; top:0; z-index:10; }
+.header-inner { max-width:1100px; margin:0 auto; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; }
+.logo { font-family:"Cormorant Garamond",serif; font-size:26px; letter-spacing:2px; color:var(--gold); text-decoration:none; }
+.nav a { margin-left:20px; color:#111; text-decoration:none; font-weight:500; }
+.gate { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+.gate-card { background:#fff; border:1px solid #e9e4d7; border-radius:16px; padding:32px; max-width:400px; width:100%; }
+.gate-card h1 { font-family:"Cormorant Garamond",serif; margin:0 0 8px; }
+.gate-card input, .basket input, .basket textarea { width:100%; padding:10px 12px; border:1px solid #e9e4d7; border-radius:8px; margin:4px 0 12px; font:inherit; }
+.btn { width:100%; padding:12px; background:var(--gold); border:0; border-radius:8px; font-weight:600; cursor:pointer; }
+.btn-outline { background:#fff; border:1px solid var(--gold); margin-top:8px; }
+.status { color:#a33; font-size:14px; min-height:20px; }
+.intro { text-align:center; padding:40px 16px 16px; }
+.intro h1 { font-family:"Cormorant Garamond",serif; font-size:clamp(32px,5vw,48px); margin:0; }
+.intro p { color:#777; }
+.toolbar { max-width:1100px; margin:0 auto; padding:0 20px 16px; }
+.toolbar input { width:100%; max-width:400px; padding:10px 14px; border:1px solid #e9e4d7; border-radius:999px; }
+.cats { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+.cats button { border:1px solid #e9e4d7; background:#fff; border-radius:999px; padding:8px 14px; cursor:pointer; font:inherit; }
+.cats button.active { background:var(--gold); border-color:var(--gold); }
+.grid { max-width:1100px; margin:0 auto; padding:0 20px 40px; display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
+.card { background:#fff; border:1px solid #e9e4d7; border-radius:14px; padding:16px; }
+.card h3 { margin:0 0 4px; font-size:16px; }
+.card .price { color:var(--gold-dark); font-weight:700; float:right; }
+.card .meta { color:#666; font-size:13px; }
+.card .stock { display:inline-block; margin-top:8px; padding:2px 8px; border-radius:999px; font-size:12px; }
+.stock.low { background:#fde2df; }
+.stock.ok { background:#e4f7ec; }
+.qty { display:flex; align-items:center; gap:8px; margin-top:10px; }
+.qty button { width:28px; height:28px; border:1px solid var(--gold); background:#fff; border-radius:50%; cursor:pointer; }
+.basket { max-width:600px; margin:0 auto 60px; background:#fff; border:1px solid #e9e4d7; border-radius:16px; padding:24px; }
+.total { font-size:18px; }
