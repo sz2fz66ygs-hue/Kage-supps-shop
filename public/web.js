@@ -3324,7 +3324,7 @@ async function gateStart() {
     body: JSON.stringify({ name, phone })
   });
   const data = await res.json();
-  gateStatus.textContent = data.error || data.message || "Code sent.";
+  gateStatus.textContent = data.error || (data.code ? `Code: ${data.code}` : data.message) || "Code sent.";
 }
 
 async function gateVerify() {
@@ -3432,7 +3432,7 @@ async function gateStart() {
     body: JSON.stringify({ name, phone })
   });
   const data = await res.json();
-  gateStatus.textContent = data.error || data.message || "Code sent.";
+  gateStatus.textContent = data.error || (data.code ? `Code: ${data.code}` : data.message) || "Code sent.";
 }
 
 async function gateVerify() {
