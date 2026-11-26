@@ -838,3 +838,7 @@ h1, h2, .brand span, .eyebrow {
   main { padding: 16px 14px 80px; }
   .gold-btn { padding: 14px 16px; min-height: 48px; }
 }
+
+/* Hide account gate when running inside Telegram */
+html.in-telegram #shopGate { display: none !important; }
+html.in-telegram #shopContent { display: block !important; }
