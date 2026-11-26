@@ -3381,3 +3381,21 @@ if (document.getElementById("shopContent")) {
   });
   obs.observe(document.getElementById("shopContent"), { attributes: true, attributeFilter: ["hidden"] });
 }
+
+/* =========================================================
+   ADMIN PASSKEY FROM MAIN SHOP
+   ========================================================= */
+document.getElementById("shopAdminLogin")?.addEventListener("click", async () => {
+  const passkey = document.getElementById("shopAdminPasskey")?.value || "";
+  const status = document.getElementById("shopAdminStatus");
+  if (!passkey) return (status.textContent = "Enter a passkey.");
+  const res = await fetch("/api/admin/passkey-login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ passkey })
+  });
+  const data = await res.json();
+  if (!res.ok) return (status.textContent = data.error || "Invalid passkey.");
+  localStorage.setItem("kage_admin_token", data.token);
+  window.location.href = "/manage";
+});
