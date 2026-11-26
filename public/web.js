@@ -3437,3 +3437,12 @@ document.getElementById("productDropdown")?.addEventListener("click", e => {
   if (btn) btn.click();
   document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
 });
+
+/* Mobile dropdown toggle */
+document.querySelector(".nav-btn")?.addEventListener("click", e => {
+  e.stopPropagation();
+  document.querySelector(".dropdown")?.classList.toggle("open");
+});
+document.addEventListener("click", () => {
+  document.querySelector(".dropdown")?.classList.remove("open");
+});
