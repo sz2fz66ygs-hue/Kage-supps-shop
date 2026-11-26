@@ -4471,7 +4471,7 @@ app.post(
 
       const order = {
         orderId,
-        customerId: customer.id,
+        customerId: customer?.id || null,
         customerName: String(customer?.name || _formName || "").trim(),
         phone: customer?.phone || _formPhone || "",
         personalTenPence,
