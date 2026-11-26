@@ -264,7 +264,7 @@
     "category": "Orals",
     "section": "Pouches",
     "name": "ATX-304 × BAM-15",
-    "stock": 16,
+    "stock": 17,
     "unit": "pouches",
     "subtitle": "100mg ATX-304 + 20mg BAM-15 per capsule • 30 capsules per pouch",
     "pricePence": 5500,
@@ -297,7 +297,7 @@
     "category": "Orals",
     "section": "Pouches",
     "name": "SLU-PP-332",
-    "stock": 8,
+    "stock": 16,
     "unit": "pouches",
     "subtitle": "100mg per capsule • 30 capsules per pouch",
     "pricePence": 5000,
@@ -308,7 +308,7 @@
     "category": "Orals",
     "section": "Pouches",
     "name": "SLU-PP-332 × BAM-15",
-    "stock": 15,
+    "stock": 30,
     "unit": "pouches",
     "subtitle": "100mg SLU-PP-332 + 20mg BAM-15 per capsule • 30 capsules per pouch",
     "pricePence": 6000,
@@ -800,5 +800,71 @@
     "subtitle": "10ml per vial",
     "pricePence": 500,
     "status": "In inventory"
+  },
+  {
+    "id": 408,
+    "name": "ATX-304",
+    "subtitle": "100mg per capsule • 30 capsules per pouch",
+    "category": "Orals",
+    "section": "Orals",
+    "stock": 16,
+    "pricePence": 0,
+    "unit": "pouches",
+    "purchasable": true
+  },
+  {
+    "id": 409,
+    "name": "MOTS-C",
+    "subtitle": "20mg",
+    "category": "Peps",
+    "section": "Peps",
+    "stock": 10,
+    "pricePence": 2000,
+    "unit": "vials",
+    "purchasable": true
+  },
+  {
+    "id": 410,
+    "name": "Retatrutide 20mg",
+    "subtitle": "20mg",
+    "category": "Peps",
+    "section": "Peps",
+    "stock": 10,
+    "pricePence": 0,
+    "unit": "vials",
+    "purchasable": true
+  },
+  {
+    "id": 411,
+    "name": "Cagri 10mg",
+    "subtitle": "10mg",
+    "category": "Peps",
+    "section": "Peps",
+    "stock": 10,
+    "pricePence": 6000,
+    "unit": "vials",
+    "purchasable": true
+  },
+  {
+    "id": 412,
+    "name": "Glutathione 600mg",
+    "subtitle": "600mg",
+    "category": "Peps",
+    "section": "Peps",
+    "stock": 0,
+    "pricePence": 1500,
+    "unit": "vials",
+    "purchasable": true
+  },
+  {
+    "id": 413,
+    "name": "Glutathione 1500mg",
+    "subtitle": "1500mg",
+    "category": "Peps",
+    "section": "Peps",
+    "stock": 0,
+    "pricePence": 2500,
+    "unit": "vials",
+    "purchasable": true
   }
 ]
