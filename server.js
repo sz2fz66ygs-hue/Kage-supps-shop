@@ -1296,17 +1296,21 @@ app.get("/api/manage/products", (req, res) => {
 app.put("/api/manage/products/:id", (req, res) => {
   if (!siteAdmin(req)) return res.status(401).json({ error: "Admin login required." });
   const id = Number(req.params.id);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: "Invalid product id." });
   const idx = products.findIndex(p => Number(p.id) === id);
   if (idx === -1) return res.status(404).json({ error: "Product not found." });
   const allowed = ["name", "category", "section", "stock", "unit", "subtitle", "pricePence", "status"];
   const updates = req.body || {};
   for (const key of allowed) {
-    if (updates[key] !== undefined) {
-      if (key === "stock" || key === "pricePence" || key === "id") {
-        products[idx][key] = Number(updates[key]);
-      } else {
-        products[idx][key] = String(updates[key]);
-      }
+    if (updates[key] === undefined) continue;
+    if (key === "stock" || key === "pricePence") {
+      const n = Number(updates[key]);
+      if (!Number.isFinite(n) || n < 0) return res.status(400).json({ error: `${key} must be a non-negative number.` });
+      products[idx][key] = Math.round(n);
+    } else {
+      const s = String(updates[key] ?? "").trim().slice(0, 200);
+      if (key === "name" && !s) return res.status(400).json({ error: "Name cannot be empty." });
+      products[idx][key] = s;
     }
   }
   saveProductsFile();
