@@ -1,13 +1,11 @@
+if (!localStorage.getItem("kage_account_token") && !localStorage.getItem("kage_admin_token")) {
+  location.href = "/login";
+}
+
 const basket = JSON.parse(localStorage.getItem("kage_basket") || "{}");
 let products = [];
 let currentCat = "All";
 const save = () => localStorage.setItem("kage_basket", JSON.stringify(basket));
-
-function enter() {
-  document.getElementById("gate").hidden = true;
-  document.getElementById("shop").hidden = false;
-  load();
-}
 
 async function load() {
   products = await (await fetch("/api/products")).json();
@@ -93,48 +91,4 @@ document.getElementById("checkout").onclick = async () => {
   document.getElementById("status").textContent = data.error || `Order #${data.orderId} · ${data.payment?.quote?.USDT || ""} USDT`;
 };
 
-document.getElementById("gateStart").onclick = async () => {
-  const res = await fetch("/api/account/start", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      name: document.getElementById("gateName").value,
-      phone: document.getElementById("gatePhone").value
-    })
-  });
-  const data = await res.json();
-  document.getElementById("gateStatus").textContent = data.code ? "Code: " + data.code : (data.error || data.message);
-};
-document.getElementById("gateVerify").onclick = async () => {
-  const res = await fetch("/api/account/verify", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      phone: document.getElementById("gatePhone").value,
-      code: document.getElementById("gateCode").value
-    })
-  });
-  const data = await res.json();
-  if (res.ok) {
-    localStorage.setItem("kage_account_token", data.token);
-    enter();
-  } else {
-    document.getElementById("gateStatus").textContent = data.error || "Failed";
-  }
-};
-document.getElementById("adminLogin").onclick = async () => {
-  const res = await fetch("/api/admin/passkey-login", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ passkey: document.getElementById("adminKey").value })
-  });
-  const data = await res.json();
-  if (res.ok) {
-    localStorage.setItem("kage_admin_token", data.token);
-    enter();
-  } else {
-    document.getElementById("adminStatus").textContent = data.error || "Invalid";
-  }
-};
-
-if (localStorage.getItem("kage_account_token") || localStorage.getItem("kage_admin_token")) enter();
+load();
