@@ -842,3 +842,64 @@ h1, h2, .brand span, .eyebrow {
 /* Hide account gate when running inside Telegram */
 html.in-telegram #shopGate { display: none !important; }
 html.in-telegram #shopContent { display: block !important; }
+
+/* ===== Proper website layout ===== */
+.site-header {
+  background: #0d0d0d;
+  color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1px solid #222;
+}
+.site-header-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.site-header .brand {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 28px;
+  letter-spacing: 2px;
+  color: #c9a84c;
+}
+.site-nav {
+  display: flex;
+  gap: 24px;
+}
+.site-nav a {
+  color: #fff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.site-nav a:hover { color: #c9a84c; }
+.hero {
+  background: #0d0d0d;
+  color: #fff;
+  text-align: center;
+  padding: 80px 24px 60px;
+}
+.hero h1 {
+  font-family: "Cormorant Garamond", serif;
+  font-size: clamp(32px, 5vw, 56px);
+  margin: 12px 0;
+  color: #c9a84c;
+}
+.hero p { color: #ccc; font-size: 16px; }
+.site-actions .cart-pill {
+  background: #c9a84c;
+  color: #111;
+  border: 0;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+@media (max-width: 700px) {
+  .site-nav { display: none; }
+  .hero { padding: 48px 16px 32px; }
+}
