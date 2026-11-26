@@ -1613,6 +1613,20 @@ app.delete("/api/admin/admins/:phone", (req, res) => {
 /* =========================================================
    ADMIN PASSKEY LOGIN (no SMS required)
    ========================================================= */
+
+const { scryptSync, timingSafeEqual, randomBytes } = require("node:crypto");
+function hashPasskey(passkey) {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(passkey, salt, 32).toString("hex");
+  return salt + ":" + hash;
+}
+function verifyPasskey(passkey, stored) {
+  const [salt, hash] = stored.split(":");
+  if (!salt || !hash) return false;
+  const test = scryptSync(passkey, salt, 32).toString("hex");
+  return timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(test, "hex"));
+}
+
 db.exec(`CREATE TABLE IF NOT EXISTS admin_passkeys (
   phone TEXT PRIMARY KEY,
   passkey TEXT NOT NULL,
@@ -1623,8 +1637,8 @@ db.exec(`CREATE TABLE IF NOT EXISTS admin_passkeys (
 const existing = db.prepare("SELECT COUNT(*) as c FROM admin_passkeys").get()?.c || 0;
 if (existing === 0) {
   const now = new Date().toISOString();
-  db.prepare("INSERT INTO admin_passkeys (phone, passkey, created_at) VALUES (?, ?, ?)").run("447888142154", "main gold tiger vault key lock", now);
-  db.prepare("INSERT INTO admin_passkeys (phone, passkey, created_at) VALUES (?, ?, ?)").run("447380964131", "second silver fox river gate", now);
+  db.prepare("INSERT INTO admin_passkeys (phone, passkey, created_at) VALUES (?, ?, ?)").run("447888142154", hashPasskey("main gold tiger vault key lock"), now);
+  db.prepare("INSERT INTO admin_passkeys (phone, passkey, created_at) VALUES (?, ?, ?)").run("447380964131", hashPasskey("second silver fox river gate"), now);
   db.prepare("INSERT OR IGNORE INTO admin_phones (phone, created_at) VALUES (?, ?)").run("447888142154", now);
   db.prepare("INSERT OR IGNORE INTO admin_phones (phone, created_at) VALUES (?, ?)").run("447380964131", now);
   console.log("[ADMIN] Seeded two passkey accounts: 447700900111 / kage-admin-1 and 447700900222 / kage-admin-2");
@@ -1634,7 +1648,7 @@ app.post("/api/admin/passkey-login", (req, res) => {
   const phone = String(req.body?.phone || "").replace(/\D/g, "");
   const passkey = String(req.body?.passkey || "");
   const row = db.prepare("SELECT passkey FROM admin_passkeys WHERE phone = ?").get(phone);
-  if (!row || row.passkey !== passkey) return res.status(400).json({ error: "Invalid phone or passkey." });
+  if (!row || !verifyPasskey(passkey, row.passkey)) return res.status(400).json({ error: "Invalid phone or passkey." });
   const token = randomUUID();
   adminSessions.set(token, { phone, admin: true });
   res.json({ ok: true, token });
