@@ -3208,16 +3208,7 @@ document
    TELEGRAM USERNAME
    ========================================================= */
 
-if (telegramUser) {
-  const handleInput = document.getElementById("handle");
-  if (handleInput) {
-    const display = telegramUser.username
-      ? `@${telegramUser.username}`
-      : [telegramUser.first_name, telegramUser.last_name].filter(Boolean).join(" ") || "Telegram user";
-    handleInput.value = display;
-    handleInput.readOnly = true;
-    handleInput.disabled = true;
-  }
+
 }
 
 const addressInput = document.getElementById("address");
