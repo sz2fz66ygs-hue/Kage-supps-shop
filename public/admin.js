@@ -237,8 +237,8 @@ document.querySelector("#nav").addEventListener("click", e => {
   const b = e.target.closest("[data-panel]");
   if (b) showPanel(b.dataset.panel);
 });
-document.querySelector("#adminRequest").addEventListener("click", adminRequest);
-document.querySelector("#adminVerify").addEventListener("click", adminVerify);
+document.querySelector("#adminRequest")?.addEventListener("click", adminRequest);
+document.querySelector("#adminVerify")?.addEventListener("click", adminVerify);
 if (localStorage.getItem(tokenKey)) signedIn();
 
 async function loadAdmins() {
