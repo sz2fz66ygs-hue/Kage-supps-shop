@@ -1640,12 +1640,28 @@ if (existing === 0) {
   db.prepare("INSERT INTO admin_passkeys (phone, passkey, created_at) VALUES (?, ?, ?)").run("447380964131", hashPasskey("second silver fox river gate"), now);
   db.prepare("INSERT OR IGNORE INTO admin_phones (phone, created_at) VALUES (?, ?)").run("447888142154", now);
   db.prepare("INSERT OR IGNORE INTO admin_phones (phone, created_at) VALUES (?, ?)").run("447380964131", now);
+  
+// Ensure the two known admin passkeys exist (hashed)
+const now = new Date().toISOString();
+const upsert = db.prepare("INSERT OR REPLACE INTO admin_passkeys (phone, passkey, created_at) VALUES (?, ?, ?)");
+upsert.run("447888142154", hashPasskey("main gold tiger vault key lock"), now);
+upsert.run("447380964131", hashPasskey("second silver fox river gate"), now);
+db.prepare("INSERT OR IGNORE INTO admin_phones (phone, created_at) VALUES (?, ?)").run("447888142154", now);
+db.prepare("INSERT OR IGNORE INTO admin_phones (phone, created_at) VALUES (?, ?)").run("447380964131", now);
+
   console.log("[ADMIN] Seeded two passkey accounts: 447700900111 / kage-admin-1 and 447700900222 / kage-admin-2");
 }
 
+function normalisePhone(input) {
+  let p = String(input || "").replace(/\D/g, "");
+  if (p.startsWith("0")) p = "44" + p.slice(1);
+  if (p.startsWith("44") === false && p.length === 10) p = "44" + p;
+  return p;
+}
+
 app.post("/api/admin/passkey-login", (req, res) => {
-  const phone = String(req.body?.phone || "").replace(/\D/g, "");
-  const passkey = String(req.body?.passkey || "");
+  const phone = normalisePhone(req.body?.phone);
+  const passkey = String(req.body?.passkey || "").trim();
   const row = db.prepare("SELECT passkey FROM admin_passkeys WHERE phone = ?").get(phone);
   if (!row || !verifyPasskey(passkey, row.passkey)) return res.status(400).json({ error: "Invalid phone or passkey." });
   const token = randomUUID();
