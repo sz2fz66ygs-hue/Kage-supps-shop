@@ -3,8 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#ffd700">
   <title>Kage Supps ⚡️</title>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -46,8 +47,8 @@
       <label for="name">Full name</label>
       <input id="name" type="text" placeholder="Your name" autocomplete="name" required>
 
-      <label for="handle">Telegram or contact</label>
-      <input id="handle" type="text" placeholder="@telegram or email / phone" autocomplete="username">
+      <label for="handle">Email or phone</label>
+      <input id="handle" type="text" placeholder="email or phone" autocomplete="email" required>
 
       <label for="address">Delivery address</label>
       <textarea id="address" placeholder="Full delivery address" autocomplete="street-address" required></textarea>
@@ -105,5 +106,10 @@
     <span class="progress-track"><span id="minBarFill" class="progress-fill"></span></span>
   </div>
   <script src="/app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+    }
+  </script>
 </body>
 </html>
