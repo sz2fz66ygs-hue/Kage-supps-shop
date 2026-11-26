@@ -808,7 +808,7 @@
     "category": "Orals",
     "section": "Orals",
     "stock": 16,
-    "pricePence": 0,
+    "pricePence": 5000,
     "unit": "pouches",
     "purchasable": true
   },
@@ -830,7 +830,7 @@
     "category": "Peps",
     "section": "Peps",
     "stock": 10,
-    "pricePence": 0,
+    "pricePence": 2000,
     "unit": "vials",
     "purchasable": true
   },
