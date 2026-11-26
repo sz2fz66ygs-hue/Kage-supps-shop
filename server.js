@@ -1623,8 +1623,8 @@ db.exec(`CREATE TABLE IF NOT EXISTS admin_passkeys (
 const existing = db.prepare("SELECT COUNT(*) as c FROM admin_passkeys").get()?.c || 0;
 if (existing === 0) {
   const now = new Date().toISOString();
-  db.prepare("INSERT INTO admin_passkeys (phone, passkey, created_at) VALUES (?, ?, ?)").run("447700900111", "kage-admin-1", now);
-  db.prepare("INSERT INTO admin_passkeys (phone, passkey, created_at) VALUES (?, ?, ?)").run("447700900222", "kage-admin-2", now);
+  db.prepare("INSERT INTO admin_passkeys (phone, passkey, created_at) VALUES (?, ?, ?)").run("447700900111", "main gold tiger vault key lock", now);
+  db.prepare("INSERT INTO admin_passkeys (phone, passkey, created_at) VALUES (?, ?, ?)").run("447700900222", "second silver fox river gate", now);
   db.prepare("INSERT OR IGNORE INTO admin_phones (phone, created_at) VALUES (?, ?)").run("447700900111", now);
   db.prepare("INSERT OR IGNORE INTO admin_phones (phone, created_at) VALUES (?, ?)").run("447700900222", now);
   console.log("[ADMIN] Seeded two passkey accounts: 447700900111 / kage-admin-1 and 447700900222 / kage-admin-2");
