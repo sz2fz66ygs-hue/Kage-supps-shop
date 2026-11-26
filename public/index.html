@@ -7,6 +7,13 @@
   <meta name="theme-color" content="#ffd700">
   <title>Kage Supps ⚡️</title>
   <link rel="stylesheet" href="/style.css">
+
+  <script>
+    // Hide account gate immediately if running inside Telegram
+    if (window.Telegram && window.Telegram.WebApp) {
+      document.documentElement.classList.add("in-telegram");
+    }
+  </script>
 </head>
 <body>
   
