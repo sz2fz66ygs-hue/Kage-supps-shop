@@ -3401,7 +3401,7 @@ document.getElementById("gateAdminLogin")?.addEventListener("click", async () =>
   const data = await res.json();
   if (!res.ok) return (status.textContent = data.error || "Invalid passkey.");
   localStorage.setItem("kage_admin_token", data.token);
-  window.location.href = "/manage";
+  showShop();
 });
 
 /* =========================================================
@@ -3454,9 +3454,6 @@ document.getElementById("gateStart")?.addEventListener("click", gateStart);
 document.getElementById("gateVerify")?.addEventListener("click", gateVerify);
 
 (async () => {
-  // Shop is open without account for now
-  showShop();
-  return;
   const token = localStorage.getItem("kage_account_token");
   if (!token) return showGate();
   try {
@@ -3482,5 +3479,5 @@ document.getElementById("gateAdminLogin")?.addEventListener("click", async () =>
   const data = await res.json();
   if (!res.ok) return (status.textContent = data.error || "Invalid passkey.");
   localStorage.setItem("kage_admin_token", data.token);
-  window.location.href = "/manage";
+  showShop();
 });
