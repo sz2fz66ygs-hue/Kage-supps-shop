@@ -580,6 +580,35 @@ const STOREWIDE_PROMO_DEFAULTS = {
 app.use(express.json({ limit: "1mb" }));
 
 /* =========================================================
+   BASIC SECURITY HEADERS + LIGHT RATE LIMIT
+   ========================================================= */
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+  next();
+});
+
+const rateBuckets = new Map();
+function rateLimit(windowMs, max) {
+  return (req, res, next) => {
+    const key = req.ip || req.socket.remoteAddress || "unknown";
+    const now = Date.now();
+    let bucket = rateBuckets.get(key) || { count: 0, reset: now + windowMs };
+    if (now > bucket.reset) bucket = { count: 0, reset: now + windowMs };
+    bucket.count++;
+    rateBuckets.set(key, bucket);
+    if (bucket.count > max) return res.status(429).json({ error: "Too many requests. Try again shortly." });
+    next();
+  };
+}
+app.use("/api/site/request-code", rateLimit(60_000, 5));
+app.use("/api/site/verify-code", rateLimit(60_000, 10));
+app.use("/api/orders", rateLimit(60_000, 20));
+
+
+/* =========================================================
    DATABASE
    ========================================================= */
 
