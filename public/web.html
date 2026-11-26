@@ -42,13 +42,26 @@
   </div>
 
   <div id="shopContent" hidden>
-<header class="topbar">
-    <div class="brand">
-      <span>KAGE SUPPS</span>
+<header class="site-header">
+    <div class="site-header-inner">
+      <div class="brand">KAGE</div>
+      <nav class="site-nav">
+        <a href="#products">Shop</a>
+        <a href="#checkout">Basket</a>
+      </nav>
+      <div class="site-actions">
+        <button id="cartJump" class="cart-pill" type="button">Basket <span id="cartCount">0</span></button>
+      </div>
     </div>
-    <a href="/manage" style="margin-left:12px;font-size:13px;color:#a68534;text-decoration:none">Admin</a>
-    <button id="cartJump" class="cart-pill" type="button">🛒 <span id="cartCount">0</span></button>
   </header>
+  <section class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">KAGE SUPPS</p>
+      <h1>Premium performance compounds</h1>
+      <p>Crypto payments only. Fast UK dispatch.</p>
+      <a href="#products" class="gold-btn" style="display:inline-block;text-decoration:none;margin-top:16px">Shop now</a>
+    </div>
+  </section>
 
   <div class="search-wrap">
     <input id="shopSearch" type="search" placeholder="Search the shop" autocomplete="off">
