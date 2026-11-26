@@ -7,64 +7,65 @@
   <link rel="stylesheet" href="/shop.css">
 </head>
 <body>
+  <div class="top-bar">Crypto payments only</div>
   <header class="header">
-    <div class="header-inner">
+    <div class="wrap">
       <a class="logo" href="/shop">KAGE</a>
-      <nav class="nav">
-        <a href="#products">Products</a>
-        <a href="#basket">Basket <span id="cartCount">0</span></a>
+      <nav>
+        <a href="#products">Shop</a>
+        <a href="#basket">Basket</a>
       </nav>
+      <button class="basket-btn" onclick="document.getElementById('basket').scrollIntoView()">Basket <span id="cartCount">0</span></button>
     </div>
   </header>
 
   <div id="gate" class="gate">
-    <div class="gate-card">
-      <h1>Welcome</h1>
-      <p>Enter your details to browse.</p>
-      <label>Full name</label>
-      <input id="gateName" type="text" placeholder="Your name">
-      <label>Phone</label>
-      <input id="gatePhone" type="tel" placeholder="+44 7...">
-      <button id="gateStart" class="btn">Send code</button>
-      <label>Code</label>
-      <input id="gateCode" type="text" placeholder="6 digit code">
-      <button id="gateVerify" class="btn">Enter shop</button>
-      <p id="gateStatus" class="status"></p>
-      <hr>
-      <label>Admin passkey</label>
-      <input id="adminKey" type="password" placeholder="Staff passkey">
-      <button id="adminLogin" class="btn btn-outline">Admin</button>
-      <p id="adminStatus" class="status"></p>
-    </div>
+    <form class="gate-box" onsubmit="return false">
+      <h2>Sign in</h2>
+      <input id="gateName" placeholder="Full name" required>
+      <input id="gatePhone" placeholder="Phone number" required>
+      <button id="gateStart" class="btn" type="button">Send code</button>
+      <input id="gateCode" placeholder="Code">
+      <button id="gateVerify" class="btn" type="button">Continue</button>
+      <p id="gateStatus"></p>
+      <details>
+        <summary>Admin</summary>
+        <input id="adminKey" type="password" placeholder="Passkey">
+        <button id="adminLogin" class="btn" type="button">Login</button>
+        <p id="adminStatus"></p>
+      </details>
+    </form>
   </div>
 
-  <main id="shop" hidden>
-    <section class="intro">
-      <h1>Kage Supps</h1>
-      <p>Premium compounds. Crypto only.</p>
+  <div id="shop" hidden>
+    <section class="banner">
+      <div class="wrap">
+        <h1>Kage Supps</h1>
+        <p>Premium compounds · UK dispatch</p>
+      </div>
     </section>
 
-    <div class="toolbar">
-      <input id="search" type="search" placeholder="Search products">
-      <div id="cats" class="cats"></div>
+    <div class="wrap">
+      <div class="filters">
+        <input id="search" type="search" placeholder="Search">
+        <div id="cats" class="cats"></div>
+      </div>
+      <div id="products" class="products"></div>
     </div>
 
-    <section id="products" class="grid"></section>
-
-    <section id="basket" class="basket">
-      <h2>Basket</h2>
-      <div id="basketLines">Empty</div>
-      <p class="total">Total: <strong id="basketTotal">£0.00</strong></p>
-      <label>Name</label>
-      <input id="name" type="text">
-      <label>Phone</label>
-      <input id="phone" type="tel">
-      <label>Address</label>
-      <textarea id="address"></textarea>
-      <button id="checkout" class="btn">Continue to payment</button>
-      <p id="status" class="status"></p>
+    <section id="basket" class="checkout">
+      <div class="wrap narrow">
+        <h2>Checkout</h2>
+        <div id="basketLines" class="lines"></div>
+        <p class="total">Total <strong id="basketTotal">£0.00</strong></p>
+        <input id="name" placeholder="Full name">
+        <input id="phone" placeholder="Phone">
+        <textarea id="address" placeholder="Delivery address"></textarea>
+        <button id="checkout" class="btn">Place order</button>
+        <p id="status"></p>
+      </div>
     </section>
-  </main>
+  </div>
   <script src="/shop.js"></script>
 </body>
 </html>
