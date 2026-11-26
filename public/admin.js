@@ -12,6 +12,7 @@ function showPanel(name) {
   if (name === "settings") loadSettings();
   if (name === "promos") loadPromos();
   if (name === "raw") loadRaw();
+  if (name === "admins") loadAdmins();
 }
 
 function signedIn() {
@@ -238,3 +239,39 @@ document.querySelector("#nav").addEventListener("click", e => {
 document.querySelector("#adminRequest").addEventListener("click", adminRequest);
 document.querySelector("#adminVerify").addEventListener("click", adminVerify);
 if (localStorage.getItem(tokenKey)) signedIn();
+
+async function loadAdmins() {
+  const res = await fetch("/api/admin/admins", { headers: authHeaders() });
+  if (!res.ok) return;
+  const rows = await res.json();
+  document.querySelector("#adminList").innerHTML = rows.map(a => `
+    <article class="row">
+      <strong>${a.phone}</strong>
+      <div class="muted">Admin</div>
+      <button data-remove-admin="${a.phone}" type="button" style="color:#a5362f">Remove</button>
+    </article>
+  `).join("") || "<p>No admins yet.</p>";
+  document.querySelectorAll("[data-remove-admin]").forEach(b => b.onclick = () => removeAdmin(b.dataset.removeAdmin));
+}
+
+async function addAdmin() {
+  const phone = document.querySelector("#newAdminPhone").value.trim();
+  if (!phone) return;
+  const res = await fetch("/api/admin/admins", {
+    method: "POST",
+    headers: authHeaders({ "content-type": "application/json" }),
+    body: JSON.stringify({ phone })
+  });
+  const data = await res.json();
+  message.textContent = data.error || "Admin added.";
+  document.querySelector("#newAdminPhone").value = "";
+  loadAdmins();
+}
+
+async function removeAdmin(phone) {
+  if (!confirm("Remove this admin?")) return;
+  await fetch("/api/admin/admins/" + encodeURIComponent(phone), { method: "DELETE", headers: authHeaders() });
+  loadAdmins();
+}
+
+document.querySelector("#addAdminBtn")?.addEventListener("click", addAdmin);
