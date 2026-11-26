@@ -1494,10 +1494,7 @@ app.post("/api/manage/products/raw", (req, res) => {
 const adminSessions = new Map();
 const adminCodes = new Map();
 
-function isAdminPhone(phone) {
-  const list = (process.env.ADMIN_PHONES || "").split(",").map(s => s.replace(/\D/g, "")).filter(Boolean);
-  return list.includes(String(phone || "").replace(/\D/g, ""));
-}
+
 
 app.post("/api/admin/request-code", (req, res) => {
   const phone = String(req.body?.phone || "").replace(/\D/g, "");
@@ -1568,6 +1565,47 @@ app.post("/api/admin/sms-settings", (req, res) => {
   // Store in env-like file for now (do not commit secrets)
   const smsFile = path.join(DATA_DIR, "sms.json");
   writeFileSync(smsFile, JSON.stringify({ twilioSid, twilioToken, twilioFrom }, null, 2));
+  res.json({ ok: true });
+});
+
+
+/* =========================================================
+   ADMIN PHONE MANAGEMENT
+   ========================================================= */
+db.exec(`CREATE TABLE IF NOT EXISTS admin_phones (
+  phone TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL
+);`);
+
+function allAdminPhones() {
+  const fromEnv = (process.env.ADMIN_PHONES || "").split(",").map(s => s.replace(/\D/g, "")).filter(Boolean);
+  const fromDb = db.prepare("SELECT phone FROM admin_phones").all().map(r => r.phone);
+  return [...new Set([...fromEnv, ...fromDb])];
+}
+
+function isAdminPhone(phone) {
+  const clean = String(phone || "").replace(/\D/g, "");
+  return allAdminPhones().includes(clean);
+}
+
+app.get("/api/admin/admins", (req, res) => {
+  if (!adminAuth(req)) return res.status(401).json({ error: "Admin required." });
+  const rows = allAdminPhones().map(phone => ({ phone }));
+  res.json(rows);
+});
+
+app.post("/api/admin/admins", (req, res) => {
+  if (!adminAuth(req)) return res.status(401).json({ error: "Admin required." });
+  const phone = String(req.body?.phone || "").replace(/\D/g, "");
+  if (phone.length < 8) return res.status(400).json({ error: "Invalid phone." });
+  db.prepare("INSERT OR IGNORE INTO admin_phones (phone, created_at) VALUES (?, ?)").run(phone, new Date().toISOString());
+  res.json({ ok: true });
+});
+
+app.delete("/api/admin/admins/:phone", (req, res) => {
+  if (!adminAuth(req)) return res.status(401).json({ error: "Admin required." });
+  const phone = String(req.params.phone || "").replace(/\D/g, "");
+  db.prepare("DELETE FROM admin_phones WHERE phone = ?").run(phone);
   res.json({ ok: true });
 });
 
