@@ -1,3 +1,17 @@
+
+async function requireAccount() {
+  const token = localStorage.getItem("kage_account_token");
+  if (!token) {
+    document.getElementById("account")?.scrollIntoView({ behavior: "smooth" });
+    const s = document.getElementById("acctStatus");
+    if (s) s.textContent = "Verify your phone or Telegram to order.";
+    return false;
+  }
+  const res = await fetch("/api/account/me", { headers: { "x-account-token": token } });
+  if (!res.ok) return false;
+  const me = await res.json();
+  return !!me.verified;
+}
 const tg = window.Telegram?.WebApp;
 
 if (tg) {
@@ -3232,3 +3246,53 @@ if (addressInput && !document.getElementById("phone")) {
 
 loadProducts();
 loadPersonalCredit();
+
+/* =========================================================
+   CUSTOMER ACCOUNT — phone primary, Telegram fallback
+   ========================================================= */
+const accountTokenKey = "kage_account_token";
+const acctStatus = document.getElementById("acctStatus");
+
+async function accountStart() {
+  const phone = document.getElementById("acctPhone")?.value.trim();
+  const telegram = document.getElementById("acctTelegram")?.value.trim();
+  if (!phone && !telegram) return (acctStatus.textContent = "Enter a phone number or Telegram.");
+  const res = await fetch("/api/account/start", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ phone, telegram })
+  });
+  const data = await res.json();
+  acctStatus.textContent = data.error || data.message || "Code sent.";
+}
+
+async function accountVerify() {
+  const phone = document.getElementById("acctPhone")?.value.trim();
+  const telegram = document.getElementById("acctTelegram")?.value.trim();
+  const code = document.getElementById("acctCode")?.value.trim();
+  const res = await fetch("/api/account/verify", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ phone, telegram, code })
+  });
+  const data = await res.json();
+  if (!res.ok) return (acctStatus.textContent = data.error || "Verification failed.");
+  localStorage.setItem(accountTokenKey, data.token);
+  acctStatus.textContent = "Verified. You can now order.";
+  document.getElementById("account").hidden = true;
+}
+
+document.getElementById("acctStart")?.addEventListener("click", accountStart);
+document.getElementById("acctVerify")?.addEventListener("click", accountVerify);
+
+if (localStorage.getItem(accountTokenKey)) {
+  fetch("/api/account/me", { headers: { "x-account-token": localStorage.getItem(accountTokenKey) } })
+    .then(r => r.ok ? r.json() : null)
+    .then(me => {
+      if (me?.verified) {
+        const panel = document.getElementById("account");
+        if (panel) panel.hidden = true;
+      }
+    })
+    .catch(() => {});
+}
