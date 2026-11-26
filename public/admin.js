@@ -36,7 +36,7 @@ async function requestCode() {
     body: JSON.stringify({ handle: document.querySelector("#handle").value })
   });
   const data = await res.json();
-  message.textContent = data.error || "Code sent in Telegram.";
+  message.textContent = data.error || "Code sent. Check Telegram.";
 }
 
 async function verifyCode() {
@@ -185,7 +185,7 @@ async function saveProduct(id) {
     body: JSON.stringify(fields)
   });
   const data = await res.json();
-  if (!res.ok) return (message.textContent = data.error || "Save failed");
+  if (!res.ok) return (message.textContent = data.error || "Could not save. Try again.");
   message.textContent = "Saved.";
   loadProducts();
 }
