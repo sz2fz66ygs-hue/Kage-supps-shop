@@ -113,9 +113,9 @@ body{
 }
 
 main{
-  max-width:720px;
+  max-width:1180px;
   margin:0 auto;
-  padding:16px 18px 80px;
+  padding:24px 28px 100px;
 }
 
 .section-title{
@@ -128,6 +128,7 @@ main{
 }
 
 .products{
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
   display:block;
 }
 
