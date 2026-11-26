@@ -1609,6 +1609,37 @@ app.delete("/api/admin/admins/:phone", (req, res) => {
   res.json({ ok: true });
 });
 
+
+/* =========================================================
+   ADMIN PASSKEY LOGIN (no SMS required)
+   ========================================================= */
+db.exec(`CREATE TABLE IF NOT EXISTS admin_passkeys (
+  phone TEXT PRIMARY KEY,
+  passkey TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);`);
+
+// Seed two initial admin accounts if none exist
+const existing = db.prepare("SELECT COUNT(*) as c FROM admin_passkeys").get()?.c || 0;
+if (existing === 0) {
+  const now = new Date().toISOString();
+  db.prepare("INSERT INTO admin_passkeys (phone, passkey, created_at) VALUES (?, ?, ?)").run("447700900111", "kage-admin-1", now);
+  db.prepare("INSERT INTO admin_passkeys (phone, passkey, created_at) VALUES (?, ?, ?)").run("447700900222", "kage-admin-2", now);
+  db.prepare("INSERT OR IGNORE INTO admin_phones (phone, created_at) VALUES (?, ?)").run("447700900111", now);
+  db.prepare("INSERT OR IGNORE INTO admin_phones (phone, created_at) VALUES (?, ?)").run("447700900222", now);
+  console.log("[ADMIN] Seeded two passkey accounts: 447700900111 / kage-admin-1 and 447700900222 / kage-admin-2");
+}
+
+app.post("/api/admin/passkey-login", (req, res) => {
+  const phone = String(req.body?.phone || "").replace(/\D/g, "");
+  const passkey = String(req.body?.passkey || "");
+  const row = db.prepare("SELECT passkey FROM admin_passkeys WHERE phone = ?").get(phone);
+  if (!row || row.passkey !== passkey) return res.status(400).json({ error: "Invalid phone or passkey." });
+  const token = randomUUID();
+  adminSessions.set(token, { phone, admin: true });
+  res.json({ ok: true, token });
+});
+
 app.get("/manage", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
