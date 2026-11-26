@@ -675,6 +675,25 @@ CREATE TABLE IF NOT EXISTS customer_credit (
   balance_pence INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS customers (
+  id TEXT PRIMARY KEY,
+  phone TEXT UNIQUE,
+  telegram TEXT UNIQUE,
+  verified INTEGER NOT NULL DEFAULT 0,
+  method TEXT,
+  created_at TEXT NOT NULL,
+  verified_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS verification_codes (
+  id TEXT PRIMARY KEY,
+  customer_id TEXT NOT NULL,
+  code TEXT NOT NULL,
+  method TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  used INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS user_handles (
   username TEXT PRIMARY KEY,
   telegram_id TEXT NOT NULL,
@@ -1114,6 +1133,72 @@ function siteName(product) {
   if (override) return override;
   return String(product.name || "").replace(/retatrutide/ig, "RT");
 }
+
+
+/* =========================================================
+   CUSTOMER ACCOUNTS — phone primary, Telegram fallback
+   ========================================================= */
+const customerSessions = new Map();
+
+function makeCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+app.post("/api/account/start", (req, res) => {
+  const { phone, telegram } = req.body || {};
+  const cleanPhone = phone ? String(phone).replace(/\D/g, "") : "";
+  const cleanTg = telegram ? String(telegram).replace(/^@/, "").toLowerCase() : "";
+  if (!cleanPhone && !cleanTg) return res.status(400).json({ error: "Phone or Telegram required." });
+  if (cleanPhone && cleanPhone.length < 8) return res.status(400).json({ error: "Enter a valid phone number." });
+
+  const id = randomUUID();
+  const now = new Date().toISOString();
+  const method = cleanPhone ? "phone" : "telegram";
+  const code = makeCode();
+  const expires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+  db.prepare(`INSERT OR IGNORE INTO customers (id, phone, telegram, verified, method, created_at) VALUES (?, ?, ?, 0, ?, ?)`).run(id, cleanPhone || null, cleanTg || null, method, now);
+  const row = db.prepare(`SELECT id FROM customers WHERE phone = ? OR telegram = ?`).get(cleanPhone || null, cleanTg || null);
+  const customerId = row?.id || id;
+
+  db.prepare(`INSERT INTO verification_codes (id, customer_id, code, method, expires_at) VALUES (?, ?, ?, ?, ?)`).run(randomUUID(), customerId, code, method, expires);
+
+  // Phone: stub (log only). Telegram: send via bot if available.
+  if (method === "phone") {
+    console.log(`[SMS STUB] Code for ${cleanPhone}: ${code}`);
+  } else if (process.env.TELEGRAM_BOT_TOKEN && cleanTg) {
+    // Best-effort: cannot DM by username without prior chat; log for now.
+    console.log(`[TG] Code for @${cleanTg}: ${code}`);
+  }
+
+  res.json({ ok: true, method, message: method === "phone" ? "Code sent to phone." : "Code sent via Telegram." });
+});
+
+app.post("/api/account/verify", (req, res) => {
+  const { phone, telegram, code } = req.body || {};
+  const cleanPhone = phone ? String(phone).replace(/\D/g, "") : "";
+  const cleanTg = telegram ? String(telegram).replace(/^@/, "").toLowerCase() : "";
+  const row = db.prepare(`SELECT id FROM customers WHERE phone = ? OR telegram = ?`).get(cleanPhone || null, cleanTg || null);
+  if (!row) return res.status(400).json({ error: "No pending verification." });
+
+  const vc = db.prepare(`SELECT * FROM verification_codes WHERE customer_id = ? AND code = ? AND used = 0 AND expires_at > ? ORDER BY expires_at DESC LIMIT 1`).get(row.id, String(code || ""), new Date().toISOString());
+  if (!vc) return res.status(400).json({ error: "Invalid or expired code." });
+
+  db.prepare(`UPDATE verification_codes SET used = 1 WHERE id = ?`).run(vc.id);
+  db.prepare(`UPDATE customers SET verified = 1, verified_at = ? WHERE id = ?`).run(new Date().toISOString(), row.id);
+
+  const token = randomUUID();
+  customerSessions.set(token, { customerId: row.id, verified: true });
+  res.json({ ok: true, token, verified: true });
+});
+
+app.get("/api/account/me", (req, res) => {
+  const token = String(req.headers["x-account-token"] || "");
+  const session = customerSessions.get(token);
+  if (!session) return res.status(401).json({ error: "Not signed in." });
+  const customer = db.prepare(`SELECT id, phone, telegram, verified, method FROM customers WHERE id = ?`).get(session.customerId);
+  res.json(customer || { error: "Not found." });
+});
 
 app.post("/api/site/request-code", async (req, res) => {
   const handle = String(req.body?.handle || "").replace(/^@/, "").trim().toLowerCase();
