@@ -97,3 +97,22 @@ body { margin: 0; font-family: Outfit, system-ui, sans-serif; background: var(--
 .checkout h2 { font-family: "Cormorant Garamond", serif; font-weight: 500; margin: 0 0 16px; }
 .lines div { padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
 .total { font-size: 18px; margin: 16px 0; }
+
+.section { margin: 40px 0; }
+.section h2 {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 28px;
+  font-weight: 500;
+  margin: 0 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.search {
+  width: 100%;
+  max-width: 320px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  margin: 20px 0;
+  font: inherit;
+}
