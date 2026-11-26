@@ -27,6 +27,22 @@
 
     <div id="savedPanel" class="products" hidden></div>
 
+    
+    <section id="account" class="checkout-card" style="margin-bottom:16px">
+      <div class="eyebrow">ACCOUNT</div>
+      <h2>Sign in to order</h2>
+      <p class="muted">Verify with phone (preferred) or Telegram.</p>
+      <label>Phone number</label>
+      <input id="acctPhone" type="tel" placeholder="+44 7..." autocomplete="tel">
+      <label>or Telegram</label>
+      <input id="acctTelegram" type="text" placeholder="@username">
+      <button class="gold-btn" type="button" id="acctStart">Send code</button>
+      <label>Code</label>
+      <input id="acctCode" type="text" placeholder="6 digit code" inputmode="numeric">
+      <button class="gold-btn" type="button" id="acctVerify">Verify</button>
+      <p id="acctStatus" class="status"></p>
+    </section>
+
     <section id="checkout" class="checkout-card">
       <div class="section-head">
         <div>
