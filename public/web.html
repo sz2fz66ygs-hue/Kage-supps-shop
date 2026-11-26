@@ -12,7 +12,7 @@
 </head>
 <body>
 
-  <div id="shopGate" class="checkout-card" style="max-width:420px;margin:40px auto">
+  <div id="shopGate" hidden class="checkout-card" style="max-width:420px;margin:40px auto">
     <div class="eyebrow">KAGE SUPPS</div>
     <h2>Create an account</h2>
     <p class="muted">Enter your phone number to continue. Everything is tied to your account.</p>
@@ -34,11 +34,12 @@
 
   </div>
 
-  <div id="shopContent" hidden>
+  <div id="shopContent">
 <header class="topbar">
     <div class="brand">
       <span>KAGE SUPPS</span>
     </div>
+    <a href="/manage" style="margin-left:12px;font-size:13px;color:#a68534;text-decoration:none">Admin</a>
     <button id="cartJump" class="cart-pill" type="button">🛒 <span id="cartCount">0</span></button>
   </header>
 
