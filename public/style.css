@@ -832,3 +832,9 @@ h1, h2, .brand span, .eyebrow {
   font-weight:600;
   letter-spacing:-0.02em;
 }
+
+@media (max-width: 480px) {
+  .products { grid-template-columns: 1fr; }
+  main { padding: 16px 14px 80px; }
+  .gold-btn { padding: 14px 16px; min-height: 48px; }
+}
