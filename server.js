@@ -6279,6 +6279,12 @@ Choose an option.`,
             ],
             [
               {
+                text: "📥 Export CSV",
+                callback_data: "admin_export_products"
+              }
+            ],
+            [
+              {
                 text:
                   "📣 Send restock message",
                 callback_data:
@@ -8935,6 +8941,25 @@ Choose a period.`,
         return showStockCentre(
           chatId
         );
+      }
+
+      
+      if (data === "admin_export_products") {
+        if (!isAdmin(q.from?.id)) return;
+        const list = getLiveProducts();
+        const lines = ["name,stock,price,category,subcategory,details"];
+        for (const x of list) {
+          const name = String(x.name || "").replace(/"/g, '""');
+          const sub = String(x.section || x.category || "").replace(/"/g, '""');
+          const details = String(x.subtitle || "").replace(/"/g, '""');
+          const price = ((x.pricePence || 0) / 100).toFixed(2);
+          lines.push(`"${name}",${x.stock ?? ""},${price},"${x.category || ""}","${sub}","${details}"`);
+        }
+        const csv = lines.join("\n");
+        await bot.sendDocument(chatId, Buffer.from(csv), {}, { filename: "products.csv", contentType: "text/csv" }).catch(async () => {
+          await safeSendMessage(chatId, "Export failed. Try /exportproducts");
+        });
+        return;
       }
 
       if (data === "admin_stock_all") {
