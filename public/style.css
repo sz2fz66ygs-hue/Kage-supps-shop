@@ -1,12 +1,12 @@
 :root{
-  --gold:#ffd700;
-  --gold-dark:#daa520;
-  --gold-soft:#f7f0dc;
+  --gold:#c9a84c;
+  --gold-dark:#a68534;
+  --gold-soft:#f8f4ec;
   --white:#ffffff;
-  --off:#fbfaf7;
+  --off:#f7f6f3;
   --text:#111111;
   --muted:#77736b;
-  --border:#e9e4d7;
+  --border:#e6e2d9;
 }
 
 *{
@@ -65,7 +65,7 @@ body{
 }
 .cart-pill.has-items{
   background:var(--gold);
-  color:#fff;
+  color:#1a1a1a;
 }
 
 .tabs{
@@ -319,7 +319,7 @@ textarea{
   border-radius:14px;
   padding:15px;
   background:var(--gold);
-  color:#fff;
+  color:#1a1a1a;
   font-size:17px;
   font-weight:900;
 }
