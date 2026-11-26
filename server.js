@@ -6353,6 +6353,23 @@ Choose an option.`,
      /START
      ======================================================= */
 
+  
+  bot.onText(/^\/exportproducts(?:@\w+)?$/i, async msg => {
+    if (!isAdmin(msg.from?.id)) return safeSendMessage(msg.chat.id, "Admin only.");
+    const list = getLiveProducts();
+    const lines = ["name,stock,price,category,subcategory"];
+    for (const x of list) {
+      const name = String(x.name || "").replace(/"/g, "\"\"");
+      const sub = [x.strength, x.size, x.subtitle].filter(Boolean).join(" · ").replace(/"/g, "\"\"");
+      const price = ((x.pricePence || 0) / 100).toFixed(2);
+      lines.push(`"${name}",${x.stock ?? ""},${price},"${x.category || ""}","${sub}"`);
+    }
+    const csv = lines.join("\n");
+    await bot.sendDocument(msg.chat.id, Buffer.from(csv), {}, { filename: "products.csv", contentType: "text/csv" }).catch(() =>
+      safeSendMessage(msg.chat.id, csv.slice(0, 4000))
+    );
+  });
+
   bot.onText(
     /^\/start(?:@\w+)?(?:\s.*)?$/i,
 
