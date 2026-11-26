@@ -9,7 +9,21 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <header class="topbar">
+  
+  <div id="shopGate" class="checkout-card" style="max-width:420px;margin:40px auto">
+    <div class="eyebrow">KAGE SUPPS</div>
+    <h2>Create an account</h2>
+    <p class="muted">Enter your phone number to continue. Everything is tied to your account.</p>
+    <label>Phone number</label>
+    <input id="gatePhone" type="tel" placeholder="+44 7..." autocomplete="tel" required>
+    <button class="gold-btn" type="button" id="gateStart">Send code</button>
+    <label>Code</label>
+    <input id="gateCode" type="text" placeholder="6 digit code" inputmode="numeric">
+    <button class="gold-btn" type="button" id="gateVerify">Enter shop</button>
+    <p id="gateStatus" class="status"></p>
+  </div>
+  <div id="shopContent" hidden>
+<header class="topbar">
     <div class="brand">
       <span>KAGE SUPPS</span>
     </div>
@@ -127,5 +141,6 @@
       window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
     }
   </script>
+  </div>
 </body>
 </html>
