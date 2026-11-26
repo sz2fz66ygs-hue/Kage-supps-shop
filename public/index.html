@@ -8,12 +8,7 @@
   <title>Kage Supps ⚡️</title>
   <link rel="stylesheet" href="/style.css">
 
-  <script>
-    // Hide account gate immediately if running inside Telegram
-    if (window.Telegram && window.Telegram.WebApp) {
-      document.documentElement.classList.add("in-telegram");
-    }
-  </script>
+  
 </head>
 <body>
   
@@ -57,20 +52,7 @@
     <div id="savedPanel" class="products" hidden></div>
 
     
-    <section id="account" class="checkout-card" style="margin-bottom:16px">
-      <div class="eyebrow">ACCOUNT</div>
-      <h2>Sign in to order</h2>
-      <p class="muted">Verify with phone (preferred) or Telegram.</p>
-      <label>Phone number</label>
-      <input id="acctPhone" type="tel" placeholder="+44 7..." autocomplete="tel">
-      <label>or Telegram</label>
-      <input id="acctTelegram" type="text" placeholder="@username">
-      <button class="gold-btn" type="button" id="acctStart">Send code</button>
-      <label>Code</label>
-      <input id="acctCode" type="text" placeholder="6 digit code" inputmode="numeric">
-      <button class="gold-btn" type="button" id="acctVerify">Verify</button>
-      <p id="acctStatus" class="status"></p>
-    </section>
+    
 
     <section id="checkout" class="checkout-card">
       <div class="section-head">
@@ -146,14 +128,7 @@
       <div id="paymentPanel"></div>
     </section>
   
-    <section id="adminGate" class="checkout-card" style="margin-top:40px;max-width:420px">
-      <div class="eyebrow">ADMIN</div>
-      <h2>Staff access</h2>
-      <label>Passkey</label>
-      <input id="shopAdminPasskey" type="password" placeholder="Admin passkey">
-      <button class="gold-btn" type="button" id="shopAdminLogin">Enter manage</button>
-      <p id="shopAdminStatus" class="status"></p>
-    </section>
+    
 
   </main>
 
