@@ -3296,3 +3296,65 @@ if (localStorage.getItem(accountTokenKey)) {
     })
     .catch(() => {});
 }
+
+/* =========================================================
+   ACCOUNT GATE — must create account before entering shop
+   ========================================================= */
+const gateStatus = document.getElementById("gateStatus");
+const shopContent = document.getElementById("shopContent");
+const shopGate = document.getElementById("shopGate");
+
+function showShop() {
+  if (shopGate) shopGate.hidden = true;
+  if (shopContent) shopContent.hidden = false;
+}
+
+function showGate(msg) {
+  if (shopGate) shopGate.hidden = false;
+  if (shopContent) shopContent.hidden = true;
+  if (msg && gateStatus) gateStatus.textContent = msg;
+}
+
+async function gateStart() {
+  const phone = document.getElementById("gatePhone")?.value.trim();
+  if (!phone) return (gateStatus.textContent = "Enter your phone number.");
+  const res = await fetch("/api/account/start", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ phone })
+  });
+  const data = await res.json();
+  gateStatus.textContent = data.error || data.message || "Code sent.";
+}
+
+async function gateVerify() {
+  const phone = document.getElementById("gatePhone")?.value.trim();
+  const code = document.getElementById("gateCode")?.value.trim();
+  const res = await fetch("/api/account/verify", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ phone, code })
+  });
+  const data = await res.json();
+  if (!res.ok) return (gateStatus.textContent = data.error || "Verification failed.");
+  localStorage.setItem("kage_account_token", data.token);
+  gateStatus.textContent = "Welcome.";
+  showShop();
+}
+
+document.getElementById("gateStart")?.addEventListener("click", gateStart);
+document.getElementById("gateVerify")?.addEventListener("click", gateVerify);
+
+// On load, check if already verified
+(async () => {
+  const token = localStorage.getItem("kage_account_token");
+  if (!token) return showGate();
+  try {
+    const res = await fetch("/api/account/me", { headers: { "x-account-token": token } });
+    if (res.ok) {
+      const me = await res.json();
+      if (me.verified) return showShop();
+    }
+  } catch {}
+  showGate("Please verify your phone to continue.");
+})();
