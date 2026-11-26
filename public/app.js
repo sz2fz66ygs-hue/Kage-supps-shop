@@ -3403,3 +3403,32 @@ document.getElementById("gateAdminLogin")?.addEventListener("click", async () =>
   localStorage.setItem("kage_admin_token", data.token);
   window.location.href = "/manage";
 });
+
+/* Load previous orders for the customer */
+async function loadMyOrders() {
+  const el = document.getElementById("myOrdersList");
+  if (!el) return;
+  const id = telegramUser?.id;
+  const username = telegramUser?.username || "";
+  if (!id && !username) {
+    el.textContent = "Open from Telegram to see your orders.";
+    return;
+  }
+  try {
+    const res = await fetch(`/api/my-orders?telegramId=${id || ""}&username=${encodeURIComponent(username)}`);
+    const list = await res.json();
+    if (!list.length) {
+      el.textContent = "No orders yet.";
+      return;
+    }
+    el.innerHTML = list.map(o =>
+      `<div style="padding:8px 0;border-bottom:1px solid #eee">
+        <strong>#${o.orderId}</strong> · £${(o.totalPence/100).toFixed(2)} · ${o.paymentStatus}
+        <div class="muted" style="font-size:13px">${(o.items||[]).join(", ")}</div>
+      </div>`
+    ).join("");
+  } catch {
+    el.textContent = "Could not load orders.";
+  }
+}
+loadMyOrders();
