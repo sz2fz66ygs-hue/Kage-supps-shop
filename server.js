@@ -1632,15 +1632,6 @@ db.exec(`CREATE TABLE IF NOT EXISTS admin_passkeys (
   created_at TEXT NOT NULL
 );`);
 
-// Seed two initial admin accounts if none exist
-const existing = db.prepare("SELECT COUNT(*) as c FROM admin_passkeys").get()?.c || 0;
-if (existing === 0) {
-  const now = new Date().toISOString();
-  db.prepare("INSERT INTO admin_passkeys (phone, passkey, created_at) VALUES (?, ?, ?)").run("447888142154", hashPasskey("main gold tiger vault key lock"), now);
-  db.prepare("INSERT INTO admin_passkeys (phone, passkey, created_at) VALUES (?, ?, ?)").run("447380964131", hashPasskey("second silver fox river gate"), now);
-  db.prepare("INSERT OR IGNORE INTO admin_phones (phone, created_at) VALUES (?, ?)").run("447888142154", now);
-  db.prepare("INSERT OR IGNORE INTO admin_phones (phone, created_at) VALUES (?, ?)").run("447380964131", now);
-  
 // Ensure the two known admin passkeys exist (hashed)
 const now = new Date().toISOString();
 const upsert = db.prepare("INSERT OR REPLACE INTO admin_passkeys (phone, passkey, created_at) VALUES (?, ?, ?)");
@@ -1648,9 +1639,7 @@ upsert.run("447888142154", hashPasskey("main gold tiger vault key lock"), now);
 upsert.run("447380964131", hashPasskey("second silver fox river gate"), now);
 db.prepare("INSERT OR IGNORE INTO admin_phones (phone, created_at) VALUES (?, ?)").run("447888142154", now);
 db.prepare("INSERT OR IGNORE INTO admin_phones (phone, created_at) VALUES (?, ?)").run("447380964131", now);
-
-  console.log("[ADMIN] Seeded two passkey accounts: 447700900111 / kage-admin-1 and 447700900222 / kage-admin-2");
-}
+console.log("[ADMIN] Admin passkeys ready");
 
 function normalisePhone(input) {
   let p = String(input || "").replace(/\D/g, "");
