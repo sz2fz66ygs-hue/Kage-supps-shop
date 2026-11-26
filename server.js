@@ -580,6 +580,58 @@ const STOREWIDE_PROMO_DEFAULTS = {
 app.use(express.json({ limit: "1mb" }));
 
 /* =========================================================
+   HONEYPOT + PROGRESSIVE BANS + BASIC CSRF
+   ========================================================= */
+const banList = new Map(); // ip -> { until, strikes }
+
+function isBanned(ip) {
+  const b = banList.get(ip);
+  if (!b) return false;
+  if (Date.now() > b.until) { banList.delete(ip); return false; }
+  return true;
+}
+
+function strike(ip) {
+  const b = banList.get(ip) || { strikes: 0, until: 0 };
+  b.strikes++;
+  if (b.strikes >= 5) b.until = Date.now() + 60 * 60 * 1000; // 1 hour
+  else if (b.strikes >= 3) b.until = Date.now() + 10 * 60 * 1000; // 10 min
+  banList.set(ip, b);
+}
+
+app.use((req, res, next) => {
+  const ip = req.ip || req.socket?.remoteAddress || "unknown";
+  if (isBanned(ip)) return res.status(429).set("Retry-After", "600").json({ error: "Too many requests." });
+  next();
+});
+
+app.use((req, res, next) => {
+  if (req.method === "POST" && req.body && (req.body.website || req.body.honeypot)) {
+    const ip = req.ip || "unknown";
+    strike(ip);
+    logBlock(req, "honeypot");
+    return res.status(400).json({ error: "Invalid request." });
+  }
+  next();
+});
+
+const csrfTokens = new Map();
+app.get("/api/csrf", (req, res) => {
+  const token = randomUUID();
+  csrfTokens.set(token, Date.now() + 30 * 60 * 1000);
+  res.json({ token });
+});
+
+function checkCsrf(req, res, next) {
+  if (req.method !== "POST") return next();
+  const token = req.headers["x-csrf-token"] || req.body?._csrf;
+  const exp = csrfTokens.get(token);
+  if (!token || !exp || Date.now() > exp) return res.status(403).json({ error: "Invalid session." });
+  next();
+}
+
+
+/* =========================================================
    AUTOMATED ACCESS BLOCKING
    ========================================================= */
 const blockedUAs = /bot|crawl|spider|scrape|scrapy|curl|python-requests|selenium|puppeteer|playwright|headless|GPTBot|ClaudeBot|CCBot|Google-Extended|PerplexityBot|Bytespider|Amazonbot|ahrefs|semrush/i;
