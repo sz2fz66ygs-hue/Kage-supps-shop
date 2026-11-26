@@ -3402,5 +3402,26 @@ document.getElementById("gateAdminLogin")?.addEventListener("click", async () =>
   if (!res.ok) return (status.textContent = data.error || "Invalid passkey.");
   localStorage.setItem("kage_admin_token", data.token);
   showShop();
+  showAdminNav();
 });
 
+
+/* Admin / Shop switcher — only for Admin 1 & 2 */
+function showAdminNav() {
+  const token = localStorage.getItem("kage_admin_token");
+  const nav = document.getElementById("adminNav");
+  if (token && nav) nav.hidden = false;
+}
+showAdminNav();
+
+document.getElementById("navShop")?.addEventListener("click", () => {
+  document.getElementById("adminFrame").hidden = true;
+  document.getElementById("shopContent").hidden = false;
+  document.getElementById("shopGate").hidden = true;
+});
+
+document.getElementById("navAdmin")?.addEventListener("click", () => {
+  document.getElementById("shopContent").hidden = true;
+  document.getElementById("shopGate").hidden = true;
+  document.getElementById("adminFrame").hidden = false;
+});
