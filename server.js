@@ -1483,6 +1483,90 @@ app.post("/api/manage/products/raw", (req, res) => {
 });
 
 
+
+/* =========================================================
+   ADMIN PHONE LOGIN + MANAGE CONTROLS
+   ========================================================= */
+const adminSessions = new Map();
+const adminCodes = new Map();
+
+function isAdminPhone(phone) {
+  const list = (process.env.ADMIN_PHONES || "").split(",").map(s => s.replace(/\D/g, "")).filter(Boolean);
+  return list.includes(String(phone || "").replace(/\D/g, ""));
+}
+
+app.post("/api/admin/request-code", (req, res) => {
+  const phone = String(req.body?.phone || "").replace(/\D/g, "");
+  if (!isAdminPhone(phone)) return res.status(403).json({ error: "Not an admin phone." });
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  adminCodes.set(phone, { code, expires: Date.now() + 10 * 60 * 1000 });
+  console.log(`[ADMIN SMS] ${phone}: ${code}`);
+  // TODO: send via Twilio when configured
+  res.json({ ok: true });
+});
+
+app.post("/api/admin/verify-code", (req, res) => {
+  const phone = String(req.body?.phone || "").replace(/\D/g, "");
+  const code = String(req.body?.code || "");
+  const rec = adminCodes.get(phone);
+  if (!rec || rec.code !== code || Date.now() > rec.expires) return res.status(400).json({ error: "Invalid or expired code." });
+  adminCodes.delete(phone);
+  const token = randomUUID();
+  adminSessions.set(token, { phone, admin: true });
+  res.json({ ok: true, token });
+});
+
+function adminAuth(req) {
+  const token = String(req.headers["x-admin-token"] || "");
+  return adminSessions.get(token) || null;
+}
+
+app.get("/api/admin/dashboard", (req, res) => {
+  if (!adminAuth(req)) return res.status(401).json({ error: "Admin required." });
+  const customers = db.prepare("SELECT COUNT(*) as c FROM customers WHERE verified = 1").get()?.c || 0;
+  res.json({ ordersToday: 0, pending: 0, customers, products: products.length });
+});
+
+app.get("/api/admin/customers", (req, res) => {
+  if (!adminAuth(req)) return res.status(401).json({ error: "Admin required." });
+  const rows = db.prepare("SELECT id, phone, telegram, verified, method, created_at FROM customers ORDER BY created_at DESC").all();
+  res.json(rows);
+});
+
+app.post("/api/admin/customers/:id/toggle", (req, res) => {
+  if (!adminAuth(req)) return res.status(401).json({ error: "Admin required." });
+  db.prepare("UPDATE customers SET verified = 1 - verified WHERE id = ?").run(req.params.id);
+  res.json({ ok: true });
+});
+
+const settingsFile = path.join(DATA_DIR, "store-settings.json");
+function loadSettings() {
+  try { return JSON.parse(readFileSync(settingsFile, "utf8")); } catch { return { minOrder: 50, notice: "" }; }
+}
+function saveSettings(s) { writeFileSync(settingsFile, JSON.stringify(s, null, 2)); }
+
+app.get("/api/admin/settings", (req, res) => {
+  if (!adminAuth(req)) return res.status(401).json({ error: "Admin required." });
+  res.json(loadSettings());
+});
+
+app.post("/api/admin/settings", (req, res) => {
+  if (!adminAuth(req)) return res.status(401).json({ error: "Admin required." });
+  const current = loadSettings();
+  const next = { ...current, ...req.body };
+  saveSettings(next);
+  res.json({ ok: true });
+});
+
+app.post("/api/admin/sms-settings", (req, res) => {
+  if (!adminAuth(req)) return res.status(401).json({ error: "Admin required." });
+  const { twilioSid, twilioToken, twilioFrom } = req.body || {};
+  // Store in env-like file for now (do not commit secrets)
+  const smsFile = path.join(DATA_DIR, "sms.json");
+  writeFileSync(smsFile, JSON.stringify({ twilioSid, twilioToken, twilioFrom }, null, 2));
+  res.json({ ok: true });
+});
+
 app.get("/manage", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
