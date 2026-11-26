@@ -3223,9 +3223,6 @@ document
    TELEGRAM USERNAME
    ========================================================= */
 
-
-}
-
 const addressInput = document.getElementById("address");
 if (addressInput && !document.getElementById("phone")) {
   const label = document.createElement("label");
