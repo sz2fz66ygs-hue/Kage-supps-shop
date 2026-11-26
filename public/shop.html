@@ -7,48 +7,54 @@
   <link rel="stylesheet" href="/shop.css">
 </head>
 <body>
-  <div class="top-bar">Crypto payments only</div>
-  <header class="header">
-    <div class="wrap">
-      <a class="logo" href="/shop">KAGE</a>
-      <nav>
-        <a href="#products">Shop</a>
-        <a href="#basket">Basket</a>
-      </nav>
-      <button class="basket-btn" onclick="document.getElementById('basket').scrollIntoView()">Basket <span id="cartCount">0</span></button>
-    </div>
-  </header>
-
+  <!-- Sign in is the first and only page until verified -->
   <div id="gate" class="gate">
-    <form class="gate-box" onsubmit="return false">
-      <h2>Sign in</h2>
-      <input id="gateName" placeholder="Full name" required>
-      <input id="gatePhone" placeholder="Phone number" required>
+    <div class="gate-inner">
+      <div class="brand">KAGE</div>
+      <h1>Sign in</h1>
+      <p class="sub">Verify your phone to continue.</p>
+      <input id="gateName" placeholder="Full name" autocomplete="name">
+      <input id="gatePhone" placeholder="Phone number" autocomplete="tel">
       <button id="gateStart" class="btn" type="button">Send code</button>
-      <input id="gateCode" placeholder="Code">
-      <button id="gateVerify" class="btn" type="button">Continue</button>
-      <p id="gateStatus"></p>
-      <details>
-        <summary>Admin</summary>
-        <input id="adminKey" type="password" placeholder="Passkey">
-        <button id="adminLogin" class="btn" type="button">Login</button>
-        <p id="adminStatus"></p>
-      </details>
-    </form>
+      <input id="gateCode" placeholder="6-digit code">
+      <button id="gateVerify" class="btn" type="button">Enter</button>
+      <p id="gateStatus" class="status"></p>
+      <div class="admin-link">
+        <input id="adminKey" type="password" placeholder="Admin passkey">
+        <button id="adminLogin" class="btn btn-ghost" type="button">Admin</button>
+        <p id="adminStatus" class="status"></p>
+      </div>
+    </div>
   </div>
 
+  <!-- Shop only after sign-in -->
   <div id="shop" hidden>
-    <section class="banner">
+    <header class="header">
+      <div class="wrap">
+        <a class="logo" href="#">KAGE</a>
+        <nav class="nav">
+          <div class="drop">
+            <button class="nav-btn" type="button">Products</button>
+            <div class="menu" id="menu"></div>
+          </div>
+          <a href="#basket">Basket</a>
+        </nav>
+        <button class="basket-btn" type="button" onclick="document.getElementById('basket').scrollIntoView({behavior:'smooth'})">
+          Basket <span id="cartCount">0</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="hero">
       <div class="wrap">
         <h1>Kage Supps</h1>
-        <p>Premium compounds · UK dispatch</p>
+        <p>Premium compounds · Crypto only</p>
       </div>
     </section>
 
     <div class="wrap">
-      <div class="filters">
-        <input id="search" type="search" placeholder="Search">
-        <div id="cats" class="cats"></div>
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Search the collection">
       </div>
       <div id="products" class="products"></div>
     </div>
@@ -61,8 +67,8 @@
         <input id="name" placeholder="Full name">
         <input id="phone" placeholder="Phone">
         <textarea id="address" placeholder="Delivery address"></textarea>
-        <button id="checkout" class="btn">Place order</button>
-        <p id="status"></p>
+        <button id="checkout" class="btn" type="button">Place order</button>
+        <p id="status" class="status"></p>
       </div>
     </section>
   </div>
