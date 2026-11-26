@@ -8,7 +8,7 @@
   <style>
     body{background:#fbfaf7}
     .shell{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
-    .side{background:#fff;border-right:1px solid #e9e4d7;padding:24px 16px;position:sticky;top:0;height:100vh}
+    .side{background:#fff;border-right:1px solid #e9e4d7;padding:24px 16px;position:sticky;top:0;height:100vh;overflow:auto}
     .side .brand{margin-bottom:28px}
     .side button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:12px 14px;border-radius:12px;font:inherit;font-weight:700;cursor:pointer;color:#111}
     .side button.active{background:#ffd700}
@@ -16,20 +16,14 @@
     .panel{display:none}
     .panel.active{display:block}
     .head{display:flex;justify-content:space-between;align-items:end;margin-bottom:18px}
-    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-    .stat,.row,.slip{background:#fff;border:1px solid #e9e4d7;border-radius:16px;padding:16px}
-    .stat strong{display:block;font-size:28px;margin-top:4px}
+    .slip{background:#fff;border:1px solid #e9e4d7;border-radius:16px;padding:16px;margin-bottom:12px}
     .list{display:flex;flex-direction:column;gap:10px}
-    .row{display:grid;grid-template-columns:90px 1fr auto;gap:12px;align-items:center}
+    .row{display:grid;grid-template-columns:120px 1fr auto;gap:12px;align-items:center;background:#fff;border:1px solid #e9e4d7;border-radius:16px;padding:16px}
     .muted{color:#77736b}
-    .items label{display:flex;gap:10px;align-items:center;padding:12px;border:1px solid #e9e4d7;border-radius:12px;background:#fbfaf7;margin-top:8px}
-    .items label:has(input:checked){background:#f7f0dc;border-color:#daa520}
-    .done{opacity:.55;text-decoration:line-through}
-    pre{white-space:pre-wrap;font:inherit;margin:8px 0}
     .product-editor{display:grid;gap:8px;margin-top:8px}
-    .product-editor input,.product-editor textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #e9e4d7}
+    .product-editor input,.product-editor textarea,.slip input,.slip textarea,.slip select{width:100%;padding:8px;border-radius:8px;border:1px solid #e9e4d7;font:inherit}
     .json-editor{width:100%;min-height:320px;font-family:monospace;font-size:13px;padding:12px;border-radius:12px;border:1px solid #111}
-    @media(max-width:800px){.shell{grid-template-columns:1fr}.side{position:static;height:auto}.grid,.row{grid-template-columns:1fr}}
+    @media(max-width:800px){.shell{grid-template-columns:1fr}.side{position:static;height:auto}.row{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -37,11 +31,12 @@
     <aside class="side">
       <div class="brand"><img class="brand-logo" src="/logo.png" alt=""><span>KAGE</span></div>
       <nav id="nav" hidden>
-        <button class="active" data-panel="pack" type="button">Packing</button>
-        <button data-panel="orders" type="button">Orders</button>
+        <button class="active" data-panel="dashboard" type="button">Dashboard</button>
         <button data-panel="products" type="button">Products</button>
+        <button data-panel="orders" type="button">Orders</button>
+        <button data-panel="customers" type="button">Customers</button>
+        <button data-panel="settings" type="button">Settings</button>
         <button data-panel="promos" type="button">Promotions</button>
-        <button data-panel="affiliates" type="button">Affiliates</button>
         <button data-panel="raw" type="button">Raw JSON</button>
       </nav>
     </aside>
@@ -49,43 +44,66 @@
       <section id="login">
         <p class="eyebrow">Admin</p>
         <h1>Sign in</h1>
-        <label>Telegram username</label>
-        <input id="handle" placeholder="@username">
-        <button class="gold-btn" type="button" id="requestCode">Send code</button>
+        <label>Phone number</label>
+        <input id="adminPhone" type="tel" placeholder="+44 7...">
+        <button class="gold-btn" type="button" id="adminRequest">Send SMS code</button>
         <label>Code</label>
-        <input id="code" placeholder="6 digit code">
-        <button class="gold-btn" type="button" id="verifyCode">Log in</button>
+        <input id="adminCode" placeholder="6 digit code">
+        <button class="gold-btn" type="button" id="adminVerify">Log in</button>
       </section>
       <p id="message" class="status"></p>
 
-      <section class="panel" id="pack">
-        <div class="head"><div><p class="eyebrow">Packing</p><h1 id="packTitle">Ready to pack</h1></div><strong id="progress"></strong></div>
-        <div id="station"></div>
-      </section>
-
-      <section class="panel" id="orders">
-        <div class="head"><div><p class="eyebrow">Orders</p><h1>Recent orders</h1></div></div>
-        <div id="orderList" class="list"></div>
+      <section class="panel" id="dashboard">
+        <div class="head"><div><p class="eyebrow">Dashboard</p><h1>Overview</h1></div></div>
+        <div id="stats" class="list"></div>
       </section>
 
       <section class="panel" id="products">
-        <div class="head"><div><p class="eyebrow">Products</p><h1>Full catalogue control</h1></div><button class="gold-btn" id="addProductBtn" type="button">+ New product</button></div>
+        <div class="head"><div><p class="eyebrow">Products</p><h1>Catalogue</h1></div><button class="gold-btn" id="addProductBtn" type="button">+ New product</button></div>
         <div id="productList" class="list"></div>
       </section>
 
+      <section class="panel" id="orders">
+        <div class="head"><div><p class="eyebrow">Orders</p><h1>Manage orders</h1></div></div>
+        <div id="orderList" class="list"></div>
+      </section>
+
+      <section class="panel" id="customers">
+        <div class="head"><div><p class="eyebrow">Customers</p><h1>Accounts</h1></div></div>
+        <div id="customerList" class="list"></div>
+      </section>
+
+      <section class="panel" id="settings">
+        <div class="head"><div><p class="eyebrow">Settings</p><h1>Store controls</h1></div></div>
+        <div class="slip">
+          <h2>Minimum order</h2>
+          <label>Minimum order value (£)</label>
+          <input id="minOrder" type="number" min="0" step="1" value="50">
+          <button class="gold-btn" id="saveMinOrder" type="button">Save</button>
+        </div>
+        <div class="slip">
+          <h2>SMS provider</h2>
+          <p class="muted">Phone verification uses SMS. Plug in your provider key here (stored server-side).</p>
+          <label>Twilio Account SID</label><input id="twilioSid" placeholder="ACxxxxxxxx">
+          <label>Twilio Auth Token</label><input id="twilioToken" type="password">
+          <label>From number</label><input id="twilioFrom" placeholder="+44...">
+          <button class="gold-btn" id="saveSms" type="button">Save SMS settings</button>
+        </div>
+        <div class="slip">
+          <h2>Store notice</h2>
+          <textarea id="storeNotice" rows="3" placeholder="Banner text shown on the shop"></textarea>
+          <button class="gold-btn" id="saveNotice" type="button">Save notice</button>
+        </div>
+      </section>
+
       <section class="panel" id="promos">
-        <div class="head"><div><p class="eyebrow">Promotions</p><h1>Live deals</h1></div></div>
+        <div class="head"><div><p class="eyebrow">Promotions</p><h1>Deals & codes</h1></div></div>
         <div id="promoList" class="list"></div>
       </section>
 
-      <section class="panel" id="affiliates">
-        <div class="head"><div><p class="eyebrow">Affiliates</p><h1>Codes</h1></div></div>
-        <div id="affiliateList" class="list"></div>
-      </section>
-
       <section class="panel" id="raw">
-        <div class="head"><div><p class="eyebrow">Advanced</p><h1>Raw products.json editor</h1></div></div>
-        <p class="muted">Any change is possible here. Edit the full array and save. Be careful — invalid JSON will be rejected.</p>
+        <div class="head"><div><p class="eyebrow">Advanced</p><h1>Raw products.json</h1></div></div>
+        <p class="muted">Any catalogue change. Invalid JSON is rejected.</p>
         <textarea id="rawJson" class="json-editor"></textarea>
         <button class="gold-btn" id="saveRaw" type="button" style="margin-top:12px">Save full catalogue</button>
       </section>
