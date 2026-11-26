@@ -10,16 +10,8 @@
   <header class="header">
     <div class="wrap">
       <a class="logo" href="/store">KAGE</a>
-      <nav class="nav">
-        <div class="drop">
-          <button class="nav-btn" type="button">Products</button>
-          <div class="menu" id="menu"></div>
-        </div>
-        <a href="#basket">Basket</a>
-      </nav>
-      <button class="basket-btn" type="button" onclick="document.getElementById('basket').scrollIntoView({behavior:'smooth'})">
-        Basket <span id="cartCount">0</span>
-      </button>
+      <nav class="nav" id="nav"></nav>
+      <a class="basket-btn" href="#checkout">Basket <span id="cartCount">0</span></a>
     </div>
   </header>
 
@@ -31,13 +23,11 @@
   </section>
 
   <div class="wrap">
-    <div class="toolbar">
-      <input id="search" type="search" placeholder="Search the collection">
-    </div>
-    <div id="products" class="products"></div>
+    <input id="search" class="search" type="search" placeholder="Search">
+    <div id="sections"></div>
   </div>
 
-  <section id="basket" class="checkout">
+  <section id="checkout" class="checkout">
     <div class="wrap narrow">
       <h2>Checkout</h2>
       <div id="basketLines" class="lines"></div>
@@ -45,7 +35,7 @@
       <input id="name" placeholder="Full name">
       <input id="phone" placeholder="Phone">
       <textarea id="address" placeholder="Delivery address"></textarea>
-      <button id="checkout" class="btn" type="button">Place order</button>
+      <button id="place" class="btn" type="button">Place order</button>
       <p id="status" class="status"></p>
     </div>
   </section>
