@@ -2210,7 +2210,8 @@ async function submitOrder() {
 
           headers: {
             "Content-Type":
-              "application/json"
+              "application/json",
+            "x-account-token": localStorage.getItem("kage_account_token") || ""
           },
 
           body:
