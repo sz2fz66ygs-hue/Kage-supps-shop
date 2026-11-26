@@ -3425,3 +3425,15 @@ document.getElementById("navAdmin")?.addEventListener("click", () => {
   document.getElementById("shopGate").hidden = true;
   document.getElementById("adminFrame").hidden = false;
 });
+
+/* Products dropdown category filter */
+document.getElementById("productDropdown")?.addEventListener("click", e => {
+  const link = e.target.closest("a[data-cat]");
+  if (!link) return;
+  e.preventDefault();
+  const cat = link.dataset.cat;
+  const tabs = document.getElementById("tabs");
+  const btn = [...tabs.querySelectorAll("button")].find(b => b.textContent.includes(cat) || b.dataset.cat === cat);
+  if (btn) btn.click();
+  document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
+});
