@@ -1846,6 +1846,18 @@ app.get("/api/admin/orders", (req, res) => {
   res.json({ count: ready.length, orders: ready });
 });
 
+
+app.post("/api/admin/orders/:id/mark-paid", (req, res) => {
+  if (!siteAdmin(req)) return res.status(401).json({ error: "Admin required." });
+  const id = Number(req.params.id);
+  const order = orders.get(id);
+  if (!order) return res.status(404).json({ error: "Order not found." });
+  order.paymentStatus = "paid";
+  order.paidAt = new Date().toISOString();
+  saveOrder(order);
+  res.json({ ok: true, orderId: id });
+});
+
 app.post("/api/admin/orders/:id/packed", (req, res) => {
   if (!siteAdmin(req)) return res.status(401).json({ error: "Admin login required." });
   const order = orders.get(Number(req.params.id));
