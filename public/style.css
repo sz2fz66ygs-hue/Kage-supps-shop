@@ -845,12 +845,12 @@ html.in-telegram #shopContent { display: block !important; }
 
 /* ===== Proper website layout ===== */
 .site-header {
-  background: #0d0d0d;
-  color: #fff;
+  background: #fff;
+  color: #111;
   position: sticky;
   top: 0;
   z-index: 100;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid #e9e4d7;
 }
 .site-header-inner {
   max-width: 1180px;
@@ -871,15 +871,15 @@ html.in-telegram #shopContent { display: block !important; }
   gap: 24px;
 }
 .site-nav a {
-  color: #fff;
+  color: #111;
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
 }
 .site-nav a:hover { color: #c9a84c; }
 .hero {
-  background: #0d0d0d;
-  color: #fff;
+  background: linear-gradient(160deg, #f7f0dc 0%, #efe4c4 100%);
+  color: #111;
   text-align: center;
   padding: 80px 24px 60px;
 }
@@ -889,7 +889,7 @@ html.in-telegram #shopContent { display: block !important; }
   margin: 12px 0;
   color: #c9a84c;
 }
-.hero p { color: #ccc; font-size: 16px; }
+.hero p { color: #555; font-size: 16px; }
 .site-actions .cart-pill {
   background: #c9a84c;
   color: #111;
