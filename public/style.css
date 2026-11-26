@@ -903,3 +903,46 @@ html.in-telegram #shopContent { display: block !important; }
   .site-nav { display: none; }
   .hero { padding: 48px 16px 32px; }
 }
+
+/* Products dropdown */
+.dropdown { position: relative; }
+.nav-btn {
+  background: none;
+  border: 0;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  color: #111;
+  padding: 8px 0;
+}
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #fff;
+  border: 1px solid #e9e4d7;
+  border-radius: 12px;
+  min-width: 180px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  padding: 8px 0;
+  z-index: 200;
+}
+.dropdown:hover .dropdown-menu,
+.dropdown:focus-within .dropdown-menu { display: block; }
+.dropdown-menu a {
+  display: block;
+  padding: 10px 16px;
+  color: #111;
+  text-decoration: none;
+  font-size: 14px;
+}
+.dropdown-menu a:hover { background: #f8f4ec; color: #a68534; }
+
+/* Cleaner product area */
+.products {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+  padding: 24px 0;
+}
