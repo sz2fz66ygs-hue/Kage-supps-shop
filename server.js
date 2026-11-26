@@ -1497,7 +1497,7 @@ const adminCodes = new Map();
 
 
 app.post("/api/admin/request-code", (req, res) => {
-  const phone = String(req.body?.phone || "").replace(/\D/g, "");
+  const phone = normalisePhone(req.body?.phone);
   if (!isAdminPhone(phone)) return res.status(403).json({ error: "Not an admin phone." });
   const code = String(Math.floor(100000 + Math.random() * 900000));
   adminCodes.set(phone, { code, expires: Date.now() + 10 * 60 * 1000 });
@@ -1584,7 +1584,7 @@ function allAdminPhones() {
 }
 
 function isAdminPhone(phone) {
-  const clean = String(phone || "").replace(/\D/g, "");
+  const clean = normalisePhone(phone);
   return allAdminPhones().includes(clean);
 }
 
