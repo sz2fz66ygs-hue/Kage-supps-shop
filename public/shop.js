@@ -4,38 +4,45 @@ if (!localStorage.getItem("kage_account_token") && !localStorage.getItem("kage_a
 
 const basket = JSON.parse(localStorage.getItem("kage_basket") || "{}");
 let products = [];
-let currentCat = "All";
 const save = () => localStorage.setItem("kage_basket", JSON.stringify(basket));
 
 async function load() {
   products = await (await fetch("/api/products")).json();
-  const cats = ["All", ...new Set(products.map(p => p.category).filter(Boolean))];
-  document.getElementById("menu").innerHTML = cats.map(c =>
-    `<button data-cat="${c}">${c}</button>`
+  const cats = [...new Set(products.map(p => p.category).filter(Boolean))];
+  document.getElementById("nav").innerHTML = cats.map(c =>
+    `<a href="#cat-${slug(c)}">${c}</a>`
   ).join("");
   render();
 }
 
+function slug(s) { return String(s).toLowerCase().replace(/\s+/g, "-"); }
+
 function render() {
   const q = (document.getElementById("search").value || "").toLowerCase();
-  const list = products.filter(p =>
-    (currentCat === "All" || p.category === currentCat) &&
-    p.name.toLowerCase().includes(q)
-  );
-  document.getElementById("products").innerHTML = list.map(p => {
-    const qty = basket[p.id] || 0;
-    return `<article class="card">
-      <div class="price">£${(p.pricePence / 100).toFixed(2)}</div>
-      <h3>${p.name}</h3>
-      <div class="meta">${p.strength || ""} ${p.size || ""}</div>
-      <div class="qty">
-        <button data-id="${p.id}" data-d="-1">−</button>
-        <span>${qty}</span>
-        <button data-id="${p.id}" data-d="1">+</button>
-      </div>
-    </article>`;
-  }).join("") || "<p>No products</p>";
+  const cats = [...new Set(products.map(p => p.category).filter(Boolean))];
+  document.getElementById("sections").innerHTML = cats.map(cat => {
+    const list = products.filter(p => p.category === cat && p.name.toLowerCase().includes(q));
+    if (!list.length) return "";
+    return `<section class="section" id="cat-${slug(cat)}">
+      <h2>${cat}</h2>
+      <div class="products">${list.map(card).join("")}</div>
+    </section>`;
+  }).join("");
   renderBasket();
+}
+
+function card(p) {
+  const qty = basket[p.id] || 0;
+  return `<article class="card">
+    <div class="price">£${(p.pricePence / 100).toFixed(2)}</div>
+    <h3>${p.name}</h3>
+    <div class="meta">${p.strength || ""} ${p.size || ""}</div>
+    <div class="qty">
+      <button data-id="${p.id}" data-d="-1">−</button>
+      <span>${qty}</span>
+      <button data-id="${p.id}" data-d="1">+</button>
+    </div>
+  </article>`;
 }
 
 function renderBasket() {
@@ -52,21 +59,8 @@ function renderBasket() {
   save();
 }
 
-document.getElementById("menu").onclick = e => {
-  const b = e.target.closest("button[data-cat]");
-  if (!b) return;
-  currentCat = b.dataset.cat;
-  document.querySelector(".drop").classList.remove("open");
-  render();
-  document.getElementById("products").scrollIntoView({ behavior: "smooth" });
-};
-document.querySelector(".nav-btn").onclick = e => {
-  e.stopPropagation();
-  document.querySelector(".drop").classList.toggle("open");
-};
-document.addEventListener("click", () => document.querySelector(".drop")?.classList.remove("open"));
 document.getElementById("search").oninput = render;
-document.getElementById("products").onclick = e => {
+document.getElementById("sections").onclick = e => {
   const b = e.target.closest("button[data-id]");
   if (!b) return;
   const id = b.dataset.id;
@@ -75,7 +69,7 @@ document.getElementById("products").onclick = e => {
   if (!basket[id]) delete basket[id];
   render();
 };
-document.getElementById("checkout").onclick = async () => {
+document.getElementById("place").onclick = async () => {
   const items = Object.entries(basket).filter(([, q]) => q > 0).map(([id, quantity]) => ({ id: +id, quantity }));
   const res = await fetch("/api/orders", {
     method: "POST",
