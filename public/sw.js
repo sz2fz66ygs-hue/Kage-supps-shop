@@ -1,4 +1,4 @@
-const CACHE = "kage-v1";
+const CACHE = "kage-v2";
 const ASSETS = ["/", "/index.html", "/style.css", "/app.js", "/logo.png", "/products.json", "/manifest.json"];
 
 self.addEventListener("install", event => {
@@ -15,7 +15,15 @@ self.addEventListener("activate", event => {
 
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
+  // Network-first for HTML so refreshes get the latest
+  if (event.request.headers.get("accept")?.includes("text/html")) {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+  // Cache-first for other assets
   event.respondWith(
-    caches.match(event.request).then(cached => cached || fetch(event.request).catch(() => caches.match("/")))
+    caches.match(event.request).then(cached => cached || fetch(event.request))
   );
 });
