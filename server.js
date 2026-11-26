@@ -2,7 +2,7 @@ import "dotenv/config";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { fileURLToPath } from "url";
 import path from "path";
-import { randomUUID, createHmac } from "crypto";
+import { randomUUID, createHmac, scryptSync, timingSafeEqual, randomBytes } from "crypto";
 import { DatabaseSync } from "node:sqlite";
 import express from "express";
 import TelegramBot from "node-telegram-bot-api";
@@ -1614,7 +1614,6 @@ app.delete("/api/admin/admins/:phone", (req, res) => {
    ADMIN PASSKEY LOGIN (no SMS required)
    ========================================================= */
 
-const { scryptSync, timingSafeEqual, randomBytes } = require("node:crypto");
 function hashPasskey(passkey) {
   const salt = randomBytes(16).toString("hex");
   const hash = scryptSync(passkey, salt, 32).toString("hex");
