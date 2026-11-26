@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sign in · Kage</title>
+  <link rel="stylesheet" href="/shop.css">
+</head>
+<body>
+  <div class="gate">
+    <div class="gate-inner">
+      <div class="brand">KAGE</div>
+      <h1>Sign in</h1>
+      <p class="sub">Verify your phone to continue.</p>
+      <input id="gateName" placeholder="Full name" autocomplete="name">
+      <input id="gatePhone" placeholder="Phone number" autocomplete="tel">
+      <button id="gateStart" class="btn" type="button">Send code</button>
+      <input id="gateCode" placeholder="6-digit code">
+      <button id="gateVerify" class="btn" type="button">Enter</button>
+      <p id="gateStatus" class="status"></p>
+      <div class="admin-link">
+        <input id="adminKey" type="password" placeholder="Admin passkey">
+        <button id="adminLogin" class="btn btn-ghost" type="button">Admin</button>
+        <p id="adminStatus" class="status"></p>
+      </div>
+    </div>
+  </div>
+  <script>
+    document.getElementById("gateStart").onclick = async () => {
+      const res = await fetch("/api/account/start", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: document.getElementById("gateName").value,
+          phone: document.getElementById("gatePhone").value
+        })
+      });
+      const data = await res.json();
+      document.getElementById("gateStatus").textContent = data.code ? "Code: " + data.code : (data.error || data.message);
+    };
+    document.getElementById("gateVerify").onclick = async () => {
+      const res = await fetch("/api/account/verify", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          phone: document.getElementById("gatePhone").value,
+          code: document.getElementById("gateCode").value
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        localStorage.setItem("kage_account_token", data.token);
+        location.href = "/store";
+      } else {
+        document.getElementById("gateStatus").textContent = data.error || "Failed";
+      }
+    };
+    document.getElementById("adminLogin").onclick = async () => {
+      const res = await fetch("/api/admin/passkey-login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ passkey: document.getElementById("adminKey").value })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        localStorage.setItem("kage_admin_token", data.token);
+        location.href = "/store";
+      } else {
+        document.getElementById("adminStatus").textContent = data.error || "Invalid";
+      }
+    };
+  </script>
+</body>
+</html>
