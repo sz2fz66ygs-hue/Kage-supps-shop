@@ -44,13 +44,13 @@
       <div class="divider"></div>
 
       <label for="name">Full name</label>
-      <input id="name" type="text" placeholder="Your name" autocomplete="name">
+      <input id="name" type="text" placeholder="Your name" autocomplete="name" required>
 
-      <label for="handle">Telegram</label>
-      <input id="handle" type="text" placeholder="Telegram" readonly disabled>
+      <label for="handle">Telegram or contact</label>
+      <input id="handle" type="text" placeholder="@telegram or email / phone" autocomplete="username">
 
       <label for="address">Delivery address</label>
-      <textarea id="address" placeholder="Delivery address" autocomplete="street-address"></textarea>
+      <textarea id="address" placeholder="Full delivery address" autocomplete="street-address" required></textarea>
 
       <div class="divider"></div>
 
@@ -99,7 +99,6 @@
       <div id="paymentPanel"></div>
     </section>
   </main>
-
 
   <div id="minBar" class="min-bar" hidden>
     <span id="minBarLabel">£0.00 to £50</span>
