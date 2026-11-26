@@ -13,6 +13,7 @@ function showPanel(name) {
   if (name === "promos") loadPromos();
   if (name === "raw") loadRaw();
   if (name === "admins") loadAdmins();
+  if (name === "security") loadSecurity();
 }
 
 function signedIn() {
@@ -290,3 +291,16 @@ async function adminPasskeyLogin() {
   signedIn();
 }
 document.querySelector("#adminPasskeyLogin")?.addEventListener("click", adminPasskeyLogin);
+
+async function loadSecurity() {
+  const res = await fetch("/api/admin/security-log", { headers: authHeaders() });
+  if (!res.ok) return;
+  const rows = await res.json();
+  document.querySelector("#securityLog").innerHTML = rows.map(r => `
+    <article class="row">
+      <strong>${r.ip || "unknown"}</strong>
+      <div class="muted">${r.reason} · ${r.path}<br>${(r.ua || "").slice(0, 80)}</div>
+      <span class="muted">${new Date(r.time).toLocaleString()}</span>
+    </article>
+  `).join("") || "<p>No blocked requests yet.</p>";
+}
