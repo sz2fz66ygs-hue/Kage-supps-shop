@@ -4081,11 +4081,19 @@ app.post(
       if (getMetaValue("shop_open") === "0") {
         return res.status(403).json({ error: "The shop is closed while we update stock. Please try again shortly." });
       }
+
+      // Require verified customer account
+      const accountToken = String(req.headers["x-account-token"] || "");
+      const session = customerSessions.get(accountToken);
+      if (!session) return res.status(401).json({ error: "Please create an account to order." });
+      const customer = db.prepare("SELECT id, name, phone, verified FROM customers WHERE id = ?").get(session.customerId);
+      if (!customer || !customer.verified) return res.status(403).json({ error: "Account not verified." });
+
       const {
-        customerName,
+        customerName: _formName,
         telegramUsername,
         telegramId,
-        phone,
+        phone: _formPhone,
         address,
         items,
         discountCode,
@@ -4196,15 +4204,17 @@ app.post(
         });
       }
 
+      const settings = loadSettings();
+      const minPence = Math.round(Number(settings.minOrder || 50) * 100);
       if (
         subtotalPence <
-        MINIMUM_ORDER_PENCE
+        minPence
       ) {
         return res
           .status(400)
           .json({
             error:
-              "Minimum basket is £50 before discount and shipping."
+              `Minimum basket is £${settings.minOrder || 50} before discount and shipping.`
           });
       }
 
@@ -4440,13 +4450,9 @@ app.post(
 
       const order = {
         orderId,
-        customerName:
-          String(
-            customerName
-          ).trim(),
-        phone:
-          phone ||
-          "",
+        customerId: customer.id,
+        customerName: String(customer.name || "").trim(),
+        phone: customer.phone || "",
         personalTenPence,
         telegramUsername:
           telegramUsername ||
