@@ -3399,3 +3399,19 @@ document.getElementById("shopAdminLogin")?.addEventListener("click", async () =>
   localStorage.setItem("kage_admin_token", data.token);
   window.location.href = "/manage";
 });
+
+/* Gate admin passkey login */
+document.getElementById("gateAdminLogin")?.addEventListener("click", async () => {
+  const passkey = document.getElementById("gateAdminPasskey")?.value || "";
+  const status = document.getElementById("gateAdminStatus");
+  if (!passkey) return (status.textContent = "Enter a passkey.");
+  const res = await fetch("/api/admin/passkey-login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ passkey })
+  });
+  const data = await res.json();
+  if (!res.ok) return (status.textContent = data.error || "Invalid passkey.");
+  localStorage.setItem("kage_admin_token", data.token);
+  window.location.href = "/manage";
+});
