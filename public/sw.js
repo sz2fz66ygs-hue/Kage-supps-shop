@@ -1,4 +1,4 @@
-const CACHE = "kage-v7";
+const CACHE = "kage-v8";
 const ASSETS = ["/", "/index.html", "/style.css", "/app.js", "/logo.png", "/products.json", "/manifest.json"];
 
 self.addEventListener("install", event => {
