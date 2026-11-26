@@ -1649,12 +1649,13 @@ function normalisePhone(input) {
 }
 
 app.post("/api/admin/passkey-login", (req, res) => {
-  const phone = normalisePhone(req.body?.phone);
   const passkey = String(req.body?.passkey || "").trim();
-  const row = db.prepare("SELECT passkey FROM admin_passkeys WHERE phone = ?").get(phone);
-  if (!row || !verifyPasskey(passkey, row.passkey)) return res.status(400).json({ error: "Invalid phone or passkey." });
+  if (!passkey) return res.status(400).json({ error: "Enter your passkey." });
+  const rows = db.prepare("SELECT phone, passkey FROM admin_passkeys").all();
+  const match = rows.find(r => verifyPasskey(passkey, r.passkey));
+  if (!match) return res.status(400).json({ error: "Invalid passkey." });
   const token = randomUUID();
-  adminSessions.set(token, { phone, admin: true });
+  adminSessions.set(token, { phone: match.phone, admin: true });
   res.json({ ok: true, token });
 });
 
