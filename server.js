@@ -677,6 +677,7 @@ CREATE TABLE IF NOT EXISTS customer_credit (
 
 CREATE TABLE IF NOT EXISTS customers (
   id TEXT PRIMARY KEY,
+  name TEXT,
   phone TEXT UNIQUE,
   telegram TEXT UNIQUE,
   verified INTEGER NOT NULL DEFAULT 0,
@@ -1145,9 +1146,11 @@ function makeCode() {
 }
 
 app.post("/api/account/start", (req, res) => {
-  const { phone, telegram } = req.body || {};
+  const { name, phone, telegram } = req.body || {};
+  const cleanName = String(name || "").trim().slice(0, 80);
   const cleanPhone = phone ? String(phone).replace(/\D/g, "") : "";
   const cleanTg = telegram ? String(telegram).replace(/^@/, "").toLowerCase() : "";
+  if (!cleanName) return res.status(400).json({ error: "Name is required." });
   if (!cleanPhone && !cleanTg) return res.status(400).json({ error: "Phone or Telegram required." });
   if (cleanPhone && cleanPhone.length < 8) return res.status(400).json({ error: "Enter a valid phone number." });
 
@@ -1157,9 +1160,10 @@ app.post("/api/account/start", (req, res) => {
   const code = makeCode();
   const expires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
-  db.prepare(`INSERT OR IGNORE INTO customers (id, phone, telegram, verified, method, created_at) VALUES (?, ?, ?, 0, ?, ?)`).run(id, cleanPhone || null, cleanTg || null, method, now);
+  db.prepare(`INSERT OR IGNORE INTO customers (id, name, phone, telegram, verified, method, created_at) VALUES (?, ?, ?, ?, 0, ?, ?)`).run(id, cleanName, cleanPhone || null, cleanTg || null, method, now);
   const row = db.prepare(`SELECT id FROM customers WHERE phone = ? OR telegram = ?`).get(cleanPhone || null, cleanTg || null);
   const customerId = row?.id || id;
+  if (cleanName) db.prepare(`UPDATE customers SET name = ? WHERE id = ?`).run(cleanName, customerId);
 
   db.prepare(`INSERT INTO verification_codes (id, customer_id, code, method, expires_at) VALUES (?, ?, ?, ?, ?)`).run(randomUUID(), customerId, code, method, expires);
 
@@ -1196,7 +1200,7 @@ app.get("/api/account/me", (req, res) => {
   const token = String(req.headers["x-account-token"] || "");
   const session = customerSessions.get(token);
   if (!session) return res.status(401).json({ error: "Not signed in." });
-  const customer = db.prepare(`SELECT id, phone, telegram, verified, method FROM customers WHERE id = ?`).get(session.customerId);
+  const customer = db.prepare(`SELECT id, name, phone, telegram, verified, method FROM customers WHERE id = ?`).get(session.customerId);
   res.json(customer || { error: "Not found." });
 });
 
