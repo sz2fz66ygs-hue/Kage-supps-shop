@@ -6298,7 +6298,8 @@ Choose an option.`,
       const strengthPart = strength && !String(product.name || "").toLowerCase().includes(strength.replace(/\s/g, "").toLowerCase())
         ? ` (${strength})`
         : "";
-      return `#${product.id} • ${product.name}${strengthPart}: ${product.stock}${notes ? ` (${notes})` : ""}`;
+      const price = product.pricePence ? `£${(product.pricePence / 100).toFixed(2)}` : "";
+      return `#${product.id} • ${product.name}${strengthPart}${price ? ` — ${price}` : ""}: ${product.stock}${notes ? ` (${notes})` : ""}`;
     }).join("\n");
 
     await sendLongMessage(chatId, `${title}\n\n${lines || "Nothing here."}`);
