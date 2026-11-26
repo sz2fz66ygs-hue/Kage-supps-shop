@@ -4125,7 +4125,7 @@ app.post(
         req.body || {};
 
       if (
-        !customerName ||
+        !_formName ||
         !address ||
         !Array.isArray(items) ||
         items.length === 0
