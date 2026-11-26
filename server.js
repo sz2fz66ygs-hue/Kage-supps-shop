@@ -580,6 +580,76 @@ const STOREWIDE_PROMO_DEFAULTS = {
 app.use(express.json({ limit: "1mb" }));
 
 /* =========================================================
+   AUTOMATED ACCESS BLOCKING
+   ========================================================= */
+const blockedUAs = /bot|crawl|spider|scrape|scrapy|curl|python-requests|selenium|puppeteer|playwright|headless|GPTBot|ClaudeBot|CCBot|Google-Extended|PerplexityBot|Bytespider|Amazonbot|ahrefs|semrush/i;
+const securityLog = [];
+
+function logBlock(req, reason) {
+  securityLog.unshift({
+    ip: req.ip || req.socket?.remoteAddress,
+    ua: req.headers["user-agent"] || "",
+    path: req.path,
+    reason,
+    time: new Date().toISOString()
+  });
+  if (securityLog.length > 200) securityLog.pop();
+}
+
+app.use((req, res, next) => {
+  const ua = req.headers["user-agent"] || "";
+  if (blockedUAs.test(ua) && !/googlebot|bingbot/i.test(ua)) {
+    logBlock(req, "blocked-ua");
+    return res.status(403).send("Forbidden");
+  }
+  next();
+});
+
+app.get("/robots.txt", (_req, res) => {
+  res.type("text/plain").send(`User-agent: *
+Disallow: /manage
+Disallow: /api
+Disallow: /checkout
+Disallow: /cart
+Disallow: /account
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: Amazonbot
+Disallow: /
+`);
+});
+
+app.use((req, res, next) => {
+  if (req.path.startsWith("/manage") || req.path.includes("checkout") || req.path.includes("order")) {
+    res.setHeader("X-Robots-Tag", "noindex, nofollow");
+  }
+  next();
+});
+
+app.get("/api/admin/security-log", (req, res) => {
+  if (!adminAuth(req)) return res.status(401).json({ error: "Admin required." });
+  res.json(securityLog.slice(0, 100));
+});
+
+
+/* =========================================================
    BASIC SECURITY HEADERS + LIGHT RATE LIMIT
    ========================================================= */
 app.use((req, res, next) => {
