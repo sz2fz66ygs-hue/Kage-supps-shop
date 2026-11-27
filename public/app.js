@@ -91,6 +91,11 @@ const preferredSectionOrder = {
   ],
 
   Peps: [
+    "Metabolic Research",
+    "Recovery Research",
+    "Copper Peptide",
+    "Other Peptides",
+    "Supplies",
     "Recovery",
     "Weight Management",
     "Other"
