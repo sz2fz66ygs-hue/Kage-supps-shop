@@ -1378,19 +1378,8 @@ app.get("/api/site/me", (req, res) => {
 });
 
 
-app.get("/login", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
-});
-app.get("/store", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "store.html"));
-});
-
-app.get("/shop", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "shop.html"));
-});
-
-app.get("/site", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "site.html"));
+app.get(["/login", "/store", "/shop", "/site", "/web"], (_req, res) => {
+  res.status(404).send("Not available.");
 });
 
 const SITE_PRODUCTS_FILE = path.join(DATA_DIR, "site-products.json");
