@@ -4444,9 +4444,11 @@ app.post(
       let appliedCreditCode = null;
 
       const verifiedId = verifiedTelegramId(req.body?.initData);
-      const creditOwner = verifiedId || (telegramId ? String(telegramId) : "");
+      const rawId = telegramId ? String(telegramId) : "";
+      const creditOwner = verifiedId || rawId;
       if (!storeCreditCode && creditOwner) {
-        const personal = getCustomerCredit(creditOwner);
+        let personal = getCustomerCredit(creditOwner);
+        if (!personal && rawId && rawId !== creditOwner) personal = getCustomerCredit(rawId);
         const remaining = Math.max(0, subtotalPence - promotionDiscountPence - discountPence - storewideDiscountPence - spendThresholdDiscountPence);
         storeCreditPence = Math.min(remaining, personal);
         if (storeCreditPence > 0) appliedCreditCode = `tg:${creditOwner}`;
