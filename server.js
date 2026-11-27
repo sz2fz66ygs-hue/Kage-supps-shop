@@ -3180,6 +3180,8 @@ async function postOrderToGroup(order) {
   const stamp = when.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
   await safeSendMessage(groupId, `#${order.orderId} · ${stamp}\n${getOrderStatusText(order)}`);
   await safeSendMessage(groupId, order.customerName || "No name");
+  const tg = order.telegramUsername ? "@" + String(order.telegramUsername).replace(/^@/, "") : "";
+  if (tg) await safeSendMessage(groupId, tg);
   await safeSendMessage(groupId, order.address || "No address");
   if (order.phone) await safeSendMessage(groupId, order.phone);
   await safeSendMessage(groupId, items);
@@ -4531,7 +4533,11 @@ app.post(
         phone: customer?.phone || _formPhone || "",
         personalTenPence,
         telegramUsername:
-          verifiedTelegramUser(req.body?.initData)?.username || telegramUsername || "",
+          (() => {
+            const raw = verifiedTelegramUser(req.body?.initData)?.username || telegramUsername || "";
+            const clean = String(raw).replace(/^@/, "").trim();
+            return clean ? "@" + clean : "";
+          })(),
         telegramId:
           verifiedTelegramUser(req.body?.initData)?.id || (telegramId ? String(telegramId) : null),
         telegramName:
