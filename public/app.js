@@ -2254,7 +2254,9 @@ async function submitOrder() {
 
               initData:
                 tg?.initData ||
-                undefined
+                undefined,
+
+              personalCreditPence: personalCreditPence || 0
             })
         }
       );
