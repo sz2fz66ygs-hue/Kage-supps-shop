@@ -4458,6 +4458,8 @@ app.post(
       if (!storeCreditCode && creditOwner) {
         let personal = getCustomerCredit(creditOwner);
         if (!personal && rawId && rawId !== creditOwner) personal = getCustomerCredit(rawId);
+        const claimed = Number(req.body?.personalCreditPence || 0);
+        if (claimed > 0 && claimed <= personal) personal = claimed;
         const remaining = subtotalPence;
         storeCreditPence = Math.min(remaining, personal);
         if (storeCreditPence > 0) appliedCreditCode = `tg:${creditOwner}`;
