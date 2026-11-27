@@ -5666,6 +5666,9 @@ if (bot) {
             { text: "💳 Store Credit", callback_data: "admin_credit_home" }
           ],
           [
+            { text: "📩 Resend confirmations", callback_data: "admin_resend_confirm" }
+          ],
+          [
             { text: "📊 Reports", callback_data: "admin_reports" }
           ],
           [
@@ -8213,6 +8216,26 @@ The review has been removed.`,
         clearAdminInputs(chatId);
         pendingOrderLimit.set(chatId, true);
         return safeSendMessage(chatId, "🚫 ORDER LIMIT\n\nOne per line. A category sets every product in it.\n\nPharma 2\n301 5\n\n0 removes the limit. /admin to cancel.");
+      }
+
+      
+      if (data === "admin_resend_confirm") {
+        if (!isAdmin(q.from?.id)) return safeSendMessage(chatId, "Admin only.");
+        const since = Date.now() - 48 * 60 * 60 * 1000;
+        const recent = [...orders.values()].filter(order =>
+          order.paymentStatus === "paid" &&
+          order.telegramId &&
+          new Date(order.paidAt || order.createdAt || 0).getTime() >= since
+        );
+        let sent = 0;
+        for (const order of recent) {
+          await safeSendMessage(
+            order.telegramId,
+            `✅ Payment confirmed\n\nOrder #${order.orderId} is paid. We will message you when it is dispatched.`
+          ).catch(() => {});
+          sent++;
+        }
+        return safeSendMessage(chatId, `📩 Sent ${sent} confirmation${sent === 1 ? "" : "s"} for paid orders from the last 48 hours.`);
       }
 
       if (data === "admin_credit_home") {
