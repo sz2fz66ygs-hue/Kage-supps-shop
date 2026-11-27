@@ -12449,3 +12449,23 @@ app.listen(
     );
   }
 );
+
+/* Resend confirmations for recent paid orders once on startup */
+(async () => {
+  if (getMetaValue("confirm_resend_done") === "1") return;
+  const since = Date.now() - 48 * 60 * 60 * 1000;
+  const recent = [...orders.values()].filter(order =>
+    order.paymentStatus === "paid" &&
+    order.telegramId &&
+    new Date(order.paidAt || order.createdAt || 0).getTime() >= since
+  );
+  for (const order of recent) {
+    await safeSendMessage(
+      order.telegramId,
+      `✅ Payment confirmed\n\nOrder #${order.orderId} is paid. We will message you when it is dispatched.`
+    ).catch(() => {});
+  }
+  setMetaValue("confirm_resend_done", "1");
+  console.log(`[CONFIRM] Resent ${recent.length} recent payment confirmations`);
+})();
+
