@@ -1696,10 +1696,15 @@ async function loadShopStatus() {
     if (data.open === false) {
       const productsContainer = document.getElementById("products");
       if (productsContainer) {
-        productsContainer.insertAdjacentHTML("afterbegin", `<div class="catalogue-error">Back shortly. The shop is closed while stock is being updated.</div>`);
+        productsContainer.innerHTML = `<div class="catalogue-error" style="padding:40px 20px;text-align:center;font-size:16px">Back shortly.<br><br>The shop is closed while we update stock. Please check again soon.</div>`;
       }
+      const tabs = document.getElementById("tabs");
+      if (tabs) tabs.innerHTML = "";
+      const search = document.getElementById("shopSearch");
+      if (search) search.disabled = true;
       const checkoutBtn = document.getElementById("checkoutBtn");
       if (checkoutBtn) checkoutBtn.disabled = true;
+      return;
     }
   } catch {}
 }
