@@ -4555,12 +4555,12 @@ app.post(
         personalTenPence,
         telegramUsername:
           (() => {
-            const raw = verifiedTelegramUser(req.body?.initData)?.username || telegramUsername || "";
+            const raw = telegramUsername || verifiedTelegramUser(req.body?.initData)?.username || "";
             const clean = String(raw).replace(/^@/, "").trim();
             return clean ? "@" + clean : "";
           })(),
         telegramId:
-          verifiedTelegramUser(req.body?.initData)?.id || (telegramId ? String(telegramId) : null),
+          (telegramId ? String(telegramId) : null) || verifiedTelegramUser(req.body?.initData)?.id || null,
         telegramName:
           String(req.body?.telegramName || "").trim() ||
           null,
