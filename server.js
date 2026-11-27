@@ -1847,6 +1847,19 @@ app.get("/api/admin/orders", (req, res) => {
 });
 
 
+
+app.post("/api/admin/credit", (req, res) => {
+  if (!siteAdmin(req)) return res.status(401).json({ error: "Admin required." });
+  const telegramId = String(req.body?.telegramId || "").trim();
+  const pounds = Number(req.body?.pounds || 0);
+  if (!telegramId || !Number.isFinite(pounds) || pounds === 0) {
+    return res.status(400).json({ error: "Need telegramId and pounds." });
+  }
+  const pence = Math.round(pounds * 100);
+  addCustomerCredit(telegramId, pence);
+  res.json({ ok: true, balancePence: getCustomerCredit(telegramId) });
+});
+
 app.post("/api/admin/orders/:id/mark-paid", (req, res) => {
   if (!siteAdmin(req)) return res.status(401).json({ error: "Admin required." });
   const id = Number(req.params.id);
@@ -8213,7 +8226,7 @@ The review has been removed.`,
       }
 
       if (data === "admin_add_credit" || data === "admin_remove_credit") {
-        if (!isAdmin(q.from?.id)) return;
+        if (!isAdmin(q.from?.id)) return safeSendMessage(chatId, "Not authorised. Your Telegram ID is not in the admin list.");
         clearAdminInputs(chatId);
         pendingAddCredit.set(chatId, { stage: "who", mode: data === "admin_remove_credit" ? "remove" : "add" });
         return safeSendMessage(chatId, `${data === "admin_remove_credit" ? "💳 REMOVE STORE CREDIT" : "💳 ADD STORE CREDIT"}\n\nSend the Telegram ID, or @username.\n\n/admin to cancel.`);
@@ -9938,7 +9951,10 @@ This will mark the order as cancelled.`,
       if (data === "orders") {
         const viewer = { telegramId: q.from?.id, telegramUsername: q.from?.username };
         const matches = [...orders.values()]
-          .filter(order => orderBelongsToViewer(order, viewer) && ["awaiting_payment", "payment_submitted", "paid"].includes(order.paymentStatus))
+          .filter(order => {
+          if (!orderBelongsToViewer(order, viewer)) return false;
+          return order.paymentStatus !== "cancelled";
+        })
           .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
           .slice(0, 10);
 
