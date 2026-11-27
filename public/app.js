@@ -1123,7 +1123,7 @@ async function loadPersonalCredit() {
   const id = telegramUser?.id;
   if (!id) return;
   try {
-    const res = await fetch(`/api/store-credit?initData=${encodeURIComponent(tg?.initData || "")}`);
+    const res = await fetch(`/api/store-credit?initData=${encodeURIComponent(tg?.initData || "")}&telegramId=${encodeURIComponent(telegramUser?.id || "")}`);
     const data = await res.json();
     personalCreditPence = Number(data.balancePence || 0);
     renderBasket();
