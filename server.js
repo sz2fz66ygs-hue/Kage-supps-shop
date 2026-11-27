@@ -4531,9 +4531,9 @@ app.post(
         phone: customer?.phone || _formPhone || "",
         personalTenPence,
         telegramUsername:
-          verifiedTelegramUser(req.body?.initData)?.username || "",
+          verifiedTelegramUser(req.body?.initData)?.username || telegramUsername || "",
         telegramId:
-          verifiedTelegramUser(req.body?.initData)?.id || null,
+          verifiedTelegramUser(req.body?.initData)?.id || (telegramId ? String(telegramId) : null),
         telegramName:
           String(req.body?.telegramName || "").trim() ||
           null,
