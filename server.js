@@ -333,7 +333,16 @@ function calculatePromotionDiscount(lineItems, promotions, telegramId) {
     let discount = 0;
     let bundles = 0;
 
-    if (promo.type === "multibuy") {
+    if (promo.type === "cheapest_free") {
+      const need = Math.max(2, Number(promo.requiredQuantity || 3));
+      const groups = Math.floor(units.length / need);
+      if (!groups) continue;
+      const sorted = units.slice().sort((a, b) => a.pricePence - b.pricePence);
+      for (let i = 0; i < groups; i += 1) {
+        discount += sorted[i].pricePence;
+      }
+      bundles = groups;
+    } else if (promo.type === "multibuy") {
       const byId = new Map();
       for (const unit of units) {
         const existing = byId.get(unit.id) || { price: unit.pricePence, qty: 0 };
@@ -11314,7 +11323,8 @@ function parseFreeTextDeal(text) {
                 [{ text: "Percentage off", callback_data: "admin_promo_type_percent" }],
                 [{ text: "Multi-buy (2nd 15% / 3+ 20%)", callback_data: "admin_promo_type_multibuy" }],
                 [{ text: "Fixed amount off", callback_data: "admin_promo_type_fixed_amount" }],
-                [{ text: "Fixed bundle price", callback_data: "admin_promo_type_fixed_bundle" }]
+                [{ text: "Fixed bundle price", callback_data: "admin_promo_type_fixed_bundle" }],
+                [{ text: "Buy 3 cheapest free", callback_data: "admin_promo_type_cheapest_free" }]
               ]
             }
           });
@@ -12050,12 +12060,14 @@ ${text}`
         const state = pendingAddCredit.get(chatId);
         if (state.stage === "who") {
           const raw = text.trim();
-          let telegramId = raw.replace(/^@/, "");
+          let telegramId = raw.replace(/^@/, "").trim();
           if (!/^\d+$/.test(telegramId)) {
-            const match = [...orders.values()].find(order =>
-              String(order.telegramUsername || "").toLowerCase() === telegramId.toLowerCase()
+            const wanted = telegramId.toLowerCase();
+            const fromOrders = [...orders.values()].find(order =>
+              String(order.telegramUsername || "").replace(/^@/, "").toLowerCase() === wanted
             );
-            telegramId = match?.telegramId ? String(match.telegramId) : "";
+            const fromHandles = findUserByHandle(wanted);
+            telegramId = fromOrders?.telegramId ? String(fromOrders.telegramId) : (fromHandles?.telegram_id ? String(fromHandles.telegram_id) : "");
           }
           if (!telegramId) return safeSendMessage(chatId, "Could not find that person. Send a Telegram ID, or /admin to stop.");
           state.telegramId = telegramId;
