@@ -4555,7 +4555,8 @@ app.post(
         personalTenPence,
         telegramUsername:
           (() => {
-            const raw = telegramUsername || verifiedTelegramUser(req.body?.initData)?.username || "";
+            const v = verifiedTelegramUser(req.body?.initData);
+            const raw = telegramUsername || v?.username || req.body?.telegramName || "";
             const clean = String(raw).replace(/^@/, "").trim();
             return clean ? "@" + clean : "";
           })(),
