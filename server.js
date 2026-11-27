@@ -8214,9 +8214,6 @@ The review has been removed.`,
         pendingOrderLimit.set(chatId, true);
         return safeSendMessage(chatId, "🚫 ORDER LIMIT\n\nOne per line. A category sets every product in it.\n\nPharma 2\n301 5\n\n0 removes the limit. /admin to cancel.");
       }
-        return safeSendMessage(chatId, `📩 Sent ${sent} confirmation${sent === 1 ? "" : "s"} for paid orders from the last 48 hours.`);
-      }
-
       if (data === "admin_credit_home") {
         if (!isAdmin(q.from?.id)) return;
         return safeSendMessage(chatId, "💳 STORE CREDIT", {
