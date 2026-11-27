@@ -2683,11 +2683,16 @@ function orderBelongsToViewer(
     viewer.telegramUsername
   );
 
-  return Boolean(
-    a &&
-    b &&
-    a === b
-  );
+  if (a && b && a === b) return true;
+
+  // Fallback: match by customer name if Telegram was not saved on the order
+  if (!order.telegramId && !order.telegramUsername && viewer.telegramUsername) {
+    const name = String(order.customerName || "").toLowerCase().trim();
+    const uname = normaliseUsername(viewer.telegramUsername);
+    if (name && uname && name.includes(uname)) return true;
+  }
+
+  return false;
 }
 
 function isAdmin(userId) {
