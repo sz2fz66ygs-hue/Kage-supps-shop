@@ -4449,7 +4449,7 @@ app.post(
       if (!storeCreditCode && creditOwner) {
         let personal = getCustomerCredit(creditOwner);
         if (!personal && rawId && rawId !== creditOwner) personal = getCustomerCredit(rawId);
-        const remaining = Math.max(0, subtotalPence - promotionDiscountPence - discountPence - storewideDiscountPence - spendThresholdDiscountPence);
+        const remaining = subtotalPence;
         storeCreditPence = Math.min(remaining, personal);
         if (storeCreditPence > 0) appliedCreditCode = `tg:${creditOwner}`;
       }
