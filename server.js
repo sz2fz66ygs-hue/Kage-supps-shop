@@ -555,7 +555,7 @@ const affiliateCodes = [
   { code: "CHODE10", owner: "@Hex_case" },
   { code: "DOMINATE", owner: "@dom_harriss" },
   { code: "STEVIEWONDER", owner: "@Steviewonder987" },
-  { code: "KITTYSJ10", owner: "@Sjobje" },
+  { code: "KITTYSJ10", owner: "@sjobje" },
   { code: "DABBLE", owner: "@Peachy001" },
   { code: "JAM97", owner: "@Jam97" }
 ];
