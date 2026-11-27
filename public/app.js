@@ -1121,13 +1121,18 @@ let personalCreditPence = 0;
 
 async function loadPersonalCredit() {
   const id = telegramUser?.id;
-  if (!id) return;
+  if (!id) {
+    setTimeout(loadPersonalCredit, 500);
+    return;
+  }
   try {
-    const res = await fetch(`/api/store-credit?initData=${encodeURIComponent(tg?.initData || "")}&telegramId=${encodeURIComponent(telegramUser?.id || "")}`);
+    const res = await fetch(`/api/store-credit?initData=${encodeURIComponent(tg?.initData || "")}&telegramId=${encodeURIComponent(id)}`);
     const data = await res.json();
     personalCreditPence = Number(data.balancePence || 0);
     renderBasket();
-  } catch {}
+  } catch {
+    setTimeout(loadPersonalCredit, 1000);
+  }
 }
 
 function storeCreditForRemaining(
@@ -1294,8 +1299,9 @@ function renderBasket() {
     spendThresholdDiscount;
 
   const afterCodes = Math.max(0, afterPromotion - affiliateDiscount - storewideDiscount - spendThresholdDiscount);
-  const codeCredit = storeCreditForRemaining(afterCodes);
-  const personalCredit = Math.min(Math.max(0, personalCreditPence), Math.max(0, afterCodes - codeCredit));
+  const fullPriceBase = subtotal;
+  const codeCredit = storeCreditForRemaining(fullPriceBase);
+  const personalCredit = Math.min(Math.max(0, personalCreditPence), Math.max(0, fullPriceBase - codeCredit));
   const credit = codeCredit + personalCredit;
 
   const totalBeforeShipping =
