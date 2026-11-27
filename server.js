@@ -4119,8 +4119,11 @@ app.get(
 
     const requester = normaliseUsername(req.query.username || "");
     const owner = normaliseUsername(record.owner || "");
-    if (!requester || !owner || requester !== owner) {
-      return res.status(403).json({ error: "This store credit belongs to another account." });
+    const listed = affiliateCodes.find(item => item.code === code);
+    const listedOwner = normaliseUsername(listed?.owner || "");
+    const ok = requester && (requester === owner || requester === listedOwner);
+    if (!ok) {
+      return res.status(403).json({ error: "This affiliate code is linked to a different Telegram account." });
     }
     return res.json({
       code,
@@ -7765,8 +7768,8 @@ ${productLines || "No activity in the last 7 days."}`
         const code = normaliseCode(data.replace(/earn_(credit|withdraw)_/, ""));
         const affiliate = affiliateCodes.find(item => item.code === code);
         const handle = normaliseUsername(q.from?.username || "");
-        if (!affiliate || normaliseUsername(affiliate.owner) !== handle) {
-          return safeSendMessage(chatId, "This is not your affiliate code.");
+        if (!affiliate || (normaliseUsername(affiliate.owner) !== handle && normaliseUsername(referralEarnings.get(code)?.owner) !== handle)) {
+          return safeSendMessage(chatId, "This affiliate code is linked to a different Telegram account. Ask admin to update the owner username.");
         }
         const record = referralEarnings.get(code);
         const balance = Number(record?.balancePence || 0);
@@ -7776,6 +7779,7 @@ ${productLines || "No activity in the last 7 days."}`
           record.balancePence = 0;
           record.paidOutPence = Number(record.paidOutPence || 0) + balance;
           saveReferralEarnings(code, record);
+          await notifyAdmins(`💳 AFFILIATE CONVERTED TO STORE CREDIT\n\n${code} (@${affiliate.owner})\nAmount: ${money(balance)}\nMoved to their store credit. Earnings balance is now £0.`);
           return safeSendMessage(chatId, `✅ ${money(balance)} moved to your store credit.`);
         }
         await notifyAdmins(`🏦 WITHDRAWAL REQUEST\n\n${code} (${affiliate.owner})\nAmount: ${money(balance)}`);
