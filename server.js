@@ -5663,6 +5663,9 @@ if (bot) {
             { text: "👥 Affiliates", callback_data: "admin_affiliates" }
           ],
           [
+            { text: "💳 Store Credit", callback_data: "admin_credit_home" }
+          ],
+          [
             { text: "📊 Reports", callback_data: "admin_reports" }
           ],
           [
