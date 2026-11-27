@@ -5885,6 +5885,7 @@ Choose an option below.`,
 
     const extras = [
       order.telegramUsername ? `Telegram: @${normaliseUsername(order.telegramUsername)}` : "",
+      order.transactionId ? `Transaction: ${order.transactionId}` : "",
       order.trackingNumber ? `Tracking: ${order.trackingNumber}` : "",
       notes ? `Notes:\n${notes}` : ""
     ].filter(Boolean).join("\n\n");
@@ -9986,7 +9987,7 @@ This will mark the order as cancelled.`,
           return order.paymentStatus !== "cancelled";
         })
           .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
-          .slice(0, 10);
+          .slice(0, 20);
 
         if (!matches.length) return safeSendMessage(chatId, "📦 My Orders\n\nNo orders found yet.");
 
