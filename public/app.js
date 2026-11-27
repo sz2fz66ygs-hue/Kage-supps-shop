@@ -1751,6 +1751,18 @@ async function loadProducts() {
     );
 
   try {
+    const status = await fetch("/api/shop-status", { cache: "no-store" }).then(r => r.json());
+    if (status.open === false) {
+      if (productsContainer) {
+        productsContainer.innerHTML = `<div class="catalogue-error" style="padding:40px 20px;text-align:center;font-size:16px">Back shortly.<br><br>The shop is closed while we update stock. Please check again soon.</div>`;
+      }
+      const tabs = document.getElementById("tabs");
+      if (tabs) tabs.innerHTML = "";
+      return;
+    }
+  } catch {}
+
+  try {
     products =
       await fetchProductsFrom(
         "/products.json"
