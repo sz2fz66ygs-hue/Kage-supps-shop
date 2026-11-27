@@ -22,6 +22,14 @@ if (tg) {
 const telegramUser =
   tg?.initDataUnsafe?.user ||
   null;
+function getTelegramIdentity() {
+  const u = tg?.initDataUnsafe?.user || telegramUser || {};
+  return {
+    id: u.id || null,
+    username: u.username ? "@" + String(u.username).replace(/^@/, "") : "",
+    name: [u.first_name, u.last_name].filter(Boolean).join(" ")
+  };
+}
 
 
 /* =========================================================
@@ -2097,10 +2105,8 @@ async function submitOrder() {
       ?.value
       .trim();
 
-  const telegramUsername =
-    telegramUser?.username
-      ? `@${telegramUser.username}`
-      : [telegramUser?.first_name, telegramUser?.last_name].filter(Boolean).join(" ") || "";
+  const identity = getTelegramIdentity();
+  const telegramUsername = identity.username || identity.name || "";
 
   const phone =
     document
@@ -2229,6 +2235,7 @@ async function submitOrder() {
               phone,
 
               telegramId:
+                identity.id ||
                 telegramUser?.id ||
                 undefined,
 
