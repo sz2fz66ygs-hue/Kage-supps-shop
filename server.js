@@ -1129,7 +1129,7 @@ app.post("/api/orders/:id/add-items", async (req, res) => {
 });
 
 app.get("/api/store-credit", (req, res) => {
-  const telegramId = verifiedTelegramId(req.query.initData) || "";
+  const telegramId = verifiedTelegramId(req.query.initData) || String(req.query.telegramId || "");
   res.json({ balancePence: getCustomerCredit(telegramId) });
 });
 
@@ -4444,7 +4444,7 @@ app.post(
       let appliedCreditCode = null;
 
       const verifiedId = verifiedTelegramId(req.body?.initData);
-      const creditOwner = verifiedId || "";
+      const creditOwner = verifiedId || (telegramId ? String(telegramId) : "");
       if (!storeCreditCode && creditOwner) {
         const personal = getCustomerCredit(creditOwner);
         const remaining = Math.max(0, subtotalPence - promotionDiscountPence - discountPence - storewideDiscountPence - spendThresholdDiscountPence);
