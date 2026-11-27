@@ -313,3 +313,17 @@ async function markPaid(id) {
   if (res.ok) loadOrders();
   else alert("Failed");
 }
+
+document.querySelector("#addCreditBtn")?.addEventListener("click", async () => {
+  const telegramId = document.querySelector("#creditId").value.trim();
+  const pounds = Number(document.querySelector("#creditPounds").value);
+  const status = document.querySelector("#creditStatus");
+  if (!telegramId || !pounds) { status.textContent = "Enter ID and amount."; return; }
+  const res = await fetch("/api/admin/credit", {
+    method: "POST",
+    headers: authHeaders({ "content-type": "application/json" }),
+    body: JSON.stringify({ telegramId, pounds })
+  });
+  const data = await res.json();
+  status.textContent = res.ok ? `Added. Balance £${(data.balancePence/100).toFixed(2)}` : (data.error || "Failed");
+});
