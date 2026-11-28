@@ -2067,7 +2067,7 @@ async function applyStoreCredit() {
   try {
     const res =
       await fetch(
-        `/api/referral-codes/${encodeURIComponent(code)}/earnings?username=${encodeURIComponent(telegramUser?.username || "")}&telegramId=${encodeURIComponent(getTelegramIdentity().id || "")}`
+        `/api/store-credit-code/${encodeURIComponent(code)}?telegramId=${encodeURIComponent(getTelegramIdentity().id || "")}`
       );
 
     const data =
