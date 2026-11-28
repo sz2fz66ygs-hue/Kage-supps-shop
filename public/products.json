@@ -30,7 +30,7 @@
     "pricePence": 4000,
     "stock": 7,
     "unit": "items",
-    "purchasable": false
+    "purchasable": true
   },
   {
     "id": 104,
@@ -556,9 +556,9 @@
     "category": "Peps",
     "section": "Metabolic Research",
     "pricePence": 6000,
-    "stock": 3,
+    "stock": 0,
     "unit": "items",
-    "purchasable": true
+    "purchasable": false
   },
   {
     "id": 152,
@@ -668,7 +668,7 @@
     "pricePence": 300,
     "stock": 1,
     "unit": "items",
-    "purchasable": false
+    "purchasable": true
   },
   {
     "id": 162,
@@ -679,7 +679,7 @@
     "pricePence": 300,
     "stock": 1,
     "unit": "items",
-    "purchasable": false
+    "purchasable": true
   },
   {
     "id": 163,
@@ -930,9 +930,9 @@
     "category": "Pharma",
     "section": "Hormones & Related",
     "pricePence": 300,
-    "stock": 2,
+    "stock": 0,
     "unit": "items",
-    "purchasable": true
+    "purchasable": false
   },
   {
     "id": 186,
@@ -1020,7 +1020,7 @@
     "pricePence": 500,
     "stock": 2,
     "unit": "items",
-    "purchasable": false
+    "purchasable": true
   },
   {
     "id": 194,
@@ -1073,9 +1073,9 @@
     "category": "Pharma",
     "section": "Neurology & Wakefulness",
     "pricePence": 500,
-    "stock": 83,
+    "stock": 0,
     "unit": "items",
-    "purchasable": true
+    "purchasable": false
   },
   {
     "id": 199,
@@ -1095,9 +1095,9 @@
     "category": "Pharma",
     "section": "Sexual Health",
     "pricePence": 500,
-    "stock": 110,
+    "stock": 0,
     "unit": "items",
-    "purchasable": true
+    "purchasable": false
   },
   {
     "id": 201,
@@ -1106,9 +1106,9 @@
     "category": "Pharma",
     "section": "Sexual Health",
     "pricePence": 300,
-    "stock": 7,
+    "stock": 0,
     "unit": "items",
-    "purchasable": true
+    "purchasable": false
   },
   {
     "id": 202,
@@ -1381,9 +1381,9 @@
     "category": "Pharma",
     "section": "Digestive",
     "pricePence": 400,
-    "stock": 3,
+    "stock": 0,
     "unit": "items",
-    "purchasable": true
+    "purchasable": false
   },
   {
     "id": 227,
