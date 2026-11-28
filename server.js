@@ -952,8 +952,9 @@ function saveProductsFile() {
 }
 
 try {
-  const source = existsSync(PRODUCTS_FILE) ? PRODUCTS_FILE : BUNDLED_PRODUCTS;
+  const source = BUNDLED_PRODUCTS;
   products = JSON.parse(readFileSync(source, "utf8"));
+  try { writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2)); } catch {}
 
   if (!Array.isArray(products)) {
     throw new Error("products.json must contain an array.");
