@@ -4885,7 +4885,10 @@ app.get("/api/my-orders", (req, res) => {
       paymentStatus: order.paymentStatus,
       fulfilmentStatus: order.fulfilmentStatus,
       createdAt: order.createdAt,
-      items: (order.items || []).map(i => i.quantity + " × " + i.name)
+      items: (order.items || []).map(i => i.quantity + " × " + i.name),
+      address: order.address || "",
+      customerName: order.customerName || "",
+      phone: order.phone || ""
     }));
   res.json(mine);
 });
