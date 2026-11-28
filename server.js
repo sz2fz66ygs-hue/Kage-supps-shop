@@ -4197,9 +4197,13 @@ app.post(
           });
       }
 
+      const verified = verifiedTelegramUser(req.body?.initData);
       const resolvedTelegram = String(telegramUsername || req.body?.telegramUsername || "").replace(/^@/, "").trim();
       if (!resolvedTelegram) {
         return res.status(400).json({ error: "Telegram username is required to place an order." });
+      }
+      if (verified?.username && resolvedTelegram.toLowerCase() !== String(verified.username).toLowerCase()) {
+        return res.status(400).json({ error: "Telegram handle does not match your account." });
       }
 
       const lineItems = [];
