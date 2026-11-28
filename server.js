@@ -8197,6 +8197,16 @@ The review has been removed.`,
 
       /* DISPATCH */
 
+      
+      if (data === "redeem_credit") {
+        const balance = getCustomerCredit(q.from?.id);
+        if (balance <= 0) return safeSendMessage(chatId, "No store credit to redeem.", getMainMenuKeyboard(q.from?.id));
+        const code = "SC" + Math.random().toString(36).slice(2, 8).toUpperCase();
+        takeCustomerCredit(q.from.id, balance);
+        referralEarnings.set(code, { owner: "@" + q.from.id, balancePence: balance, cashOnly: false, oneTime: true });
+        return safeSendMessage(chatId, `✅ Your one-time code:\n\n${code}\n\nWorth ${money(balance)}. Enter it in the code box in the shop. It can only be used once.`, getMainMenuKeyboard(q.from?.id));
+      }
+
       if (data === "store_credit") {
         const balance = getCustomerCredit(q.from?.id);
         return safeSendMessage(
