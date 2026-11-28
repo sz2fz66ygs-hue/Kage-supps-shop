@@ -4348,7 +4348,6 @@ app.post(
         promotionsApi.loadPromotions().filter(promo => {
           if (!promo.active) return false;
           if (validAffiliate && promo.stackWithAffiliate !== true) return false;
-          if (storewideCode && promo.stackWithStorewide !== true) return false;
           return true;
         });
 
