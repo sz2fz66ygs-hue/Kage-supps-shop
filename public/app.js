@@ -986,6 +986,12 @@ async function loadPromotions() {
   } catch {}
 }
 
+function cleanBasket() {
+  for (const id of Object.keys(basket)) {
+    if (!products.find(p => Number(p.id) === Number(id))) delete basket[id];
+  }
+  saveBasket();
+}
 function basketCount() {
   return Object
     .values(
@@ -1827,6 +1833,7 @@ async function loadProducts() {
   }
 
   rebuildCatalogueNavigation();
+  cleanBasket();
   render();
   loadPromotions();
   restoreOpenOrder();
