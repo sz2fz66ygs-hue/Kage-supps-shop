@@ -8201,8 +8201,8 @@ The review has been removed.`,
         const balance = getCustomerCredit(q.from?.id);
         return safeSendMessage(
           chatId,
-          `💳 STORE CREDIT\n\nYou have ${money(balance)}.\n\nIt is taken off automatically when you place an order. You can still enter a store credit code in the shop if you have one.`,
-          getMainMenuKeyboard(q.from?.id)
+          `💳 STORE CREDIT\n\nYou have ${money(balance)}.\n\nTap Redeem to get a one-time code, then enter it in the shop.`,
+          { reply_markup: { inline_keyboard: [[{ text: "Redeem code", callback_data: "redeem_credit" }], [{ text: "⬅️ Menu", callback_data: "menu" }]] } }
         );
       }
 
