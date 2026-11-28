@@ -4471,6 +4471,10 @@ app.post(
         const handle = String(telegramUsername).replace(/^@/, "").toLowerCase();
         const fromOrders = [...orders.values()].find(o => String(o.telegramUsername || "").replace(/^@/, "").toLowerCase() === handle);
         if (fromOrders?.telegramId) creditOwner = String(fromOrders.telegramId);
+        if (!creditOwner) {
+          const fromHandles = findUserByHandle(handle);
+          if (fromHandles?.telegram_id) creditOwner = String(fromHandles.telegram_id);
+        }
       }
       if (!storeCreditCode && creditOwner) {
         let personal = getCustomerCredit(creditOwner);
@@ -4698,13 +4702,9 @@ Customer:
 ${order.customerName}
 
 Telegram:
-${
-  order.telegramUsername
-    ? `@${normaliseUsername(
-        order.telegramUsername
-      )}`
-    : "Not supplied"
-}
+${order.telegramUsername ? order.telegramUsername : "Not supplied"}
+ID: ${order.telegramId || "—"}
+Name: ${order.telegramName || order.customerName || "—"}
 
 📍 DELIVERY ADDRESS:
 ${order.address}
