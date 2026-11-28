@@ -4542,7 +4542,7 @@ app.post(
         telegramUsername:
           (() => {
             const v = verifiedTelegramUser(req.body?.initData);
-            const raw = telegramUsername || v?.username || req.body?.telegramName || "";
+            const raw = telegramUsername || v?.username || req.body?.telegramName || req.body?.telegramUsername || "";
             const clean = String(raw).replace(/^@/, "").trim();
             return clean ? "@" + clean : "";
           })(),
