@@ -5684,7 +5684,7 @@ if (bot) {
   function getMainMenuKeyboard(fromId) {
     const buttons = [];
     if (webAppUrl) buttons.push([{ text: "🛍 OPEN SHOP — TAP HERE", web_app: { url: webAppUrl } }]);
-    if (webAppUrl) buttons.push([{ text: "🌐 Website", url: `${webAppUrl.replace(/\/$/, "")}/shop` }]);
+    
     buttons.push([
       { text: "📦 My Orders", callback_data: "orders" },
       { text: "❓ Help & Support", callback_data: "help" }
@@ -8204,7 +8204,7 @@ The review has been removed.`,
         const code = "SC" + Math.random().toString(36).slice(2, 8).toUpperCase();
         takeCustomerCredit(q.from.id, balance);
         referralEarnings.set(code, { owner: "@" + q.from.id, balancePence: balance, cashOnly: false, oneTime: true });
-        return safeSendMessage(chatId, `✅ Your one-time code:\n\n${code}\n\nWorth ${money(balance)}. Enter it in the code box in the shop. It can only be used once.`, getMainMenuKeyboard(q.from?.id));
+        return safeSendMessage(chatId, `✅ Your one-time code:\n\n\`${code}\`\n\nTap the code to copy. Worth ${money(balance)}. Enter it in the code box in the shop. It can only be used once.`, { parse_mode: "Markdown", ...getMainMenuKeyboard(q.from?.id) });
       }
 
       if (data === "store_credit") {
