@@ -8221,7 +8221,11 @@ The review has been removed.`,
 
       if (data === "store_credit") {
         const balance = getCustomerCredit(q.from?.id);
-        const lastCode = getMetaValue("creditcode:" + q.from?.id) || "";
+        let lastCode = getMetaValue("creditcode:" + q.from?.id) || "";
+        if (!lastCode) {
+          const mine = [...referralEarnings.entries()].find(([code, c]) => String(c.owner||"").replace(/^@/,"") === String(q.from?.id) && c.oneTime && !c.used && c.balancePence > 0);
+          if (mine) { lastCode = mine[0]; setMetaValue("creditcode:" + q.from.id, lastCode); }
+        }
         const codeLine = lastCode ? "\n\nYour code: " + lastCode + "\n(tap and hold to copy)" : "";
         return safeSendMessage(
           chatId,
