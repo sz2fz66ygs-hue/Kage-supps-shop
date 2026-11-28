@@ -1130,6 +1130,26 @@ function storewideDiscountForSubtotal(
 
 let personalCreditPence = 0;
 
+async function redeemStoreCredit() {
+  const id = getTelegramIdentity();
+  if (!id.id) { setStatus("Open the shop from Telegram to redeem credit.", "error"); return; }
+  const amount = personalCreditPence;
+  if (amount <= 0) { setStatus("No credit to redeem.", "error"); return; }
+  try {
+    const res = await fetch("/api/store-credit/redeem", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ telegramId: id.id, initData: tg?.initData, amountPence: amount })
+    });
+    const data = await res.json();
+    if (!res.ok) { setStatus(data.error || "Could not redeem.", "error"); return; }
+    setStatus("Your one-time code: " + data.code + " — enter it in the store credit box.", "success");
+    personalCreditPence = data.remainingPence || 0;
+    renderBasket();
+  } catch { setStatus("Could not redeem credit.", "error"); }
+}
+document.addEventListener("click", e => { if (e.target?.id === "redeemCreditBtn") redeemStoreCredit(); });
+
 async function loadPersonalCredit() {
   const id = telegramUser?.id;
   if (!id) {
@@ -1443,7 +1463,7 @@ function renderBasket() {
           <div class="discount-line">Balance left after this order: ${money(Math.max(0, personalCreditPence - personalCredit))}</div>
         `
         : personalCreditPence > 0
-          ? `<div class="discount-line">Store credit available: ${money(personalCreditPence)}</div>`
+          ? `<div class="discount-line">Store credit available: ${money(personalCreditPence)} <button type="button" id="redeemCreditBtn" style="margin-left:8px;font-size:12px">Redeem code</button></div>`
           : "";
   }
 
