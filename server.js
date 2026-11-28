@@ -4563,9 +4563,16 @@ app.post(
       const shippingPence =
         SHIPPING_PENCE;
 
+      // Credit covers products and shipping; unused returns to account
+      let creditUsed = storeCreditPence;
+      const totalBeforeCredit = productsAfterDiscount + shippingPence + storeCreditPence;
+      if (storeCreditPence > 0) {
+        creditUsed = Math.min(storeCreditPence, totalBeforeCredit);
+        storeCreditPence = creditUsed;
+      }
+
       const totalPence =
-        productsAfterDiscount +
-        shippingPence;
+        Math.max(0, totalBeforeCredit - creditUsed);
 
       const usdtQuote =
         await getUsdtQuote(
@@ -4665,7 +4672,11 @@ app.post(
       if (appliedCreditCode && storeCreditPence > 0) {
         if (storeCreditCode) {
           const used = referralEarnings.get(normaliseCode(storeCreditCode));
-          if (used) { used.used = true; used.balancePence = 0; referralEarnings.set(normaliseCode(storeCreditCode), used); }
+          if (used) {
+            const unused = Math.max(0, Number(used.balancePence || 0) - storeCreditPence);
+            if (unused > 0 && order.telegramId) addCustomerCredit(order.telegramId, unused);
+            used.used = true; used.balancePence = 0; referralEarnings.set(normaliseCode(storeCreditCode), used);
+          }
           if (order.telegramId) setMetaValue("creditcode:" + order.telegramId, "");
         }
         if (String(appliedCreditCode).startsWith("tg:")) {
