@@ -1143,6 +1143,19 @@ app.get("/api/store-credit", (req, res) => {
   res.json({ balancePence: getCustomerCredit(telegramId) });
 });
 
+app.post("/api/store-credit/redeem", (req, res) => {
+  const telegramId = verifiedTelegramId(req.body?.initData) || String(req.body?.telegramId || "");
+  if (!telegramId) return res.status(400).json({ error: "Open the shop from Telegram to redeem credit." });
+  const balance = getCustomerCredit(telegramId);
+  if (balance <= 0) return res.status(400).json({ error: "No store credit to redeem." });
+  const amount = Math.min(Number(req.body?.amountPence || balance), balance);
+  if (amount <= 0) return res.status(400).json({ error: "Enter an amount to redeem." });
+  const code = "SC" + Math.random().toString(36).slice(2, 8).toUpperCase();
+  takeCustomerCredit(telegramId, amount);
+  referralEarnings.set(code, { owner: "@" + telegramId, balancePence: amount, cashOnly: false, oneTime: true });
+  res.json({ ok: true, code, amountPence: amount, remainingPence: getCustomerCredit(telegramId) });
+});
+
 app.get("/api/promotions", (_req, res) => {
   res.json(
     promotionsApi.loadPromotions()
