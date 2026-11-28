@@ -4123,16 +4123,13 @@ app.get(
         req.params.code
       );
 
-    const record =
-      referralEarnings.get(code);
-
+    let record = referralEarnings.get(code);
     if (!record) {
-      return res
-        .status(404)
-        .json({
-          error:
-            "Referral code not found."
-        });
+      const row = db.prepare("SELECT data FROM referral_earnings WHERE code = ?").get(code);
+      if (row) { try { record = JSON.parse(row.data); referralEarnings.set(code, record); } catch {} }
+    }
+    if (!record) {
+      return res.status(404).json({ error: "Code not found. Redeem a new one from Store Credit." });
     }
 
     const requester = normaliseUsername(req.query.username || "");
@@ -8259,7 +8256,8 @@ The review has been removed.`,
         takeCustomerCredit(q.from.id, balance);
         saveReferralEarnings(code, { owner: "@" + q.from.id, balancePence: balance, cashOnly: false, oneTime: true });
         setMetaValue("creditcode:" + q.from.id, code);
-        return safeSendMessage(chatId, `✅ YOUR CODE\n\n<code>${code}</code>\n\nWorth ${money(balance)}.\n\nTap the code to copy it, then paste it in the shop.`, { parse_mode: "HTML", ...getMainMenuKeyboard(q.from?.id) });
+        await safeSendMessage(chatId, `✅ YOUR CODE\n\nWorth ${money(balance)}. Paste the next message into the shop.`);
+        return safeSendMessage(chatId, code);
       }
 
       if (data === "store_credit") {
