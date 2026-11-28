@@ -2140,9 +2140,15 @@ async function submitOrder() {
     document.getElementById("telegramHandle").value = identity.username;
     return;
   }
-  const telegramUsername = identity.username || (typed.startsWith("@") ? typed : typed ? "@" + typed : "") || identity.name || "";
+  if (identity.username && typedClean && typedClean !== realClean) {
+    setStatus("You must use your own Telegram account. The handle has been locked.", "error");
+    document.getElementById("telegramHandle").value = identity.username;
+    document.getElementById("telegramHandle").readOnly = true;
+    return;
+  }
+  const telegramUsername = identity.username || "";
   if (!telegramUsername) {
-    setStatus("Enter your Telegram @username to place an order.", "error");
+    setStatus("Open the shop from the Telegram bot so your account is locked.", "error");
     return;
   }
 
@@ -3298,8 +3304,10 @@ function fillTelegram() {
   if (el && id.display) {
     el.value = id.display;
     el.readOnly = true;
+    el.disabled = false;
     el.style.background = "#f4f1ea";
-    if (note) note.textContent = "Locked to your Telegram account.";
+    el.style.pointerEvents = "none";
+    if (note) note.textContent = "Locked to your Telegram account. Cannot be changed.";
   }
   if (nameEl && id.name && !nameEl.value) nameEl.value = id.name;
 }
