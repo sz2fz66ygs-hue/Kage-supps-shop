@@ -23,12 +23,10 @@ const telegramUser =
   tg?.initDataUnsafe?.user ||
   null;
 function getTelegramIdentity() {
-  const u = tg?.initDataUnsafe?.user || telegramUser || {};
-  return {
-    id: u.id || null,
-    username: u.username ? "@" + String(u.username).replace(/^@/, "") : "",
-    name: [u.first_name, u.last_name].filter(Boolean).join(" ")
-  };
+  const u = window.Telegram?.WebApp?.initDataUnsafe?.user || tg?.initDataUnsafe?.user || telegramUser || {};
+  const username = u.username ? "@" + String(u.username).replace(/^@/, "") : "";
+  const name = [u.first_name, u.last_name].filter(Boolean).join(" ");
+  return { id: u.id || null, username, name, display: username || name || "" };
 }
 
 
