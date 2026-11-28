@@ -4523,15 +4523,12 @@ app.post(
           credit.cashOnly !== true &&
           (ownerId === buyerId || (owner && buyer && owner === buyer))
         ) {
-          const remaining =
-            Math.max(
-              0,
-              subtotalPence -
-              promotionDiscountPence -
-              discountPence -
-              storewideDiscountPence -
-              spendThresholdDiscountPence
-            );
+          // Credit applies to full price and does not stack with discounts
+          discountPence = 0;
+          storewideDiscountPence = 0;
+          promotionDiscountPence = 0;
+          spendThresholdDiscountPence = 0;
+          const remaining = subtotalPence;
 
           storeCreditPence =
             Math.min(
