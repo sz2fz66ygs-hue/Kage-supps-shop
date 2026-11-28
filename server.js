@@ -4125,8 +4125,8 @@ app.get(
 
     let record = referralEarnings.get(code);
     if (!record) {
-      const row = db.prepare("SELECT data FROM referral_earnings WHERE code = ?").get(code);
-      if (row) { try { record = JSON.parse(row.data); referralEarnings.set(code, record); } catch {} }
+      const row = db.prepare("SELECT json FROM referral_earnings WHERE code = ?").get(code);
+      if (row) { try { record = JSON.parse(row.json); referralEarnings.set(code, record); } catch {} }
     }
     if (!record) {
       return res.status(404).json({ error: "Code not found. Redeem a new one from Store Credit." });
