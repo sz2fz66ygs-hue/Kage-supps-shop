@@ -4511,8 +4511,16 @@ app.post(
             storeCreditCode
           );
 
-        const credit =
-          referralEarnings.get(code);
+        let credit = referralEarnings.get(code);
+        if (!credit) {
+          try {
+            const row = db.prepare("SELECT json FROM referral_earnings WHERE code = ?").get(code);
+            if (row) { credit = JSON.parse(row.json); referralEarnings.set(code, credit); }
+          } catch {}
+        }
+        if (!credit) {
+          return res.status(400).json({ error: "Store credit code not found. Redeem a new one." });
+        }
         if (credit?.used) {
           return res.status(400).json({ error: "That store credit code has already been used." });
         }
