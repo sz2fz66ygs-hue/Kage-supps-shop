@@ -6682,11 +6682,13 @@ Open the shop, check what is on promotion, and see when stock has been added. If
     order.trackingNumber = tracking;
     order.fulfilmentStatus = "shipped";
     order.shippedAt = new Date().toISOString();
+    const dispatchDay = formatShippingDay(getShippingDay(order));
+    order.dispatchDay = dispatchDay;
     saveOrder(order);
     if (order.telegramId) {
-      safeSendMessage(order.telegramId, `📦 Your order has been dispatched\n\nOrder #${orderId}\n\nTracking:\n${tracking}`);
+      safeSendMessage(order.telegramId, `📦 Your order has been dispatched\n\nOrder #${orderId}\n\nTracking:\n${tracking}\n\nDispatch: ${dispatchDay}`);
     }
-    return safeSendMessage(msg.chat.id, `✅ Tracking added to #${orderId}`);
+    return safeSendMessage(msg.chat.id, `✅ #${orderId} dispatched\nTracking: ${tracking}\nDispatch day: ${dispatchDay}`);
   });
 
   bot.onText(
