@@ -4238,6 +4238,11 @@ app.post(
       }
 
       const verified = verifiedTelegramUser(req.body?.initData);
+      if (verified?.username && telegramUsername) {
+        const v = String(verified.username).replace(/^@/, "").toLowerCase();
+        const t = String(telegramUsername).replace(/^@/, "").toLowerCase();
+        if (v && t && v !== t) return res.status(400).json({ error: "Telegram handle does not match your account." });
+      }
       const resolvedTelegram = String(telegramUsername || req.body?.telegramUsername || "").replace(/^@/, "").trim();
       if (!resolvedTelegram) {
         return res.status(400).json({ error: "Telegram username is required to place an order." });
