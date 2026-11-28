@@ -2066,7 +2066,7 @@ async function applyStoreCredit() {
   try {
     const res =
       await fetch(
-        `/api/referral-codes/${encodeURIComponent(code)}/earnings?username=${encodeURIComponent(telegramUser?.username || "")}`
+        `/api/referral-codes/${encodeURIComponent(code)}/earnings?username=${encodeURIComponent(telegramUser?.username || "")}&telegramId=${encodeURIComponent(getTelegramIdentity().id || "")}`
       );
 
     const data =
@@ -2119,11 +2119,12 @@ async function applyStoreCredit() {
         )
     };
 
-    setStatus(
-      `Store credit applied: ${money(data.balancePence)} available.`,
-      "success"
-    );
-
+    appliedCode = null;
+    appliedStorewideCode = null;
+    setStatus(`Store credit applied: ${money(data.balancePence)} taken off. Other discounts removed.`, "success");
+    if (msg) {}
+    const msgEl = document.getElementById("codeMessage");
+    if (msgEl) msgEl.textContent = "Store credit applied. Other discounts removed.";
     renderBasket();
 
   } catch {
@@ -3517,8 +3518,7 @@ document.getElementById("applyCode")?.addEventListener("click", async () => {
   // Try store credit first (SC prefix)
   if (raw.startsWith("SC")) {
     document.getElementById("storeCreditCode").value = raw;
-    document.getElementById("applyStoreCredit")?.click();
-    if (msg) msg.textContent = "Store credit code applied.";
+    applyStoreCredit();
     return;
   }
   // Try affiliate
