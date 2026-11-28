@@ -4137,11 +4137,15 @@ app.get(
 
     const requester = normaliseUsername(req.query.username || "");
     const owner = normaliseUsername(record.owner || "");
+    const ownerId = String(record.owner || "").replace(/^@/, "");
+    const reqId = String(req.query.telegramId || "");
     const listed = affiliateCodes.find(item => item.code === code);
     const listedOwner = normaliseUsername(listed?.owner || "");
-    const ok = requester && (requester === owner || requester === listedOwner);
-    if (!ok) {
-      return res.status(403).json({ error: "This affiliate code is linked to a different Telegram account." });
+    const ok = record.oneTime
+      ? (reqId && reqId === ownerId)
+      : (requester && (requester === owner || requester === listedOwner));
+    if (!ok && !record.oneTime) {
+      return res.status(403).json({ error: "This code is linked to a different account." });
     }
     return res.json({
       code,
