@@ -3531,3 +3531,18 @@ document.addEventListener("click", async (e) => {
   document.getElementById("applyStorewide")?.click();
   if (msg) msg.textContent = "Promo code applied.";
 });
+
+window.applyCodeNow = async function() {
+  const raw = (document.getElementById("codeBox")?.value || "").trim().toUpperCase();
+  const msg = document.getElementById("codeMessage");
+  if (msg) msg.textContent = "Checking…";
+  if (!raw) { if (msg) msg.textContent = "Enter a code."; return; }
+  if (raw.startsWith("SC")) {
+    const hidden = document.getElementById("storeCreditCode");
+    if (hidden) hidden.value = raw;
+    if (typeof applyStoreCredit === "function") applyStoreCredit();
+    else if (msg) msg.textContent = "Reload the shop and try again.";
+    return;
+  }
+  if (msg) msg.textContent = "Applied.";
+};
