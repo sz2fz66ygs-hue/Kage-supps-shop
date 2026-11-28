@@ -73,29 +73,15 @@
         Discounts are applied after the basket reaches the minimum. Delivery is added by the server at checkout.
       </div>
 
-      <button id="promoToggle" type="button" class="promo-toggle">Promo</button>
-      <div id="promoPanel" class="promo-panel" hidden>
-        <label for="discountCode">Affiliate code</label>
-        <div class="code-row">
-          <input id="discountCode" type="text" placeholder="Affiliate code" autocomplete="off">
-          <button id="applyDiscount" type="button" class="code-btn">Apply</button>
-        </div>
-        <div id="discountRow"></div>
-
-        <label for="storeCreditCode">Store credit code</label>
-        <div class="code-row">
-          <input id="storeCreditCode" type="text" placeholder="Store credit code" autocomplete="off">
-          <button id="applyStoreCredit" type="button" class="code-btn">Apply</button>
-        </div>
-        <div id="creditRow"></div>
-
-        <label for="storewideCode">Promo code</label>
-        <div class="code-row">
-          <input id="storewideCode" type="text" placeholder="WEEKEND10" autocomplete="off">
-          <button id="applyStorewide" type="button" class="code-btn">Apply</button>
-        </div>
-        <div id="promoRow"></div>
+      <label for="codeBox">Code</label>
+      <div class="code-row">
+        <input id="codeBox" type="text" placeholder="Affiliate, promo, or store credit code" autocomplete="off">
+        <button id="applyCode" type="button" class="code-btn">Apply</button>
       </div>
+      <div id="codeMessage"></div>
+      <input id="discountCode" type="hidden">
+      <input id="storeCreditCode" type="hidden">
+      <input id="storewideCode" type="hidden">
       <div id="totalSavingsRow"></div>
 
       <div class="divider"></div>
