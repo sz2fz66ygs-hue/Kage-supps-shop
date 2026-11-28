@@ -797,7 +797,7 @@
     "subtitle": "10mg • 10 tablets per strip",
     "category": "Pharma",
     "section": "Metabolic",
-    "pricePence": 300,
+    "pricePence": 500,
     "stock": 0,
     "unit": "items",
     "purchasable": false
@@ -1534,7 +1534,7 @@
     "subtitle": "5mg • 10 tablets per strip",
     "category": "Pharma",
     "section": "Metabolic",
-    "pricePence": 5500,
+    "pricePence": 500,
     "stock": 16,
     "unit": "items",
     "purchasable": true
