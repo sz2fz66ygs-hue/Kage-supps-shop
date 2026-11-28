@@ -1582,5 +1582,27 @@
     "stock": 7,
     "unit": "items",
     "purchasable": true
+  },
+  {
+    "id": 245,
+    "name": "BAC Water",
+    "subtitle": "30ml vial",
+    "category": "Peps",
+    "section": "Supplies",
+    "pricePence": 1200,
+    "stock": 8,
+    "unit": "items",
+    "purchasable": true
+  },
+  {
+    "id": 246,
+    "name": "Eperisone + Paracetamol",
+    "subtitle": "10 tablets per strip",
+    "category": "Pharma",
+    "section": "Other Pharma",
+    "pricePence": 500,
+    "stock": 10,
+    "unit": "items",
+    "purchasable": true
   }
 ]
