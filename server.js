@@ -955,6 +955,9 @@ try {
   const source = BUNDLED_PRODUCTS;
   products = JSON.parse(readFileSync(source, "utf8"));
   try { writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2)); } catch {}
+  for (const product of products) {
+    setInventoryStmt.run(Number(product.id), Number(product.stock || 0));
+  }
 
   if (!Array.isArray(products)) {
     throw new Error("products.json must contain an array.");
