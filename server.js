@@ -4335,17 +4335,6 @@ app.post(
 
       const settings = loadSettings();
       const minPence = Math.round(Number(settings.minOrder || 50) * 100);
-      if (
-        subtotalPence <
-        minPence
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              `Minimum basket is £${settings.minOrder || 50} before discount and shipping.`
-          });
-      }
 
       let discountPence = 0;
       let appliedDiscountCode =
@@ -4582,6 +4571,9 @@ app.post(
         }
       }
 
+      if (subtotalPence - promotionDiscountPence - discountPence - storewideDiscountPence - spendThresholdDiscountPence - storeCreditPence < minPence) {
+        return res.status(400).json({ error: `Minimum order is £${settings.minOrder || 50} after discounts.` });
+      }
       const productsAfterDiscount =
         Math.max(
           0,
@@ -4790,8 +4782,8 @@ Store promo saving:
 TOTAL SAVINGS:
 ${money(totalSavingsPence)}
 
-Store credit:
--${money(storeCreditPence)}
+Store credit used:
+-${money(storeCreditPence)}${storeCreditPence > 0 ? " (store credit applied, promotions removed)" : ""}
 
 Shipping:
 ${money(shippingPence)}
