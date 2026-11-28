@@ -4198,6 +4198,11 @@ app.post(
           });
       }
 
+      const resolvedTelegram = String(telegramUsername || req.body?.telegramUsername || "").replace(/^@/, "").trim();
+      if (!resolvedTelegram) {
+        return res.status(400).json({ error: "Telegram username is required to place an order." });
+      }
+
       const lineItems = [];
       let subtotalPence = 0;
 
