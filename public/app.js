@@ -2128,11 +2128,8 @@ async function applyStoreCredit() {
     if (msgEl) msgEl.textContent = "Store credit applied. Other discounts removed.";
     renderBasket();
 
-  } catch {
-    setStatus(
-      "Couldn't check that store credit code. Try again.",
-      "error"
-    );
+  } catch (err) {
+    setStatus("Could not check code: " + (err?.message || "try again"), "error");
   }
 }
 
