@@ -603,7 +603,7 @@ function shopSection(product) {
   const category = String(product.category || "").trim();
   const name = String(product.name || "").toLowerCase();
   if (category === "Oils") {
-    if (name.includes("mass on") || name.includes("ttm")) return "Blends";
+    if (name.includes("mass on") || name.includes("ttm") || name.includes("rapid")) return "Blends";
     if (
       name.includes("doomsday") ||
       name.startsWith("inj ") ||
@@ -630,7 +630,7 @@ function shopSection(product) {
 function compoundRank(name) {
   const n = String(name || "").toLowerCase();
   const order = [
-    ["test e", 10], ["testosterone cypionate", 11], ["test cyp", 11], ["test c)", 11], ["test 400", 12], ["sust", 13],
+    ["test e", 10], ["test c", 11], ["testosterone cypionate", 11], ["test cyp", 11], ["test 400", 12], ["sust", 13],
     ["tren a", 20], ["tren e", 21], ["eq", 30], ["deca", 40], ["npp", 41],
     ["mast e", 50], ["mast p", 51], ["mass on", 55], ["ttm", 56],
     ["doomsday", 57], ["inj anadrol", 58], ["inj dbol", 59], ["inj superdrol", 60],
