@@ -2127,6 +2127,13 @@ async function submitOrder() {
 
   const identity = getTelegramIdentity();
   const typed = document.getElementById("telegramHandle")?.value.trim() || "";
+  const typedClean = typed.replace(/^@/, "").toLowerCase();
+  const realClean = (identity.username || "").replace(/^@/, "").toLowerCase();
+  if (realClean && typedClean && typedClean !== realClean) {
+    setStatus("That Telegram handle does not match your account. It has been corrected.", "error");
+    document.getElementById("telegramHandle").value = identity.username;
+    return;
+  }
   const telegramUsername = identity.username || (typed.startsWith("@") ? typed : typed ? "@" + typed : "") || identity.name || "";
   if (!telegramUsername) {
     setStatus("Enter your Telegram @username to place an order.", "error");
