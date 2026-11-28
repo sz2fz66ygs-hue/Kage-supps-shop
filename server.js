@@ -4115,6 +4115,24 @@ app.get(
    REFERRAL EARNINGS
    ========================================================= */
 
+
+app.get("/api/store-credit-code/:code", (req, res) => {
+  try {
+    const code = normaliseCode(req.params.code);
+    let record = referralEarnings.get(code);
+    if (!record) {
+      const row = db.prepare("SELECT json FROM referral_earnings WHERE code = ?").get(code);
+      if (row) { try { record = JSON.parse(row.json); referralEarnings.set(code, record); } catch {} }
+    }
+    if (!record || !record.oneTime) return res.status(404).json({ error: "Code not found. Redeem a new one." });
+    if (record.used) return res.status(400).json({ error: "This code has already been used." });
+    const ownerId = String(record.owner || "").replace(/^@/, "");
+    const reqId = String(req.query.telegramId || "");
+    if (reqId && ownerId && reqId !== ownerId) return res.status(403).json({ error: "This code belongs to another account." });
+    return res.json({ code, balancePence: Number(record.balancePence || 0) });
+  } catch { return res.status(400).json({ error: "Could not check code." }); }
+});
+
 app.get(
   "/api/referral-codes/:code/earnings",
   (req, res) => {
