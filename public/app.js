@@ -23,10 +23,11 @@ const telegramUser =
   tg?.initDataUnsafe?.user ||
   null;
 function getTelegramIdentity() {
-  const u = window.Telegram?.WebApp?.initDataUnsafe?.user || tg?.initDataUnsafe?.user || telegramUser || {};
+  const webapp = window.Telegram?.WebApp;
+  const u = webapp?.initDataUnsafe?.user || tg?.initDataUnsafe?.user || telegramUser || {};
   const username = u.username ? "@" + String(u.username).replace(/^@/, "") : "";
   const name = [u.first_name, u.last_name].filter(Boolean).join(" ");
-  return { id: u.id || null, username, name, display: username || name || "" };
+  return { id: u.id || null, username, name, display: username || name || "", initData: webapp?.initData || tg?.initData || "" };
 }
 
 
@@ -3308,20 +3309,19 @@ function fillTelegram() {
   const note = document.getElementById("telegramNote");
   const nameEl = document.getElementById("name");
   const id = getTelegramIdentity();
-  if (el) {
-    if (id.display) {
-      el.value = id.display;
-      el.readOnly = true;
-      if (note) note.textContent = "Locked to your Telegram account.";
-    } else if (note) {
-      note.textContent = "Enter your @username. Required to place an order.";
-    }
+  if (el && id.display) {
+    el.value = id.display;
+    el.readOnly = true;
+    el.style.background = "#f4f1ea";
+    if (note) note.textContent = "Locked to your Telegram account.";
   }
   if (nameEl && id.name && !nameEl.value) nameEl.value = id.name;
 }
 fillTelegram();
-setTimeout(fillTelegram, 500);
-setTimeout(fillTelegram, 1500);
+setTimeout(fillTelegram, 300);
+setTimeout(fillTelegram, 1000);
+setTimeout(fillTelegram, 2500);
+setInterval(fillTelegram, 2000);
 
 /* =========================================================
    CUSTOMER ACCOUNT — phone primary, Telegram fallback
