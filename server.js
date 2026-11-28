@@ -7900,6 +7900,8 @@ ${productLines || "No activity in the last 7 days."}`
           record.balancePence = 0;
           record.paidOutPence = Number(record.paidOutPence || 0) + balance;
           saveReferralEarnings(code, record);
+          const prev = Number(getMetaValue("converted:" + code) || 0);
+          setMetaValue("converted:" + code, String(prev + 1));
           await notifyAdmins(`💳 AFFILIATE CONVERTED TO STORE CREDIT\n\n${code} (@${affiliate.owner})\nAmount: ${money(balance)}\nMoved to their store credit. Earnings balance is now £0.`);
           return safeSendMessage(chatId, `✅ ${money(balance)} moved to your store credit.`);
         }
@@ -8507,7 +8509,13 @@ The review has been removed.`,
           counts.set(code, (counts.get(code) || 0) + 1);
         }
 
-        const lines = affiliateCodes.map(a => `${a.code}${a.owner ? ` (${a.owner})` : ""}: ${counts.get(a.code) || 0}`).join("\n");
+        const lines = affiliateCodes.map(a => {
+          const earn = referralEarnings.get(a.code) || {};
+          const owed = money(earn.balancePence || 0);
+          const earned = money(earn.totalEarnedPence || 0);
+          const converted = getMetaValue("converted:" + a.code) || "0";
+          return `${a.code}${a.owner ? ` (${a.owner})` : ""}\n  New customers: ${counts.get(a.code) || 0}\n  Owed: ${owed} · Lifetime: ${earned}\n  Converted to credit: ${converted}`;
+        }).join("\n\n");
         const rangeLabel = range === "month" ? "this month" : range === "last" ? "last month" : "all time";
         return safeSendMessage(chatId, `👥 AFFILIATES\n\nNew customers (${rangeLabel}):\n\n${lines}`, {
           reply_markup: { inline_keyboard: [
