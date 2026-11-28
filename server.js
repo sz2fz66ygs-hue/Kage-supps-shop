@@ -4507,15 +4507,21 @@ app.post(
 
         const credit =
           referralEarnings.get(code);
+        if (credit?.used) {
+          return res.status(400).json({ error: "That store credit code has already been used." });
+        }
+        const ownerId = String(credit?.owner || "").replace(/^@/, "");
+        const buyerId = String(verifiedTelegramId(req.body?.initData) || telegramId || "");
+        if (credit?.oneTime && ownerId && buyerId && ownerId !== buyerId) {
+          return res.status(400).json({ error: "This store credit code belongs to another account." });
+        }
         const owner = normaliseUsername(credit?.owner || "");
         const buyer = normaliseUsername(telegramUsername);
 
         if (
           credit &&
           credit.cashOnly !== true &&
-          owner &&
-          buyer &&
-          owner === buyer
+          (ownerId === buyerId || (owner && buyer && owner === buyer))
         ) {
           const remaining =
             Math.max(
@@ -4660,6 +4666,11 @@ app.post(
       }
 
       if (appliedCreditCode && storeCreditPence > 0) {
+        if (storeCreditCode) {
+          const used = referralEarnings.get(normaliseCode(storeCreditCode));
+          if (used) { used.used = true; used.balancePence = 0; referralEarnings.set(normaliseCode(storeCreditCode), used); }
+          if (order.telegramId) setMetaValue("creditcode:" + order.telegramId, "");
+        }
         if (String(appliedCreditCode).startsWith("tg:")) {
           takeCustomerCredit(String(appliedCreditCode).slice(3), storeCreditPence);
         }
