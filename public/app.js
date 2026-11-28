@@ -3295,15 +3295,18 @@ appliedStorewideCode = { code: "AUTO10", discountPercent: 10 };
 function fillTelegram() {
   const el = document.getElementById("telegramHandle");
   const note = document.getElementById("telegramNote");
-  if (!el) return;
+  const nameEl = document.getElementById("name");
   const id = getTelegramIdentity();
-  if (id.display) {
-    el.value = id.display;
-    el.readOnly = true;
-    if (note) note.textContent = "Locked to your Telegram account.";
-  } else if (note) {
-    note.textContent = "Enter your @username. Required to place an order.";
+  if (el) {
+    if (id.display) {
+      el.value = id.display;
+      el.readOnly = true;
+      if (note) note.textContent = "Locked to your Telegram account.";
+    } else if (note) {
+      note.textContent = "Enter your @username. Required to place an order.";
+    }
   }
+  if (nameEl && id.name && !nameEl.value) nameEl.value = id.name;
 }
 fillTelegram();
 setTimeout(fillTelegram, 500);
