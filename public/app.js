@@ -2126,7 +2126,12 @@ async function submitOrder() {
       .trim();
 
   const identity = getTelegramIdentity();
-  const telegramUsername = identity.username || identity.name || "";
+  const typed = document.getElementById("telegramHandle")?.value.trim() || "";
+  const telegramUsername = identity.username || (typed.startsWith("@") ? typed : typed ? "@" + typed : "") || identity.name || "";
+  if (!telegramUsername) {
+    setStatus("Enter your Telegram @username to place an order.", "error");
+    return;
+  }
 
   const phone =
     document
@@ -3279,6 +3284,19 @@ if (addressInput && !document.getElementById("phone")) {
 
 loadProducts();
 loadPersonalCredit();
+(function fillTelegram() {
+  const el = document.getElementById("telegramHandle");
+  const note = document.getElementById("telegramNote");
+  if (!el) return;
+  const id = getTelegramIdentity();
+  if (id.display) {
+    el.value = id.display;
+    el.readOnly = true;
+    if (note) note.textContent = "Locked to your Telegram account.";
+  } else if (note) {
+    note.textContent = "Enter your @username. Required to place an order.";
+  }
+})();
 
 /* =========================================================
    CUSTOMER ACCOUNT — phone primary, Telegram fallback
