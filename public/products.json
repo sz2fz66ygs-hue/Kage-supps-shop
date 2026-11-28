@@ -1204,7 +1204,7 @@
     "subtitle": "10% topical",
     "category": "Pharma",
     "section": "Hair & Skin",
-    "pricePence": 1200,
+    "pricePence": 1500,
     "stock": 3,
     "unit": "items",
     "purchasable": true
@@ -1215,7 +1215,7 @@
     "subtitle": "2% shampoo",
     "category": "Pharma",
     "section": "Hair & Skin",
-    "pricePence": 1200,
+    "pricePence": 1500,
     "stock": 5,
     "unit": "items",
     "purchasable": true
@@ -1248,7 +1248,7 @@
     "subtitle": "500mg • 10 tablets per strip",
     "category": "Pharma",
     "section": "Antibiotics",
-    "pricePence": 300,
+    "pricePence": 500,
     "stock": 2,
     "unit": "items",
     "purchasable": true
