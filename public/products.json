@@ -644,7 +644,7 @@
     "category": "Peps",
     "section": "Supplies",
     "pricePence": 500,
-    "stock": 16,
+    "stock": 8,
     "unit": "items",
     "purchasable": true
   },
@@ -655,9 +655,9 @@
     "category": "Pharma",
     "section": "Cardiovascular",
     "pricePence": 300,
-    "stock": 0,
+    "stock": 50,
     "unit": "items",
-    "purchasable": false
+    "purchasable": true
   },
   {
     "id": 161,
@@ -666,7 +666,7 @@
     "category": "Pharma",
     "section": "Cardiovascular",
     "pricePence": 300,
-    "stock": 1,
+    "stock": 14,
     "unit": "items",
     "purchasable": true
   },
@@ -677,7 +677,7 @@
     "category": "Pharma",
     "section": "Cardiovascular",
     "pricePence": 300,
-    "stock": 1,
+    "stock": 10,
     "unit": "items",
     "purchasable": true
   },
@@ -688,9 +688,9 @@
     "category": "Pharma",
     "section": "Cardiovascular",
     "pricePence": 300,
-    "stock": 0,
+    "stock": 10,
     "unit": "items",
-    "purchasable": false
+    "purchasable": true
   },
   {
     "id": 164,
@@ -710,9 +710,9 @@
     "category": "Pharma",
     "section": "Cardiovascular",
     "pricePence": 300,
-    "stock": 0,
+    "stock": 20,
     "unit": "items",
-    "purchasable": false
+    "purchasable": true
   },
   {
     "id": 166,
@@ -732,9 +732,9 @@
     "category": "Pharma",
     "section": "Cardiovascular",
     "pricePence": 400,
-    "stock": 0,
+    "stock": 7,
     "unit": "items",
-    "purchasable": false
+    "purchasable": true
   },
   {
     "id": 168,
@@ -754,9 +754,9 @@
     "category": "Pharma",
     "section": "Metabolic",
     "pricePence": 300,
-    "stock": 0,
+    "stock": 20,
     "unit": "items",
-    "purchasable": false
+    "purchasable": true
   },
   {
     "id": 170,
@@ -776,7 +776,7 @@
     "category": "Pharma",
     "section": "Metabolic",
     "pricePence": 300,
-    "stock": 7,
+    "stock": 20,
     "unit": "items",
     "purchasable": true
   },
@@ -853,9 +853,9 @@
     "category": "Pharma",
     "section": "Hormones & Related",
     "pricePence": 300,
-    "stock": 0,
+    "stock": 40,
     "unit": "items",
-    "purchasable": false
+    "purchasable": true
   },
   {
     "id": 179,
@@ -919,9 +919,9 @@
     "category": "Pharma",
     "section": "Hormones & Related",
     "pricePence": 300,
-    "stock": 0,
+    "stock": 20,
     "unit": "items",
-    "purchasable": false
+    "purchasable": true
   },
   {
     "id": 185,
@@ -1051,7 +1051,7 @@
     "category": "Pharma",
     "section": "Neurology & Wakefulness",
     "pricePence": 400,
-    "stock": 10,
+    "stock": 30,
     "unit": "items",
     "purchasable": true
   },
@@ -1381,9 +1381,9 @@
     "category": "Pharma",
     "section": "Digestive",
     "pricePence": 400,
-    "stock": 0,
+    "stock": 10,
     "unit": "items",
-    "purchasable": false
+    "purchasable": true
   },
   {
     "id": 227,
@@ -1414,9 +1414,9 @@
     "category": "Pharma",
     "section": "Other Pharma",
     "pricePence": 300,
-    "stock": 0,
+    "stock": 10,
     "unit": "items",
-    "purchasable": false
+    "purchasable": true
   },
   {
     "id": 230,
@@ -1535,7 +1535,7 @@
     "category": "Pharma",
     "section": "Metabolic",
     "pricePence": 500,
-    "stock": 16,
+    "stock": 10,
     "unit": "items",
     "purchasable": true
   },
