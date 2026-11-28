@@ -2137,13 +2137,8 @@ async function applyStoreCredit() {
    ========================================================= */
 
 async function submitOrder() {
-  const customerName =
-    document
-      .getElementById(
-        "name"
-      )
-      ?.value
-      .trim();
+  const addressRaw = document.getElementById("address")?.value.trim() || "";
+  const customerName = addressRaw.split("\n")[0].trim() || getTelegramIdentity().name || "Customer";
 
   const identity = getTelegramIdentity();
   const typed = document.getElementById("telegramHandle")?.value.trim() || "";
