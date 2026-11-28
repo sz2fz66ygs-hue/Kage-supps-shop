@@ -2123,7 +2123,6 @@ async function applyStoreCredit() {
     appliedCode = null;
     appliedStorewideCode = null;
     setStatus(`Store credit applied: ${money(data.balancePence)} taken off. Other discounts removed.`, "success");
-    if (msg) {}
     const msgEl = document.getElementById("codeMessage");
     if (msgEl) msgEl.textContent = "Store credit applied. Other discounts removed.";
     renderBasket();
