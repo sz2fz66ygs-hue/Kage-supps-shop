@@ -4449,7 +4449,13 @@ app.post(
 
       const verifiedId = verifiedTelegramId(req.body?.initData);
       const rawId = telegramId ? String(telegramId) : "";
-      let creditOwner = verifiedId || rawId;
+      // Only use raw ID if it matches the verified ID, or if we can confirm the username owns it
+      let creditOwner = verifiedId || "";
+      if (!creditOwner && rawId && telegramUsername) {
+        const handle = String(telegramUsername).replace(/^@/, "").toLowerCase();
+        const fromOrders = [...orders.values()].find(o => String(o.telegramId) === rawId && String(o.telegramUsername || "").replace(/^@/, "").toLowerCase() === handle);
+        if (fromOrders) creditOwner = rawId;
+      }
       if (!creditOwner && telegramUsername) {
         const handle = String(telegramUsername).replace(/^@/, "").toLowerCase();
         const fromOrders = [...orders.values()].find(o => String(o.telegramUsername || "").replace(/^@/, "").toLowerCase() === handle);
