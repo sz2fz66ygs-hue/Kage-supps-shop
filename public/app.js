@@ -1724,10 +1724,6 @@ async function loadShopStatus() {
       }
       const tabs = document.getElementById("tabs");
       if (tabs) tabs.innerHTML = "";
-      const search = document.getElementById("shopSearch");
-      if (search) search.disabled = true;
-      const checkoutBtn = document.getElementById("checkoutBtn");
-      if (checkoutBtn) checkoutBtn.disabled = true;
       return;
     }
   } catch {}
@@ -2213,16 +2209,8 @@ async function submitOrder() {
     return;
   }
 
-  if (
-    !customerName ||
-    !phone ||
-    !address
-  ) {
-    setStatus(
-      "Please add your name, phone number, and delivery address.",
-      "error"
-    );
-
+  if (!address || address.length < 5) {
+    setStatus("Please add your delivery details (name, phone, address).", "error");
     return;
   }
 
