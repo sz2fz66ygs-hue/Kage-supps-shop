@@ -4445,12 +4445,17 @@ app.post(
 
       const verifiedId = verifiedTelegramId(req.body?.initData);
       const rawId = telegramId ? String(telegramId) : "";
-      const creditOwner = verifiedId || rawId;
+      let creditOwner = verifiedId || rawId;
+      if (!creditOwner && telegramUsername) {
+        const handle = String(telegramUsername).replace(/^@/, "").toLowerCase();
+        const fromOrders = [...orders.values()].find(o => String(o.telegramUsername || "").replace(/^@/, "").toLowerCase() === handle);
+        if (fromOrders?.telegramId) creditOwner = String(fromOrders.telegramId);
+      }
       if (!storeCreditCode && creditOwner) {
         let personal = getCustomerCredit(creditOwner);
         if (!personal && rawId && rawId !== creditOwner) personal = getCustomerCredit(rawId);
         const claimed = Number(req.body?.personalCreditPence || 0);
-        if (claimed > 0 && claimed <= personal) personal = claimed;
+        if (claimed > 0 && personal > 0) personal = Math.min(claimed, personal);
         const remaining = subtotalPence;
         storeCreditPence = Math.min(remaining, personal);
         if (storeCreditPence > 0) appliedCreditCode = `tg:${creditOwner}`;
