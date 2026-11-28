@@ -8204,14 +8204,17 @@ The review has been removed.`,
         const code = "SC" + Math.random().toString(36).slice(2, 8).toUpperCase();
         takeCustomerCredit(q.from.id, balance);
         referralEarnings.set(code, { owner: "@" + q.from.id, balancePence: balance, cashOnly: false, oneTime: true });
-        return safeSendMessage(chatId, `✅ Your one-time code:\n\n\`${code}\`\n\nTap the code to copy. Worth ${money(balance)}. Enter it in the code box in the shop. It can only be used once.`, { parse_mode: "Markdown", ...getMainMenuKeyboard(q.from?.id) });
+        setMetaValue("creditcode:" + q.from.id, code);
+        return safeSendMessage(chatId, `✅ YOUR CODE\n\n${code}\n\nWorth ${money(balance)}.\n\nTap and hold the code above to copy it, then paste it in the shop.`, getMainMenuKeyboard(q.from?.id));
       }
 
       if (data === "store_credit") {
         const balance = getCustomerCredit(q.from?.id);
+        const lastCode = getMetaValue("creditcode:" + q.from?.id) || "";
+        const codeLine = lastCode ? "\n\nYour code: " + lastCode + "\n(tap and hold to copy)" : "";
         return safeSendMessage(
           chatId,
-          `💳 STORE CREDIT\n\nYou have ${money(balance)}.\n\nTap Redeem to get a one-time code, then enter it in the shop.`,
+          `💳 STORE CREDIT\n\nYou have ${money(balance)}.${codeLine}\n\nTap Redeem to get a new one-time code.`,
           { reply_markup: { inline_keyboard: [[{ text: "Redeem code", callback_data: "redeem_credit" }], [{ text: "⬅️ Menu", callback_data: "menu" }]] } }
         );
       }
