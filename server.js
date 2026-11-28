@@ -12188,7 +12188,7 @@ ${text}`
         if (state.mode === "remove") {
           await safeSendMessage(state.telegramId, `💳 ${money(pence)} store credit has been removed. You now have ${money(Math.max(0, getCustomerCredit(state.telegramId)))}.`);
         } else {
-          await safeSendMessage(state.telegramId, `💳 ${money(pence)} store credit has been added. You now have ${money(getCustomerCredit(state.telegramId))}. It comes off automatically at checkout.`);
+          await safeSendMessage(state.telegramId, `💳 ${money(pence)} store credit has been added. You now have ${money(getCustomerCredit(state.telegramId))}. Redeem a code in Store Credit, then enter it in the shop.`);
         }
         pendingAddCredit.set(chatId, { stage: "who", mode: state.mode });
         return safeSendMessage(chatId, `✅ ${state.mode === "remove" ? "Removed" : "Added"} ${money(pence)}. New balance: ${money(getCustomerCredit(state.telegramId))}.\n\nSend another ID, or /admin to stop.`);
