@@ -654,7 +654,7 @@
     "subtitle": "5mg • 10 tablets per strip",
     "category": "Pharma",
     "section": "Cardiovascular",
-    "pricePence": 300,
+    "pricePence": 500,
     "stock": 50,
     "unit": "items",
     "purchasable": true
@@ -665,7 +665,7 @@
     "subtitle": "10mg • 10 tablets per strip",
     "category": "Pharma",
     "section": "Cardiovascular",
-    "pricePence": 300,
+    "pricePence": 500,
     "stock": 14,
     "unit": "items",
     "purchasable": true
@@ -676,7 +676,7 @@
     "subtitle": "40mg • 10 tablets per strip",
     "category": "Pharma",
     "section": "Cardiovascular",
-    "pricePence": 300,
+    "pricePence": 500,
     "stock": 10,
     "unit": "items",
     "purchasable": true
@@ -687,7 +687,7 @@
     "subtitle": "25mg • 10 tablets per strip",
     "category": "Pharma",
     "section": "Cardiovascular",
-    "pricePence": 300,
+    "pricePence": 500,
     "stock": 10,
     "unit": "items",
     "purchasable": true
@@ -709,7 +709,7 @@
     "subtitle": "10mg • 10 tablets per strip",
     "category": "Pharma",
     "section": "Cardiovascular",
-    "pricePence": 300,
+    "pricePence": 500,
     "stock": 20,
     "unit": "items",
     "purchasable": true
@@ -731,7 +731,7 @@
     "subtitle": "4mg • 10 tablets per strip",
     "category": "Pharma",
     "section": "Cardiovascular",
-    "pricePence": 400,
+    "pricePence": 500,
     "stock": 7,
     "unit": "items",
     "purchasable": true
@@ -753,7 +753,7 @@
     "subtitle": "500mg • 10 tablets per strip",
     "category": "Pharma",
     "section": "Metabolic",
-    "pricePence": 300,
+    "pricePence": 500,
     "stock": 20,
     "unit": "items",
     "purchasable": true
@@ -775,7 +775,7 @@
     "subtitle": "1g • 10 tablets per strip",
     "category": "Pharma",
     "section": "Metabolic",
-    "pricePence": 300,
+    "pricePence": 500,
     "stock": 20,
     "unit": "items",
     "purchasable": true
@@ -852,7 +852,7 @@
     "subtitle": "40mcg • 10 tablets per strip",
     "category": "Pharma",
     "section": "Hormones & Related",
-    "pricePence": 300,
+    "pricePence": 500,
     "stock": 40,
     "unit": "items",
     "purchasable": true
@@ -918,7 +918,7 @@
     "subtitle": "60mg • 10 tablets per strip",
     "category": "Pharma",
     "section": "Hormones & Related",
-    "pricePence": 300,
+    "pricePence": 500,
     "stock": 20,
     "unit": "items",
     "purchasable": true
@@ -1380,7 +1380,7 @@
     "subtitle": "10 tablets per strip",
     "category": "Pharma",
     "section": "Digestive",
-    "pricePence": 400,
+    "pricePence": 500,
     "stock": 10,
     "unit": "items",
     "purchasable": true
@@ -1413,7 +1413,7 @@
     "subtitle": "10 tablets per strip",
     "category": "Pharma",
     "section": "Other Pharma",
-    "pricePence": 300,
+    "pricePence": 500,
     "stock": 10,
     "unit": "items",
     "purchasable": true
