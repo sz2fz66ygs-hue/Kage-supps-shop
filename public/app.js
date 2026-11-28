@@ -3284,7 +3284,8 @@ if (addressInput && !document.getElementById("phone")) {
 
 loadProducts();
 loadPersonalCredit();
-(function fillTelegram() {
+appliedStorewideCode = { code: "AUTO10", discountPercent: 10 };
+function fillTelegram() {
   const el = document.getElementById("telegramHandle");
   const note = document.getElementById("telegramNote");
   if (!el) return;
@@ -3296,7 +3297,10 @@ loadPersonalCredit();
   } else if (note) {
     note.textContent = "Enter your @username. Required to place an order.";
   }
-})();
+}
+fillTelegram();
+setTimeout(fillTelegram, 500);
+setTimeout(fillTelegram, 1500);
 
 /* =========================================================
    CUSTOMER ACCOUNT — phone primary, Telegram fallback
