@@ -4118,6 +4118,7 @@ app.get(
 app.get(
   "/api/referral-codes/:code/earnings",
   (req, res) => {
+    try {
     const code =
       normaliseCode(
         req.params.code
@@ -4165,6 +4166,7 @@ app.get(
           0
         )
     });
+    } catch (e) { return res.status(400).json({ error: "Code check failed." }); }
   }
 );
 
