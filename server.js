@@ -8256,7 +8256,7 @@ The review has been removed.`,
         takeCustomerCredit(q.from.id, balance);
         referralEarnings.set(code, { owner: "@" + q.from.id, balancePence: balance, cashOnly: false, oneTime: true });
         setMetaValue("creditcode:" + q.from.id, code);
-        return safeSendMessage(chatId, `✅ YOUR CODE\n\n${code}\n\nWorth ${money(balance)}.\n\nTap and hold the code above to copy it, then paste it in the shop.`, getMainMenuKeyboard(q.from?.id));
+        return safeSendMessage(chatId, `✅ YOUR CODE\n\n<code>${code}</code>\n\nWorth ${money(balance)}.\n\nTap the code to copy it, then paste it in the shop.`, { parse_mode: "HTML", ...getMainMenuKeyboard(q.from?.id) });
       }
 
       if (data === "store_credit") {
