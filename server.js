@@ -2684,6 +2684,9 @@ function orderBelongsToViewer(
 
   if (a && b && a === b) return true;
 
+  // Also match if either side has the username stored differently
+  if (a && b && (a.includes(b) || b.includes(a))) return true;
+
   // Fallback: match by customer name if Telegram was not saved on the order
   if (!order.telegramId && !order.telegramUsername && viewer.telegramUsername) {
     const name = String(order.customerName || "").toLowerCase().trim();
@@ -6661,6 +6664,27 @@ Open the shop, check what is on promotion, and see when stock has been added. If
       }
     }
   );
+
+  
+  bot.on("message", async msg => {
+    const packingChat = getPackingChatId();
+    if (!packingChat || String(msg.chat.id) !== String(packingChat)) return;
+    const text = String(msg.text || "").trim();
+    const match = text.match(/^#?(\d+)\s+(.+)$/);
+    if (!match) return;
+    const orderId = Number(match[1]);
+    const tracking = match[2].trim();
+    const order = orders.get(orderId);
+    if (!order) return safeSendMessage(msg.chat.id, "Order not found.");
+    order.trackingNumber = tracking;
+    order.fulfilmentStatus = "shipped";
+    order.shippedAt = new Date().toISOString();
+    saveOrder(order);
+    if (order.telegramId) {
+      safeSendMessage(order.telegramId, `📦 Your order has been dispatched\n\nOrder #${orderId}\n\nTracking:\n${tracking}`);
+    }
+    return safeSendMessage(msg.chat.id, `✅ Tracking added to #${orderId}`);
+  });
 
   bot.onText(
     /^\/setpacking(?:@\w+)?(?:\s+(\S+))?$/i,
