@@ -1309,8 +1309,9 @@ function renderBasket() {
       promosForBasket
     );
 
-  const promotionDiscount =
-    promotionResult.promotionDiscountPence;
+  const promotionDiscount = appliedStoreCredit
+    ? 0
+    : promotionResult.promotionDiscountPence;
 
   const afterPromotion =
     Math.max(0, subtotal - promotionDiscount);
@@ -2124,7 +2125,7 @@ async function applyStoreCredit() {
     appliedStorewideCode = null;
     setStatus(`Store credit applied: ${money(data.balancePence)} taken off. Other discounts removed.`, "success");
     const msgEl = document.getElementById("codeMessage");
-    if (msgEl) msgEl.textContent = "Store credit applied. Other discounts removed.";
+    if (msgEl) msgEl.innerHTML = "Store credit applied.<br><span style=\"font-size:12px\">Store credit cannot be stacked with promotions or affiliate codes.</span>";
     renderBasket();
 
   } catch (err) {
