@@ -3510,9 +3510,11 @@ async function loadMyOrders() {
 }
 loadMyOrders();
 
-document.getElementById("applyCode")?.addEventListener("click", async () => {
+document.addEventListener("click", async (e) => {
+  if (e.target?.id !== "applyCode") return;
   const raw = document.getElementById("codeBox")?.value.trim().toUpperCase() || "";
   const msg = document.getElementById("codeMessage");
+  if (msg) msg.textContent = "Checking…";
   if (!raw) { if (msg) msg.textContent = "Enter a code."; return; }
   // Try store credit first (SC prefix)
   if (raw.startsWith("SC")) {
