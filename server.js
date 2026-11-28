@@ -555,7 +555,7 @@ const STOCK_RESERVATION_MS = STOCK_RESERVATION_MINUTES * 60 * 1000;
    AFFILIATE CODES
    ========================================================= */
 
-const AFFILIATE_DISCOUNT_PERCENT = 10;
+const AFFILIATE_DISCOUNT_PERCENT = 7.5;
 const AFFILIATE_COMMISSION_PERCENT = 5;
 
 const affiliateCodes = [
@@ -579,7 +579,7 @@ const affiliateCodes = [
 const STOREWIDE_PROMO_DEFAULTS = {
   code: "WEEKEND10",
   discountPercent: 10,
-  active: false
+  active: true
 };
 
 /* =========================================================
@@ -2758,9 +2758,8 @@ if (getMetaValue("storewidePromo:code") === null) {
 if (getMetaValue("storewidePromo:discountPercent") === null) {
   setMetaValue("storewidePromo:discountPercent", STOREWIDE_PROMO_DEFAULTS.discountPercent);
 }
-if (getMetaValue("storewidePromo:active") === null) {
-  setMetaValue("storewidePromo:active", STOREWIDE_PROMO_DEFAULTS.active);
-}
+setMetaValue("storewidePromo:active", "1");
+setMetaValue("storewidePromo:discountPercent", "10");
 
 /* =========================================================
    REFERRAL COMMISSION
@@ -4350,6 +4349,10 @@ app.post(
         ...(injDeals.multiBuyDiscount > 0 ? [{ name: "Injectable oral multi-buy", discountPence: injDeals.multiBuyDiscount }] : []),
         ...(injDeals.stackDiscount > 0 ? [{ name: "Test + pre-workout 20%", discountPence: injDeals.stackDiscount }] : [])
       ];
+
+      if (discountCode && storewideCode) {
+        return res.status(400).json({ error: "Remove the 10% store discount before using an affiliate code." });
+      }
 
       if (discountCode) {
         const code =
