@@ -1309,27 +1309,16 @@ function renderBasket() {
       promosForBasket
     );
 
-  const promotionDiscount = appliedStoreCredit
-    ? 0
-    : promotionResult.promotionDiscountPence;
-
-  const afterPromotion =
-    Math.max(0, subtotal - promotionDiscount);
+  const promotionDiscount = appliedStoreCredit ? 0 : promotionResult.promotionDiscountPence;
+  const afterPromotion = Math.max(0, subtotal - promotionDiscount);
 
   let spendThresholdDiscount = 0;
-  if (spendThresholdPromo.active && subtotal >= spendThresholdPromo.minPence) {
+  if (!appliedStoreCredit && spendThresholdPromo.active && subtotal >= spendThresholdPromo.minPence) {
     spendThresholdDiscount = Math.round(subtotal * (spendThresholdPromo.percent / 100));
   }
 
-  const affiliateDiscount =
-    discountForSubtotal(
-      afterPromotion
-    );
-
-  const storewideDiscount =
-    storewideDiscountForSubtotal(
-      afterPromotion
-    );
+  const affiliateDiscount = appliedStoreCredit ? 0 : discountForSubtotal(afterPromotion);
+  const storewideDiscount = appliedStoreCredit ? 0 : storewideDiscountForSubtotal(afterPromotion);
 
   const totalSavings =
     promotionDiscount +
