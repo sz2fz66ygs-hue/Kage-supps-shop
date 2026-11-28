@@ -3514,3 +3514,30 @@ async function loadMyOrders() {
   }
 }
 loadMyOrders();
+
+document.getElementById("applyCode")?.addEventListener("click", async () => {
+  const raw = document.getElementById("codeBox")?.value.trim().toUpperCase() || "";
+  const msg = document.getElementById("codeMessage");
+  if (!raw) { if (msg) msg.textContent = "Enter a code."; return; }
+  // Try store credit first (SC prefix)
+  if (raw.startsWith("SC")) {
+    document.getElementById("storeCreditCode").value = raw;
+    document.getElementById("applyStoreCredit")?.click();
+    if (msg) msg.textContent = "Store credit code applied.";
+    return;
+  }
+  // Try affiliate
+  try {
+    const res = await fetch("/api/referral-codes/" + encodeURIComponent(raw));
+    if (res.ok) {
+      document.getElementById("discountCode").value = raw;
+      document.getElementById("applyDiscount")?.click();
+      if (msg) msg.textContent = "Affiliate code applied.";
+      return;
+    }
+  } catch {}
+  // Fall back to promo
+  document.getElementById("storewideCode").value = raw;
+  document.getElementById("applyStorewide")?.click();
+  if (msg) msg.textContent = "Promo code applied.";
+});
