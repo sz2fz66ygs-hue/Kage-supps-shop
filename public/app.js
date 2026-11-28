@@ -2029,15 +2029,9 @@ async function applyStorewideCode() {
    ========================================================= */
 
 async function applyStoreCredit() {
-  const input =
-    document.getElementById(
-      "storeCreditCode"
-    );
-
-  const code =
-    input
-      ?.value
-      .trim();
+  const input = document.getElementById("storeCreditCode");
+  const box = document.getElementById("codeBox");
+  const code = (input?.value || box?.value || "").trim().toUpperCase();
 
   if (
     !code
