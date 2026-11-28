@@ -4360,9 +4360,13 @@ app.post(
           record.active !== false
         ) {
           // Block people from using their own affiliate code
-          const customerHandle = String(telegramUsername || "").replace(/^@/, "").toLowerCase();
+          const customerHandle = String(telegramUsername || req.body?.telegramUsername || "").replace(/^@/, "").toLowerCase();
           const ownerHandle = String(record.referralOwner || "").replace(/^@/, "").toLowerCase();
-          if (customerHandle && ownerHandle && customerHandle === ownerHandle) {
+          const customerId = String(telegramId || verifiedTelegramId(req.body?.initData) || "");
+          const ownerId = String(record.telegramId || "");
+          const sameHandle = customerHandle && ownerHandle && customerHandle === ownerHandle;
+          const sameId = customerId && ownerId && customerId === ownerId;
+          if (sameHandle || sameId) {
             return res.status(400).json({
               error: "You cannot use your own affiliate code on an order."
             });
