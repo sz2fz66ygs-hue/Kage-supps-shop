@@ -1155,7 +1155,7 @@ app.post("/api/store-credit/redeem", (req, res) => {
   if (amount <= 0) return res.status(400).json({ error: "Enter an amount to redeem." });
   const code = "SC" + Math.random().toString(36).slice(2, 8).toUpperCase();
   takeCustomerCredit(telegramId, amount);
-  referralEarnings.set(code, { owner: "@" + telegramId, balancePence: amount, cashOnly: false, oneTime: true });
+  saveReferralEarnings(code, { owner: "@" + telegramId, balancePence: amount, cashOnly: false, oneTime: true });
   res.json({ ok: true, code, amountPence: amount, remainingPence: getCustomerCredit(telegramId) });
 });
 
@@ -8254,7 +8254,7 @@ The review has been removed.`,
         if (balance <= 0) return safeSendMessage(chatId, "No store credit to redeem.", getMainMenuKeyboard(q.from?.id));
         const code = "SC" + Math.random().toString(36).slice(2, 8).toUpperCase();
         takeCustomerCredit(q.from.id, balance);
-        referralEarnings.set(code, { owner: "@" + q.from.id, balancePence: balance, cashOnly: false, oneTime: true });
+        saveReferralEarnings(code, { owner: "@" + q.from.id, balancePence: balance, cashOnly: false, oneTime: true });
         setMetaValue("creditcode:" + q.from.id, code);
         return safeSendMessage(chatId, `✅ YOUR CODE\n\n<code>${code}</code>\n\nWorth ${money(balance)}.\n\nTap the code to copy it, then paste it in the shop.`, { parse_mode: "HTML", ...getMainMenuKeyboard(q.from?.id) });
       }
