@@ -3503,8 +3503,13 @@ async function loadMyOrders() {
       `<div style="padding:8px 0;border-bottom:1px solid #eee">
         <strong>#${o.orderId}</strong> · £${(o.totalPence/100).toFixed(2)} · ${o.paymentStatus}
         <div class="muted" style="font-size:13px">${(o.items||[]).join(", ")}</div>
+        ${o.address ? `<div class="muted" style="font-size:12px;margin-top:4px">${o.address.replace(/\n/g, ", ")}</div>` : ""}
       </div>`
     ).join("");
+    if (list[0]?.address) {
+      const addr = document.getElementById("address");
+      if (addr && !addr.value) addr.value = list[0].address;
+    }
   } catch {
     el.textContent = "Could not load orders.";
   }
