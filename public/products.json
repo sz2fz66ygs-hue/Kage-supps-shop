@@ -1,18 +1,18 @@
 [
   {
     "id": 101,
-    "name": "Testosterone Enanthate",
+    "name": "Test E",
     "subtitle": "300mg/ml • 10ml vial",
     "category": "Oils",
     "section": "Oils",
     "pricePence": 3200,
-    "stock": 1,
+    "stock": 0,
     "unit": "items",
-    "purchasable": true
+    "purchasable": false
   },
   {
     "id": 102,
-    "name": "Testosterone Cypionate",
+    "name": "Test C",
     "subtitle": "200mg/ml • 10ml vial",
     "category": "Oils",
     "section": "Oils",
@@ -23,7 +23,7 @@
   },
   {
     "id": 103,
-    "name": "Testosterone 400",
+    "name": "Test 400",
     "subtitle": "400mg/ml • 10ml vial",
     "category": "Oils",
     "section": "Oils",
@@ -34,7 +34,7 @@
   },
   {
     "id": 104,
-    "name": "Sustanon 250",
+    "name": "Sust",
     "subtitle": "250mg/ml • 10ml vial",
     "category": "Oils",
     "section": "Oils",
@@ -45,7 +45,7 @@
   },
   {
     "id": 105,
-    "name": "Trenbolone Acetate",
+    "name": "Tren A",
     "subtitle": "100mg/ml • 10ml vial",
     "category": "Oils",
     "section": "Oils",
@@ -56,7 +56,7 @@
   },
   {
     "id": 106,
-    "name": "Trenbolone Enanthate",
+    "name": "Tren E",
     "subtitle": "200mg/ml • 10ml vial",
     "category": "Oils",
     "section": "Oils",
@@ -67,7 +67,7 @@
   },
   {
     "id": 107,
-    "name": "Boldenone Undecylenate",
+    "name": "EQ",
     "subtitle": "400mg/ml • 10ml vial",
     "category": "Oils",
     "section": "Oils",
@@ -78,7 +78,7 @@
   },
   {
     "id": 108,
-    "name": "Nandrolone Decanoate",
+    "name": "Deca",
     "subtitle": "300mg/ml • 10ml vial",
     "category": "Oils",
     "section": "Oils",
@@ -89,7 +89,7 @@
   },
   {
     "id": 109,
-    "name": "Nandrolone Phenylpropionate",
+    "name": "NPP",
     "subtitle": "150mg/ml • 10ml vial",
     "category": "Oils",
     "section": "Oils",
@@ -100,7 +100,7 @@
   },
   {
     "id": 110,
-    "name": "Drostanolone Enanthate",
+    "name": "Mast E",
     "subtitle": "250mg/ml • 10ml vial",
     "category": "Oils",
     "section": "Oils",
@@ -111,7 +111,7 @@
   },
   {
     "id": 111,
-    "name": "Drostanolone Propionate",
+    "name": "Mast P",
     "subtitle": "150mg/ml • 10ml vial",
     "category": "Oils",
     "section": "Oils",
@@ -324,7 +324,7 @@
     "subtitle": "100mg SLU + 20mg BAM per capsule • 30 capsules per pouch",
     "category": "Research Compounds",
     "section": "Research Compounds",
-    "pricePence": 6500,
+    "pricePence": 6000,
     "stock": 38,
     "unit": "items",
     "purchasable": true
@@ -346,7 +346,7 @@
     "subtitle": "100mg per capsule • 30 capsules per pouch",
     "category": "Research Compounds",
     "section": "Research Compounds",
-    "pricePence": 5500,
+    "pricePence": 4000,
     "stock": 17,
     "unit": "items",
     "purchasable": true
@@ -357,7 +357,7 @@
     "subtitle": "20mg per capsule • 30 capsules per pouch",
     "category": "Research Compounds",
     "section": "Research Compounds",
-    "pricePence": 4000,
+    "pricePence": 3500,
     "stock": 1,
     "unit": "items",
     "purchasable": true
@@ -368,7 +368,7 @@
     "subtitle": "50mg per capsule • 30 capsules per pouch",
     "category": "Research Compounds",
     "section": "Research Compounds",
-    "pricePence": 5500,
+    "pricePence": 5000,
     "stock": 4,
     "unit": "items",
     "purchasable": true
@@ -379,7 +379,7 @@
     "subtitle": "10mg per capsule • 30 capsules per pouch",
     "category": "Research Compounds",
     "section": "Research Compounds",
-    "pricePence": 5000,
+    "pricePence": 4000,
     "stock": 5,
     "unit": "items",
     "purchasable": true
@@ -390,7 +390,7 @@
     "subtitle": "2mg per capsule • 30 capsules per pouch",
     "category": "Research Compounds",
     "section": "Research Compounds",
-    "pricePence": 5000,
+    "pricePence": 3500,
     "stock": 4,
     "unit": "items",
     "purchasable": true
@@ -401,7 +401,7 @@
     "subtitle": "20mg per capsule • 30 capsules per pouch",
     "category": "Research Compounds",
     "section": "Research Compounds",
-    "pricePence": 4500,
+    "pricePence": 4000,
     "stock": 7,
     "unit": "items",
     "purchasable": true
@@ -412,7 +412,7 @@
     "subtitle": "5mg per capsule • 30 capsules per pouch",
     "category": "Research Compounds",
     "section": "Research Compounds",
-    "pricePence": 4500,
+    "pricePence": 4000,
     "stock": 19,
     "unit": "items",
     "purchasable": true
@@ -434,7 +434,7 @@
     "subtitle": "120mg per capsule • 30 capsules per pouch",
     "category": "Research Compounds",
     "section": "Research Compounds",
-    "pricePence": 3300,
+    "pricePence": 3000,
     "stock": 6,
     "unit": "items",
     "purchasable": true
@@ -1578,7 +1578,7 @@
     "subtitle": "100mg per capsule • 30 capsules per pouch",
     "category": "Research Compounds",
     "section": "Research Compounds",
-    "pricePence": 5500,
+    "pricePence": 4000,
     "stock": 7,
     "unit": "items",
     "purchasable": true
